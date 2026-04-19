@@ -138,9 +138,9 @@ export default function BannerBuilder() {
               <CardContent className="space-y-4">
                 {inputMode === 'lp' && (
                   <>
-                    <input className="w-full bg-neutral-900 border border-neutral-700 p-3 rounded" placeholder="LPのURL (例: https://...)" value={url} onChange={e => setUrl(e.target.value)} />
-                    <input className="w-full bg-neutral-900 border border-neutral-700 p-3 rounded" placeholder="商品名" value={productName} onChange={e => setProductName(e.target.value)} />
-                    <input className="w-full bg-neutral-900 border border-neutral-700 p-3 rounded" placeholder="ターゲット層" value={target} onChange={e => setTarget(e.target.value)} />
+                    <input className="w-full bg-neutral-900 border border-neutral-700 p-3 rounded text-white" placeholder="LPのURL (例: https://...)" value={url} onChange={e => setUrl(e.target.value)} />
+                    <input className="w-full bg-neutral-900 border border-neutral-700 p-3 rounded text-white" placeholder="商品名" value={productName} onChange={e => setProductName(e.target.value)} />
+                    <input className="w-full bg-neutral-900 border border-neutral-700 p-3 rounded text-white" placeholder="ターゲット層" value={target} onChange={e => setTarget(e.target.value)} />
                   </>
                 )}
                 {inputMode === 'image' && (
