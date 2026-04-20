@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '', // defaults to process.env.ANTHROPIC_API_KEY
-});
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function POST(req: Request) {
   try {
     const { url, productName, target, competitorInsights } = await req.json();
 
-    if (!url && !productName) {
-      return NextResponse.json({ error: 'URL or Product Name is required' }, { status: 400 });
+    if (!url && !productName && !competitorInsights) {
+      return NextResponse.json({ error: 'URL or Product Name or Image Upload is required' }, { status: 400 });
     }
 
     let lpText = '';
@@ -20,12 +18,11 @@ export async function POST(req: Request) {
          const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
            headers: {
              'Accept': 'text/plain',
-             // 'Authorization': `Bearer ${process.env.JINA_API_KEY}` // Required if using auth
            }
          });
          if (jinaRes.ok) {
            lpText = await jinaRes.text();
-           lpText = lpText.slice(0, 15000); // Limit context size for Claude
+           lpText = lpText.slice(0, 15000); // Limit context size
          }
        } catch (e: any) {
          console.warn("Jina reader failed:", e);
@@ -33,8 +30,8 @@ export async function POST(req: Request) {
     }
 
     const systemPrompt = `
-あなたは世界最高峰のダイレクトレスポンス・コピーライターであり、バナー広告のクリエイティブ・ディレクターです。
-与えられた商材情報（および競合/過去バナーの分析インサイト）をもとに、以下の4つのマーケティング・アングル（訴求軸）でバナー用のコピーと背景画像のプロンプトを作成してください。
+あなたは世界最高峰のダイレクトレスポンス・コピーライター兼広告クリエイティブディレクターです。
+与えられた商材情報（および競合/過去バナーの分析インサイト）をもとに、以下の4つのマーケティング・アングル（訴求軸）で、クリック率（CTR）を最大化するための広告コピーとデザイン仕様を策定してください。
 
 【4つのアングル】
 1. Benefit（ベネフィット・得られる理想の未来）
@@ -44,14 +41,28 @@ export async function POST(req: Request) {
 
 【フォーマット要件】
 以下のJSON配列フォーマットだけで回答してください。Markdownのバッククォートなども含めないでください。
+
 [
   {
-    "angle": "Benefit",
-    "mainCopy": "短いキャッチコピー(20文字以内)",
-    "subCopy": "メインを補足する文章(30文字以内)",
-    "imagePrompt": "背景画像生成AI(Flux)用の英語プロンプト。"
-  },
-  ...
+    "strategy": {
+      "angle": "訴求軸名（例：Benefit）",
+      "target_insight": "ターゲットがこのバナーを見てどう感じるべきか"
+    },
+    "copy": {
+      "main_copy": "強調したい単語を必ず<mark></mark>で一つだけ囲んだ20文字以内の強力なコピー",
+      "sub_copy": "メインコピーを補足する、具体的で魅力的な35文字以内のサブコピー",
+      "cta_text": "思わずクリックしたくなるボタン文言（例：今すぐ無料で試す）"
+    },
+    "design_specs": {
+      "tone_and_manner": "デザインの雰囲気（例：清潔感のあるミニマル、エネルギッシュなポップ、信頼感のあるビジネス）",
+      "color_palette": {
+        "main": "メインテキスト用の視認性の高い色（Hex）",
+        "accent": "強調色・CTAボタン用の目立つ色（Hex）"
+      },
+      "layout_id": "配置パターン（z-pattern または split-screen または center-focus のいずれかを必ず指定。迷う場合は split-screen を推奨）",
+      "image_gen_prompt": "高画質な背景画像生成用の詳細な英語プロンプト。※テキストは含めず、ネガティブスペースを意識した構図を指示すること"
+    }
+  }
 ]
 `;
 
@@ -68,26 +79,27 @@ ${competitorInsights || 'なし'}
 出力はJSON配列のみ。
 `;
 
-    const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20240620',
-      max_tokens: 2000,
-      temperature: 0.7,
-      system: systemPrompt,
-      messages: [
-        { role: 'user', content: userPrompt }
-      ]
+    const generateResponse = await ai.models.generateContent({
+      model: 'gemini-3.1-pro-preview',
+      contents: [
+        systemPrompt + "\n\n" + userPrompt
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.7
+      }
     });
 
-    const outputText = (message.content[0] as any).text;
+    const outputText = generateResponse.text;
     
     // Attempt to parse json structure
     try {
-        // Strip markdown backticks if claude adds them
+        if (!outputText) throw new Error("Empty response");
         const cleanJSON = outputText.replace(/```json/g, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(cleanJSON);
         return NextResponse.json({ variations: parsed });
     } catch(e) {
-        console.error("Failed to parse Claude output:", outputText);
+        console.error("Failed to parse Gemini output:", outputText);
         return NextResponse.json({ error: 'AI出力のJSONパースに失敗しました。', raw: outputText }, { status: 500 });
     }
 

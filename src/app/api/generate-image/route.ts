@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import Replicate from 'replicate';
+import { GoogleGenAI } from '@google/genai';
 
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN || '',
-});
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function POST(req: Request) {
   try {
@@ -13,26 +11,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // Call Flux.1 dev or schnell via Replicate
-    // "black-forest-labs/flux-schnell" is highly optimized and fast.
-    const output = await replicate.run(
-      "black-forest-labs/flux-schnell",
-      {
-        input: {
-          prompt: prompt,
-          width: 1024,
-          height: 1024,
-          num_outputs: 1,
-          output_format: "webp",
-          output_quality: 90
-        }
-      }
-    );
+    // Call Google Gemini Imagen 3 (Nano Banana) API
+    // gemini-3.1-flash-image-preview or gemini-3-pro-image-preview
+    // Using flash for speed/efficiency as mentioned in docs
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-image-preview",
+      contents: prompt,
+    });
 
-    // Replicate returns an array of image URLs
-    const imageUrl = Array.isArray(output) ? output[0] : output;
+    let base64Image = null;
+    
+    // Parse the response which contains inlineData for the generated image
+    if (response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts) {
+       for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData) {
+             base64Image = `data:${part.inlineData.mimeType || 'image/jpeg'};base64,${part.inlineData.data}`;
+             break;
+          }
+       }
+    }
 
-    return NextResponse.json({ imageUrl });
+    if (!base64Image) {
+      throw new Error("No image data returned from Gemini Imagen API.");
+    }
+
+    return NextResponse.json({ imageUrl: base64Image });
 
   } catch (error: any) {
     console.error('API Error (generate-image):', error);
