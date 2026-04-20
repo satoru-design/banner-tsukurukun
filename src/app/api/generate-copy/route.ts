@@ -5,28 +5,10 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function POST(req: Request) {
   try {
-    const { url, productName, target, competitorInsights } = await req.json();
+    const { productName, target, competitorInsights, lpText } = await req.json();
 
-    if (!url && !productName && !competitorInsights) {
-      return NextResponse.json({ error: 'URL or Product Name or Image Upload is required' }, { status: 400 });
-    }
-
-    let lpText = '';
-    if (url) {
-       // Use Jina Reader to get clean markdown from LP
-       try {
-         const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
-           headers: {
-             'Accept': 'text/plain',
-           }
-         });
-         if (jinaRes.ok) {
-           lpText = await jinaRes.text();
-           lpText = lpText.slice(0, 15000); // Limit context size
-         }
-       } catch (e: any) {
-         console.warn("Jina reader failed:", e);
-       }
+    if (!productName && !competitorInsights && !lpText) {
+      return NextResponse.json({ error: 'Product Name or Insights or LP Text is required' }, { status: 400 });
     }
 
     const systemPrompt = `
@@ -60,7 +42,7 @@ export async function POST(req: Request) {
         "accent": "強調色・CTAボタン用の目立つ色（Hex）"
       },
       "layout_id": "配置パターン（z-pattern または split-screen または center-focus のいずれかを必ず指定。迷う場合は split-screen を推奨）",
-      "image_gen_prompt": "高画質な背景画像生成用の詳細な英語プロンプト。※テキストは含めず、ネガティブスペースを意識した構図を指示すること"
+      "image_gen_prompt": "高画質な背景画像生成用の詳細な英語プロンプト。※抽出されたLPの世界観（和風、モダニズム、メディカル等）や得られたインサイトのトーンを色濃く反映させ、ネガティブスペースを意識した構図を指示すること。テキストは含めない"
     }
   }
 ]

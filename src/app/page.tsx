@@ -73,6 +73,7 @@ export default function BannerBuilder() {
   const [productName, setProductName] = useState('');
   const [target, setTarget] = useState('');
   const [insightData, setInsightData] = useState<any>(null);
+  const [lpRawText, setLpRawText] = useState<string>('');
   
   // ---- Step 2: Generation State ----
   const [variations, setVariations] = useState<any[]>([]);
@@ -182,6 +183,22 @@ export default function BannerBuilder() {
     } finally { setLoading(false); }
   };
 
+  const handleAnalyzeLp = async () => {
+    if (!url) return alert('URLを入力してください');
+    setLoading(true); setLoadingMsg("LPをスクレイピングしてインサイトを解析中...");
+    try {
+      const res = await fetch('/api/analyze-lp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setInsightData(data.insights);
+      setLpRawText(data.lpText);
+    } catch (err: any) { alert("LP解析エラー: " + err.message); }
+    setLoading(false);
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -213,7 +230,7 @@ export default function BannerBuilder() {
       const insightsStr = insightData ? JSON.stringify(insightData) : '';
       const res = await fetch('/api/generate-copy', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, productName, target, competitorInsights: insightsStr })
+        body: JSON.stringify({ productName, target, competitorInsights: insightsStr, lpText: lpRawText })
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -395,7 +412,10 @@ export default function BannerBuilder() {
                       <div className="space-y-4">
                         <div>
                           <label className="text-xs text-neutral-400 font-bold mb-1 block">商材LPのURL (必須)</label>
-                          <input type="text" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." className="w-full bg-neutral-900 border border-neutral-700 rounded p-3 text-white focus:border-teal-500 outline-none" />
+                          <div className="flex gap-2">
+                            <input type="text" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." className="flex-grow bg-neutral-900 border border-neutral-700 rounded p-3 text-white focus:border-teal-500 outline-none" />
+                            <button onClick={handleAnalyzeLp} className="bg-teal-600 hover:bg-teal-500 text-white px-4 font-bold rounded shadow-lg whitespace-nowrap text-sm flex items-center gap-1"><ScanEye className="w-4 h-4"/> 解析</button>
+                          </div>
                         </div>
                         <div>
                           <label className="text-xs text-neutral-400 font-bold mb-1 block">商材名</label>
@@ -433,6 +453,7 @@ export default function BannerBuilder() {
                         <div><span className="font-bold text-teal-400">推測される商材:</span> {insightData.inferred_product_name}</div>
                         <div><span className="font-bold text-teal-400">ターゲット:</span> {insightData.inferred_target_demographic}</div>
                         <div><span className="font-bold text-teal-400">メイン訴求:</span> {insightData.main_appeal}</div>
+                        {insightData.worldview && <div><span className="font-bold text-teal-400">世界観/トーン:</span> {insightData.worldview}</div>}
                       </div>
                     ) : (
                       <div className="h-40 flex items-center justify-center text-neutral-600">解析データ待ち</div>
