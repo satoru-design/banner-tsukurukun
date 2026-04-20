@@ -449,7 +449,7 @@ export default function BannerBuilder() {
                   </CardHeader>
                   <CardContent className="text-sm">
                     {insightData ? (
-                      <div className="space-y-4 bg-neutral-900 p-4 rounded border border-neutral-700">
+                      <div className="space-y-4 bg-neutral-900 p-4 rounded border border-neutral-700 text-white leading-relaxed">
                         <div><span className="font-bold text-teal-400">推測される商材:</span> {insightData.inferred_product_name}</div>
                         <div><span className="font-bold text-teal-400">ターゲット:</span> {insightData.inferred_target_demographic}</div>
                         <div><span className="font-bold text-teal-400">メイン訴求:</span> {insightData.main_appeal}</div>
