@@ -136,3 +136,19 @@ export function computeDefaultBadgePosition(
   if (angle === 'numeric') return 'center-right';
   return 'bottom-right';
 }
+
+export type ProductCategory = 'health' | 'cosme' | 'travel' | 'btob' | 'ec-general';
+
+export function autoSelectCta(
+  category: ProductCategory,
+  urgency: Urgency
+): CtaTemplateId {
+  const map: Record<ProductCategory, Record<Urgency, CtaTemplateId>> = {
+    health: { low: 'cta-green-arrow', high: 'cta-red-urgent' },
+    cosme: { low: 'cta-gold-premium', high: 'cta-orange-arrow' },
+    travel: { low: 'cta-orange-arrow', high: 'cta-red-urgent' },
+    btob: { low: 'cta-navy-trust', high: 'cta-navy-trust' },
+    'ec-general': { low: 'cta-orange-arrow', high: 'cta-red-urgent' },
+  };
+  return map[category][urgency];
+}

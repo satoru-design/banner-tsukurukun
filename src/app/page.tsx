@@ -13,6 +13,7 @@ import { Step1Input } from "@/components/steps/Step1Input";
 import { Step2Angles } from "@/components/steps/Step2Angles";
 import { Step3Editor } from "@/components/steps/Step3Editor";
 import type { ImageProviderId } from "@/lib/image-providers/types";
+import type { PriceBadge, CtaTemplateId } from '@/lib/banner-state';
 
 type InsightData = {
   inferred_product_name?: string;
@@ -107,6 +108,11 @@ export default function BannerBuilder() {
   const [imageModel, setImageModel] = useState<ImageProviderId>('imagen4');
   const [lastProviderUsed, setLastProviderUsed] = useState<ImageProviderId | null>(null);
   const [lastFallback, setLastFallback] = useState<boolean>(false);
+
+  // ---- Phase A5: Price Badge & CTA ----
+  const [activeBadge, setActiveBadge] = useState<PriceBadge | null>(null);
+  const [activeCtaTemplateId, setActiveCtaTemplateId] = useState<CtaTemplateId>('cta-orange-arrow');
+  const [activeCtaText, setActiveCtaText] = useState<string>('今すぐ購入');
 
   React.useEffect(() => {
     const updateScale = () => {
@@ -243,6 +249,18 @@ export default function BannerBuilder() {
        const lid = v.design_specs.layout_id;
        setLayoutStyle(lid === 'center-focus' ? 'center' : (lid === 'split-screen' ? 'left' : 'left'));
     }
+
+    // Phase A5: Load priceBadge / ctaTemplate from variation
+    const vAny = v as unknown as {
+      priceBadge?: PriceBadge | null;
+      ctaTemplate?: { id: CtaTemplateId; text: string; arrow?: boolean };
+    };
+    setActiveBadge(vAny.priceBadge ?? null);
+    if (vAny.ctaTemplate) {
+      setActiveCtaTemplateId(vAny.ctaTemplate.id);
+      setActiveCtaText(vAny.ctaTemplate.text);
+    }
+
     setStep(3);
   };
 
@@ -466,6 +484,12 @@ export default function BannerBuilder() {
             setImageModel={setImageModel}
             lastProviderUsed={lastProviderUsed}
             lastFallback={lastFallback}
+            activeBadge={activeBadge}
+            setActiveBadge={setActiveBadge}
+            activeCtaTemplateId={activeCtaTemplateId}
+            setActiveCtaTemplateId={setActiveCtaTemplateId}
+            activeCtaText={activeCtaText}
+            setActiveCtaText={setActiveCtaText}
           />
         )}
       </div>
