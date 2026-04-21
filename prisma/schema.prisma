@@ -26,6 +26,31 @@ model Banner {
   emphasisRatio    String?  // "2x" | "3x"
   urgency          String?  // "low" | "high"
 
+  styleProfileId   String?
+  styleProfile     StyleProfile? @relation(fields: [styleProfileId], references: [id])
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model StyleProfile {
+  id                  String   @id @default(cuid())
+  name                String   @unique
+  productContext      String?
+
+  // Vercel Blob URLs, JSON.stringify(string[])
+  referenceImageUrls  String
+
+  // Extracted 6 elements, JSON.stringify
+  visualStyle         String
+  typography          String
+  priceBadge          String
+  cta                 String
+  layout              String
+  copyTone            String
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  banners             Banner[]
 }

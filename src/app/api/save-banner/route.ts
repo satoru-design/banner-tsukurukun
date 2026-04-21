@@ -25,6 +25,8 @@ export async function POST(req: Request) {
       ctaText,
       emphasisRatio,
       urgency,
+      // Phase A.6
+      styleProfileId,
     } = data;
 
     const banner = await prisma.banner.create({
@@ -44,6 +46,7 @@ export async function POST(req: Request) {
         ctaText,
         emphasisRatio,
         urgency,
+        styleProfileId: styleProfileId ?? null,
       },
     });
 
