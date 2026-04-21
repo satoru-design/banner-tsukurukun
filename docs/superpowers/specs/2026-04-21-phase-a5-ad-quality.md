@@ -397,6 +397,9 @@ export function validateAndFixMarkTag(mainCopy: string): string {
 - 50代以上 / シニア: **-0.5x**
 - BtoB: **-0.5x**
 
+> **Phase A.5 では未実装、Phase A.6 で対応予定**。
+> `analyze-lp` の `inferred_target_demographic` からの自動判定ロジックは、リファレンス学習モード（Phase A.6）の一部として実装する。Phase A.5 では `emphasis_ratio` は Gemini 出力（`2x` or `3x`）をそのまま使う。
+
 #### `renderRichText` 拡張
 
 ```typescript
@@ -601,6 +604,7 @@ Phase A と同様、スコープ外。`image-providers` のようなユニット
 
 - 文字装飾（座布団・フチ自動判定）→ Phase C で統合
 - リファレンス画像学習モード → Phase A.6 で独立
+- ターゲット層補正（`inferred_target_demographic` → `emphasis_ratio` 自動加減）→ Phase A.6 で独立
 - スマートリサイズ（3 サイズ自動展開）→ Phase B
 - 動画バナー・アニメーション GIF
 - A/B テスト配信機能

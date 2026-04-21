@@ -7,16 +7,25 @@ datasource db {
 }
 
 model Banner {
-  id          String   @id @default(cuid())
-  productName String?
-  lpUrl       String?
-  target      String?
-  mainCopy    String?
-  subCopy     String?
-  elements    String?  // JSON serialized drag & drop elements
-  base64Image String?  // プレビュー保存用
-  angle       String?  // アングル種別
-  imageModel  String?  // NEW: "imagen4" | "flux"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  productName      String?
+  lpUrl            String?
+  target           String?
+  mainCopy         String?
+  subCopy          String?
+  elements         String?
+  base64Image      String?
+  angle            String?
+  imageModel       String?
+
+  // Phase A.5 で追加
+  angleId          String?  // "benefit" | "fear" | ... | "sensory"
+  priceBadge       String?  // JSON stringified PriceBadge | null
+  ctaTemplateId    String?  // CTA テンプレ ID
+  ctaText          String?  // 実際に使われた CTA 文言
+  emphasisRatio    String?  // "2x" | "3x"
+  urgency          String?  // "low" | "high"
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }

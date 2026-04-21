@@ -9,6 +9,9 @@ import html2canvas from "html2canvas";
 import { CanvasElement, CanvasSize, SIZES, renderRichText } from '@/lib/banner-state';
 import { ModelSelector } from './ModelSelector';
 import type { ImageProviderId } from '@/lib/image-providers/types';
+import { PriceBadge } from '@/components/canvas/PriceBadge';
+import { CtaButton } from '@/components/canvas/CtaButton';
+import type { PriceBadge as PriceBadgeType, CtaTemplateId } from '@/lib/banner-state';
 
 type DesignSpecs = {
   layout_id?: string;
@@ -75,6 +78,22 @@ type Props = {
   setImageModel: (v: ImageProviderId) => void;
   lastProviderUsed: ImageProviderId | null;
   lastFallback: boolean;
+
+  // Phase A5: Price Badge
+  activeBadge: PriceBadgeType | null;
+  setActiveBadge: (badge: PriceBadgeType | null) => void;
+  // Phase A5: CTA
+  activeCtaTemplateId: CtaTemplateId;
+  setActiveCtaTemplateId: (id: CtaTemplateId) => void;
+  activeCtaText: string;
+  setActiveCtaText: (text: string) => void;
+  // Phase A5: Jump rate (emphasis ratio)
+  activeEmphasisRatio: '2x' | '3x';
+  // Phase A5: Urgency (drives CTA pulse)
+  activeUrgency: 'low' | 'high';
+  // Phase A5: html2canvas capture mode (disables animations to avoid flicker)
+  isCapturing: boolean;
+  setIsCapturing: (v: boolean) => void;
 };
 
 export function Step3Editor(props: Props) {
@@ -335,9 +354,14 @@ export function Step3Editor(props: Props) {
               onClick={async () => {
                 if(!canvasRef.current) return;
                 setSelectedElementId(null);
+                props.setIsCapturing(true);
                 setTimeout(async () => {
-                  const canvas = await html2canvas(canvasRef.current!, { scale: 2, useCORS: true });
-                  const link = document.createElement('a'); link.download = 'creative.png'; link.href = canvas.toDataURL(); link.click();
+                  try {
+                    const canvas = await html2canvas(canvasRef.current!, { scale: 2, useCORS: true });
+                    const link = document.createElement('a'); link.download = 'creative.png'; link.href = canvas.toDataURL(); link.click();
+                  } finally {
+                    props.setIsCapturing(false);
+                  }
                 }, 100);
               }}
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-12 rounded-lg flex items-center justify-center gap-2"
@@ -384,7 +408,7 @@ export function Step3Editor(props: Props) {
                              </div>
                           ) : el.type === 'main' ? (
                              <div className={`no-drag flex-grow outline-none ${el.style}`} style={{ fontFamily: el.textStyle.fontFamily, textShadow: el.textStyle.textShadow, WebkitTextStroke: `${el.textStyle.textStrokeWidth || 0}px ${el.textStyle.textStrokeColor || 'transparent'}`, color: el.textStyle.color, backgroundColor: el.textStyle.backgroundColor, fontSize: `${el.textStyle.fontSize}px`, fontWeight: el.textStyle.fontWeight, textAlign: el.textStyle.textAlign }}>
-                                {renderRichText(el.content, activeDesignSpecs?.color_palette?.accent || '#38bdf8')}
+                                {renderRichText(el.content, activeDesignSpecs?.color_palette?.accent || '#38bdf8', props.activeEmphasisRatio ?? '2x')}
                              </div>
                           ) : el.type === 'shape' ? (
                              <div className={el.style} style={el.id === 'bg-plate' ? { background: 'linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' } : { backgroundColor: el.textStyle.backgroundColor }} />
@@ -398,6 +422,35 @@ export function Step3Editor(props: Props) {
                        </div>
                     </Rnd>
                  ))}
+
+                 {/* Phase A5: Price Badge overlay */}
+                 {props.activeBadge && (
+                   <div
+                     className="absolute z-20"
+                     style={getBadgePositionStyle(props.activeBadge.position, canvasSize)}
+                   >
+                     <PriceBadge badge={props.activeBadge} />
+                   </div>
+                 )}
+
+                 {/* Phase A5: CTA overlay */}
+                 {props.activeCtaText && hasCta !== 'no' && (
+                   <div
+                     className="absolute z-20"
+                     style={{
+                       bottom: `${canvasSize.h * 0.08}px`,
+                       left: '50%',
+                       transform: 'translateX(-50%)',
+                     }}
+                   >
+                     <CtaButton
+                       templateId={props.activeCtaTemplateId}
+                       text={props.activeCtaText}
+                       showArrow={true}
+                       pulse={props.activeUrgency === 'high' && !props.isCapturing}
+                     />
+                   </div>
+                 )}
               </div>
             </div>
            );
@@ -405,4 +458,20 @@ export function Step3Editor(props: Props) {
        </div>
     </div>
   );
+}
+
+function getBadgePositionStyle(
+  position: string,
+  canvas: { w: number; h: number }
+): React.CSSProperties {
+  const m = canvas.w * 0.04;
+  switch (position) {
+    case 'top-left': return { top: m, left: m };
+    case 'top-right': return { top: m, right: m };
+    case 'bottom-left': return { bottom: m, left: m };
+    case 'bottom-right': return { bottom: m, right: m };
+    case 'center-right': return { top: '50%', right: m, transform: 'translateY(-50%)' };
+    case 'floating-product':
+    default: return { bottom: canvas.h * 0.2, right: canvas.w * 0.35 };
+  }
 }
