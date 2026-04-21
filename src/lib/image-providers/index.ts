@@ -27,6 +27,17 @@ export function listProviders(): ImageProvider[] {
   return Object.values(REGISTRY);
 }
 
+/**
+ * 一時的な障害だけフォールバック対象にする。
+ * 認証エラー・セーフティ違反・バリデーションエラー等の**恒久エラー**で両プロバイダに無駄課金するのを防ぐ。
+ */
+function isTransientError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /timeout|abort|5\d\d|rate.?limit|ECONN|ETIMEDOUT|ENOTFOUND|socket hang up/i.test(
+    msg,
+  );
+}
+
 export async function generateWithFallback(
   preferred: ImageProviderId,
   params: GenerateParams,
@@ -49,6 +60,10 @@ export async function generateWithFallback(
       return result;
     } catch (err) {
       lastError = err;
+      // 恒久エラーなら即 throw し、もう一方への無駄な API コールを防ぐ
+      if (!isTransientError(err)) {
+        throw err;
+      }
     }
   }
   throw (

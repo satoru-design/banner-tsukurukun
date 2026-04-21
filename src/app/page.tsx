@@ -12,6 +12,7 @@ import {
 import { Step1Input } from "@/components/steps/Step1Input";
 import { Step2Angles } from "@/components/steps/Step2Angles";
 import { Step3Editor } from "@/components/steps/Step3Editor";
+import type { ImageProviderId } from "@/lib/image-providers/types";
 
 type InsightData = {
   inferred_product_name?: string;
@@ -103,8 +104,8 @@ export default function BannerBuilder() {
   const [viewScale, setViewScale] = useState(1);
 
   // ---- Phase A5: Image Model Selection ----
-  const [imageModel, setImageModel] = useState<'imagen4' | 'flux'>('imagen4');
-  const [lastProviderUsed, setLastProviderUsed] = useState<string | null>(null);
+  const [imageModel, setImageModel] = useState<ImageProviderId>('imagen4');
+  const [lastProviderUsed, setLastProviderUsed] = useState<ImageProviderId | null>(null);
   const [lastFallback, setLastFallback] = useState<boolean>(false);
 
   React.useEffect(() => {

@@ -8,6 +8,7 @@ import { Wand2, Download, LayoutTemplate, Type, Palette, Share2, Save, ImagePlus
 import html2canvas from "html2canvas";
 import { CanvasElement, CanvasSize, SIZES, renderRichText } from '@/lib/banner-state';
 import { ModelSelector } from './ModelSelector';
+import type { ImageProviderId } from '@/lib/image-providers/types';
 
 type DesignSpecs = {
   layout_id?: string;
@@ -70,9 +71,9 @@ type Props = {
   onBackToConditions: () => void;
 
   // Phase A5: Image model selection
-  imageModel: 'imagen4' | 'flux';
-  setImageModel: (v: 'imagen4' | 'flux') => void;
-  lastProviderUsed: string | null;
+  imageModel: ImageProviderId;
+  setImageModel: (v: ImageProviderId) => void;
+  lastProviderUsed: ImageProviderId | null;
   lastFallback: boolean;
 };
 

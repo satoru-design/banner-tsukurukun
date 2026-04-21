@@ -31,6 +31,10 @@ export const fluxProvider: ImageProvider = {
 
   async generate(params: GenerateParams): Promise<GenerateResult> {
     const replicate = new Replicate({ auth: ensureKey() });
+    // Vercel Hobby の function duration 60s を考慮して 45s で中断する。
+    // Vercel 側で 504 された後も Replicate のジョブが完走して二重課金される R-C2 対策。
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 45_000);
     try {
       const input = {
         prompt: params.prompt,
@@ -42,6 +46,7 @@ export const fluxProvider: ImageProvider = {
 
       const output = await replicate.run('black-forest-labs/flux-1.1-pro', {
         input,
+        signal: controller.signal,
       });
 
       // replicate.run() may return a string URL, an array of URLs, or a
@@ -71,7 +76,20 @@ export const fluxProvider: ImageProvider = {
         );
       }
 
-      const res = await fetch(url);
+      // R-H3: Replicate が返す URL が想定ホストであることを検証（SSRF 対策）
+      const parsed = new URL(url);
+      const allowed = ['replicate.delivery', 'pbxt.replicate.delivery'];
+      if (
+        parsed.protocol !== 'https:' ||
+        !allowed.some((d) => parsed.hostname.endsWith(d))
+      ) {
+        throw new ImageProviderError(
+          'flux',
+          `Untrusted image URL host: ${parsed.hostname}`,
+        );
+      }
+
+      const res = await fetch(url, { signal: controller.signal });
       if (!res.ok) {
         throw new ImageProviderError(
           'flux',
@@ -99,6 +117,8 @@ export const fluxProvider: ImageProvider = {
         err instanceof Error ? err.message : 'Unknown error',
         err,
       );
+    } finally {
+      clearTimeout(timer);
     }
   },
 };

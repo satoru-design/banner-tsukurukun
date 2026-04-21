@@ -1,21 +1,22 @@
 'use client';
 
 import React from 'react';
+import type { ImageProviderId } from '@/lib/image-providers/types';
 
 type Props = {
-  value: 'imagen4' | 'flux';
-  onChange: (v: 'imagen4' | 'flux') => void;
+  value: ImageProviderId;
+  onChange: (v: ImageProviderId) => void;
   disabled?: boolean;
 };
 
 export function ModelSelector({ value, onChange, disabled }: Props) {
   const options: Array<{
-    id: 'imagen4' | 'flux';
+    id: ImageProviderId;
     label: string;
     hint: string;
   }> = [
-    { id: 'imagen4', label: 'Imagen 4 Ultra', hint: '写実・人物・和風に強い' },
-    { id: 'flux', label: 'FLUX 1.1 pro', hint: 'アート・ダイナミック・抽象に強い' },
+    { id: 'imagen4', label: 'Imagen 4 Ultra', hint: '写実・人物・和風に強い / seed非対応' },
+    { id: 'flux', label: 'FLUX 1.1 pro', hint: 'アート・ダイナミック・抽象に強い / seed対応' },
   ];
 
   return (

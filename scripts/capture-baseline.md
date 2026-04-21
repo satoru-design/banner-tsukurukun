@@ -16,6 +16,23 @@ Phase A（画像モデル Dual 化）の効果を可視化するため、同一 
 
 ---
 
+## ⚠ Phase A 着手後に気づいた方向け
+
+現在の `feature/phase-a-image-dual` ブランチは既に Imagen 4 / FLUX に切り替わっています。**厳密な Before ベースライン（Gemini Flash 時代）を取りたい場合**は、一時的に main（または Phase A 前のタグ）に戻してから録画してください：
+
+```bash
+git stash                       # 作業中ブランチの変更を退避
+git checkout main               # Gemini Flash 時代のコード
+npm install && npm run dev      # ポート 3000 or 3001
+# → 12 枚キャプチャ
+git checkout feature/phase-a-image-dual
+git stash pop
+```
+
+もし口頭記憶で十分なら、Before 録画はスキップして After 録画（Phase A 完了後 = 下記）のみで比較してもOKです。
+
+---
+
 ## 手順（Phase A 着手前 = Before 録画）
 
 1. ローカル起動

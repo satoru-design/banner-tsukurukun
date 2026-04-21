@@ -58,7 +58,9 @@ export const imagen4Provider: ImageProvider = {
         providerMetadata: {
           model: 'imagen-4.0-ultra-generate-001',
           aspectRatio: params.aspectRatio,
-          seed: params.seed,
+          // AI Studio の Imagen 4 は seed 非対応。呼び出し側が渡した値は保持するが適用されていない旨を明示。
+          seedRequested: params.seed,
+          seedApplied: false,
         },
       };
     } catch (err) {
