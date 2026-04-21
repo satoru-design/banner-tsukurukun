@@ -61,8 +61,11 @@ ${competitorInsights || 'なし'}
 出力はJSON配列のみ。
 `;
 
+    // 注: 元は 'gemini-3.1-pro-preview' を指定していたが、モデル ID が現行 Gemini API で
+    // 不安定または存在しないため JSON パースが頻繁に失敗していた。
+    // 他ルート（analyze-lp / analyze-banner）で動作実績のある 'gemini-2.5-pro' に統一。
     const generateResponse = await ai.models.generateContent({
-      model: 'gemini-3.1-pro-preview',
+      model: 'gemini-2.5-pro',
       contents: [
         systemPrompt + "\n\n" + userPrompt
       ],
