@@ -7,6 +7,8 @@ export interface GenerateParams {
   aspectRatio: AspectRatio;
   seed?: number;
   negativePrompt?: string;
+  // Phase A.7: StyleProfile の参考画像 URL 配列。指定時は各プロバイダの reference-capable エンドポイントを使用。
+  referenceImageUrls?: string[];
 }
 
 export interface GenerateResult {

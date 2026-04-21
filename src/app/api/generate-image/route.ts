@@ -42,6 +42,7 @@ export async function POST(req: Request) {
       aspectRatio,
       seed,
       negativePrompt,
+      referenceImageUrls: styleProfile?.referenceImageUrls,
     });
 
     return NextResponse.json({
