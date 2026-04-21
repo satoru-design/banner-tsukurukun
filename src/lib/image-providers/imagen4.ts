@@ -28,13 +28,14 @@ export const imagen4Provider: ImageProvider = {
   async generate(params: GenerateParams): Promise<GenerateResult> {
     const ai = new GoogleGenAI({ apiKey: ensureKey() });
     try {
+      // NOTE: AI Studio 経由の Imagen 4 は seed パラメータ非対応のため渡さない。
+      // 再現性のある生成が必要な場合は FLUX 1.1 pro を選択すること。
       const response = await ai.models.generateImages({
         model: 'imagen-4.0-ultra-generate-001',
         prompt: params.prompt,
         config: {
           numberOfImages: 1,
           aspectRatio: params.aspectRatio,
-          ...(params.seed !== undefined ? { seed: params.seed } : {}),
           ...(params.negativePrompt
             ? { negativePrompt: params.negativePrompt }
             : {}),
