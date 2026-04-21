@@ -14,7 +14,8 @@ import { Step1Input } from "@/components/steps/Step1Input";
 import { Step2Angles } from "@/components/steps/Step2Angles";
 import { Step3Editor } from "@/components/steps/Step3Editor";
 import type { ImageProviderId } from "@/lib/image-providers/types";
-import type { PriceBadge, CtaTemplateId } from '@/lib/banner-state';
+import type { PriceBadge, CtaTemplateId, AngleId } from '@/lib/banner-state';
+import { ANGLE_KEYWORDS, PROVIDER_PREFIX, AD_COMMON_PREFIX } from '@/lib/prompts/angle-keywords';
 
 type InsightData = {
   inferred_product_name?: string;
@@ -74,6 +75,14 @@ export default function BannerBuilder() {
   const [activeDesignSpecs, setActiveDesignSpecs] = useState<Variation['design_specs'] | null>(null);
   const [additionalInstructions, setAdditionalInstructions] = useState('');
 
+  // ---- Phase A5: Image Model Selection (declared early for useEffect deps) ----
+  const [imageModel, setImageModel] = useState<ImageProviderId>('imagen4');
+  const [lastProviderUsed, setLastProviderUsed] = useState<ImageProviderId | null>(null);
+  const [lastFallback, setLastFallback] = useState<boolean>(false);
+
+  // ---- Phase A5: Active Angle ID (for image prompt construction) ----
+  const [activeAngleId, setActiveAngleId] = useState<AngleId>('benefit');
+
 
   // ---- Mega-Prompt Realtime Engine ----
   React.useEffect(() => {
@@ -91,10 +100,23 @@ export default function BannerBuilder() {
 
     const userAdditions = additionalInstructions ? `\n-- Additional Custom Instructions --\n${additionalInstructions}` : "";
 
-    const finalMegaPrompt = `${layoutInstruction}${personConstraint}${toneConstraint}\n\n-- Core Visual Description --\n${baseImagePrompt}\n\n-- Technical Specs --\n4k, highly detailed, photorealistic, professional lighting, no text, no watermarks, flawless aesthetic.${userAdditions}`;
+    const angleKeywords = ANGLE_KEYWORDS[activeAngleId] ?? '';
+    const providerPrefix = PROVIDER_PREFIX[imageModel] ?? '';
+
+    const finalMegaPrompt = [
+      AD_COMMON_PREFIX,
+      providerPrefix,
+      angleKeywords,
+      layoutInstruction,
+      personConstraint,
+      toneConstraint,
+      `-- Core Visual Description --\n${baseImagePrompt}`,
+      `-- Technical Specs --\n4k, highly detailed, photorealistic, professional lighting, no text, no watermarks, flawless aesthetic.`,
+      userAdditions,
+    ].filter(Boolean).join('\n\n');
 
     setManualImagePrompt(finalMegaPrompt);
-  }, [layoutStyle, bannerTone, hasPerson, personAttr, additionalInstructions, baseImagePrompt, step]);
+  }, [layoutStyle, bannerTone, hasPerson, personAttr, additionalInstructions, baseImagePrompt, step, activeAngleId, imageModel]);
 
   // ---- Step 4: Editor State ----
   const [generatedBg, setGeneratedBg] = useState<string|null>(null);
@@ -104,11 +126,6 @@ export default function BannerBuilder() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewScale, setViewScale] = useState(1);
-
-  // ---- Phase A5: Image Model Selection ----
-  const [imageModel, setImageModel] = useState<ImageProviderId>('imagen4');
-  const [lastProviderUsed, setLastProviderUsed] = useState<ImageProviderId | null>(null);
-  const [lastFallback, setLastFallback] = useState<boolean>(false);
 
   // ---- Phase A5: Price Badge & CTA ----
   const [activeBadge, setActiveBadge] = useState<PriceBadge | null>(null);
@@ -264,6 +281,7 @@ export default function BannerBuilder() {
 
     // Phase A5: Load priceBadge / ctaTemplate from variation
     const vAny = v as unknown as {
+      strategy?: { angle_id?: AngleId };
       priceBadge?: PriceBadge | null;
       ctaTemplate?: { id: CtaTemplateId; text: string; arrow?: boolean };
       copy?: { emphasis_ratio?: '2x' | '3x' };
@@ -274,6 +292,7 @@ export default function BannerBuilder() {
       setActiveCtaText(vAny.ctaTemplate.text);
     }
     setActiveEmphasisRatio(vAny.copy?.emphasis_ratio ?? '2x');
+    setActiveAngleId(vAny.strategy?.angle_id ?? 'benefit');
 
     setStep(3);
   };
