@@ -1,4 +1,4 @@
-export type ImageProviderId = 'imagen4' | 'flux';
+export type ImageProviderId = 'imagen4' | 'flux' | 'gpt-image';
 
 export type AspectRatio = '1:1' | '16:9' | '9:16';
 

@@ -1,5 +1,6 @@
 import { imagen4Provider } from './imagen4';
 import { fluxProvider } from './flux';
+import { gptImageProvider } from './openai';
 import {
   ImageProvider,
   ImageProviderId,
@@ -13,6 +14,7 @@ export * from './types';
 const REGISTRY: Record<ImageProviderId, ImageProvider> = {
   imagen4: imagen4Provider,
   flux: fluxProvider,
+  'gpt-image': gptImageProvider,
 };
 
 export function getProvider(id: ImageProviderId): ImageProvider {
@@ -42,8 +44,14 @@ export async function generateWithFallback(
   preferred: ImageProviderId,
   params: GenerateParams,
 ): Promise<GenerateResult> {
+  // gpt-image はコストが高いため、preferred が gpt-image のときはフォールバックしない。
+  // それ以外は imagen4 ⇔ flux で相互フォールバック。
   const order: ImageProviderId[] =
-    preferred === 'imagen4' ? ['imagen4', 'flux'] : ['flux', 'imagen4'];
+    preferred === 'gpt-image'
+      ? ['gpt-image']
+      : preferred === 'imagen4'
+        ? ['imagen4', 'flux']
+        : ['flux', 'imagen4'];
 
   let lastError: unknown = null;
   for (let i = 0; i < order.length; i++) {

@@ -9,7 +9,7 @@ import { loadStyleProfile, injectIntoImagePrompt } from '@/lib/style-profile/inj
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const VALID_PROVIDERS: ImageProviderId[] = ['imagen4', 'flux'];
+const VALID_PROVIDERS: ImageProviderId[] = ['imagen4', 'flux', 'gpt-image'];
 const VALID_RATIOS: AspectRatio[] = ['1:1', '16:9', '9:16'];
 
 export async function POST(req: Request) {
