@@ -87,6 +87,8 @@ type Props = {
   setActiveCtaTemplateId: (id: CtaTemplateId) => void;
   activeCtaText: string;
   setActiveCtaText: (text: string) => void;
+  // Phase A5: Jump rate (emphasis ratio)
+  activeEmphasisRatio: '2x' | '3x';
 };
 
 export function Step3Editor(props: Props) {
@@ -396,7 +398,7 @@ export function Step3Editor(props: Props) {
                              </div>
                           ) : el.type === 'main' ? (
                              <div className={`no-drag flex-grow outline-none ${el.style}`} style={{ fontFamily: el.textStyle.fontFamily, textShadow: el.textStyle.textShadow, WebkitTextStroke: `${el.textStyle.textStrokeWidth || 0}px ${el.textStyle.textStrokeColor || 'transparent'}`, color: el.textStyle.color, backgroundColor: el.textStyle.backgroundColor, fontSize: `${el.textStyle.fontSize}px`, fontWeight: el.textStyle.fontWeight, textAlign: el.textStyle.textAlign }}>
-                                {renderRichText(el.content, activeDesignSpecs?.color_palette?.accent || '#38bdf8')}
+                                {renderRichText(el.content, activeDesignSpecs?.color_palette?.accent || '#38bdf8', props.activeEmphasisRatio ?? '2x')}
                              </div>
                           ) : el.type === 'shape' ? (
                              <div className={el.style} style={el.id === 'bg-plate' ? { background: 'linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' } : { backgroundColor: el.textStyle.backgroundColor }} />

@@ -8,6 +8,7 @@ import {
   CanvasElement,
   SIZES,
   readAsBase64,
+  validateAndFixMarkTag,
 } from "@/lib/banner-state";
 import { Step1Input } from "@/components/steps/Step1Input";
 import { Step2Angles } from "@/components/steps/Step2Angles";
@@ -113,6 +114,9 @@ export default function BannerBuilder() {
   const [activeBadge, setActiveBadge] = useState<PriceBadge | null>(null);
   const [activeCtaTemplateId, setActiveCtaTemplateId] = useState<CtaTemplateId>('cta-orange-arrow');
   const [activeCtaText, setActiveCtaText] = useState<string>('今すぐ購入');
+
+  // ---- Phase A5: Jump rate (emphasis ratio) ----
+  const [activeEmphasisRatio, setActiveEmphasisRatio] = useState<'2x' | '3x'>('2x');
 
   React.useEffect(() => {
     const updateScale = () => {
@@ -226,7 +230,15 @@ export default function BannerBuilder() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      setVariations(data.variations);
+      // Phase A5: validate & fix <mark> tags in main_copy for each variation
+      const cleaned = (data.variations ?? []).map((v: Variation) => ({
+        ...v,
+        copy: {
+          ...v.copy,
+          main_copy: validateAndFixMarkTag(v.copy?.main_copy ?? ''),
+        },
+      }));
+      setVariations(cleaned);
       setStep(2);
     } catch (err: unknown) {
       alert("生成エラー: " + (err instanceof Error ? err.message : String(err)));
@@ -254,12 +266,14 @@ export default function BannerBuilder() {
     const vAny = v as unknown as {
       priceBadge?: PriceBadge | null;
       ctaTemplate?: { id: CtaTemplateId; text: string; arrow?: boolean };
+      copy?: { emphasis_ratio?: '2x' | '3x' };
     };
     setActiveBadge(vAny.priceBadge ?? null);
     if (vAny.ctaTemplate) {
       setActiveCtaTemplateId(vAny.ctaTemplate.id);
       setActiveCtaText(vAny.ctaTemplate.text);
     }
+    setActiveEmphasisRatio(vAny.copy?.emphasis_ratio ?? '2x');
 
     setStep(3);
   };
@@ -490,6 +504,7 @@ export default function BannerBuilder() {
             setActiveCtaTemplateId={setActiveCtaTemplateId}
             activeCtaText={activeCtaText}
             setActiveCtaText={setActiveCtaText}
+            activeEmphasisRatio={activeEmphasisRatio}
           />
         )}
       </div>

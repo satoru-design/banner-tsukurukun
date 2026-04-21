@@ -43,14 +43,26 @@ export const readAsBase64 = (file: File): Promise<string> => {
   });
 };
 
-export const renderRichText = (text: string, accentColor: string): React.ReactNode => {
+export const renderRichText = (
+  text: string,
+  accentColor: string,
+  emphasisRatio: EmphasisRatio = '2x'
+): React.ReactNode => {
   if (!text) return null;
   const parts = text.split(/(<mark>.*?<\/mark>)/);
+  const scale = emphasisRatio === '3x' ? 1.5 : 1.0;
   return parts.map((part, i) => {
     if (part.startsWith('<mark>') && part.endsWith('</mark>')) {
       return React.createElement('span', {
         key: i,
-        style: { color: accentColor, fontSize: '1.5em', display: 'inline-block', lineHeight: 1.2 }
+        style: {
+          color: accentColor,
+          fontSize: `${scale}em`,
+          fontWeight: 900,
+          display: 'inline-block',
+          lineHeight: 1.2,
+          margin: '0 0.05em',
+        }
       }, part.replace(/<\/?mark>/g, ''));
     }
     return React.createElement('span', { key: i }, part);
@@ -135,6 +147,30 @@ export function computeDefaultBadgePosition(
   // 数字型は主役、センター配置
   if (angle === 'numeric') return 'center-right';
   return 'bottom-right';
+}
+
+/**
+ * main_copy の <mark></mark> タグを検証・修正する。
+ * - 0 個 → 数字優先で自動ラップ（なければ先頭の名詞）
+ * - 1 個 → そのまま
+ * - 2 個以上 → 先頭のみ残し他は平文化
+ */
+export function validateAndFixMarkTag(mainCopy: string): string {
+  const markCount = (mainCopy.match(/<mark>/g) ?? []).length;
+  if (markCount === 1) return mainCopy;
+  if (markCount === 0) {
+    // 数字を自動検出してラップ
+    const withNumberMark = mainCopy.replace(/([0-9]+[%円]?)/, '<mark>$1</mark>');
+    if (withNumberMark !== mainCopy) return withNumberMark;
+    // 数字がなければ先頭の漢字/カタカナ/ひらがなをラップ
+    return mainCopy.replace(/^([ぁ-んァ-ヶ一-龠]{2,5})/, '<mark>$1</mark>');
+  }
+  // 2 個以上ある場合は最初だけ残す
+  let count = 0;
+  return mainCopy.replace(/<mark>(.+?)<\/mark>/g, (match, inner) => {
+    count++;
+    return count === 1 ? match : inner;
+  });
 }
 
 export type ProductCategory = 'health' | 'cosme' | 'travel' | 'btob' | 'ec-general';
