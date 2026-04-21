@@ -65,11 +65,12 @@ export function injectIntoImagePrompt(
     `lighting: ${profile.visualStyle.lighting}`,
     `mood: ${profile.visualStyle.mood}`,
     `composition: ${profile.visualStyle.composition}`,
-    `dominant colors: primary ${profile.visualStyle.colorPalette.primary}, accents ${profile.visualStyle.colorPalette.accents.join('/')}, background ${profile.visualStyle.colorPalette.background}`,
     `person zone: ${profile.layout.personZone}, product zone: ${profile.layout.productZone}, main copy zone: ${profile.layout.mainCopyZone}`,
   ]
     .filter(Boolean)
     .join(', ');
 
-  return `${basePrompt}\n\n[Style profile hints] ${hints}`;
+  const negativeCues = 'NEGATIVE: do not render any hex color codes, color labels, text strings from this prompt, or prompt metadata anywhere in the image. No calendar emojis or date artifacts.';
+
+  return `${basePrompt}\n\n[Style profile hints] ${hints}\n\n${negativeCues}`;
 }

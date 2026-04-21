@@ -360,9 +360,17 @@ export default function BannerBuilder() {
       }
 
       setActiveCtaTemplateId(activeStyleProfile.cta.templateId);
-      setActiveCtaText(
-        activeStyleProfile.cta.textPattern.replace('{ACTION}', v.ctaTemplate?.text ?? '購入'),
-      );
+      // Phase A.6: {ACTION} を商材名 or 既存CTAの動詞部分で置換。既存CTAが完全文の場合はそちらを優先。
+      const ctaPattern = activeStyleProfile.cta.textPattern;
+      const existingCta = v.ctaTemplate?.text ?? '';
+      let finalCta: string;
+      if (ctaPattern.includes('{ACTION}')) {
+        const actionWord = (productName || 'デトックス').trim();
+        finalCta = ctaPattern.replace('{ACTION}', actionWord);
+      } else {
+        finalCta = ctaPattern || existingCta || '今すぐ購入';
+      }
+      setActiveCtaText(finalCta);
 
       const profileRatio = activeStyleProfile.typography.mainCopyStyle.emphasisRatio;
       setActiveEmphasisRatio(profileRatio === '4x' ? '3x' : (profileRatio as '2x' | '3x'));
