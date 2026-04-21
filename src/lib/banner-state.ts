@@ -120,3 +120,19 @@ export const ANGLE_EMPHASIS_RATIO: Record<AngleId, EmphasisRatio> = {
   target: '2x',
   scene: '2x',
 };
+
+export function computeDefaultBadgePosition(
+  layoutStyle: 'left' | 'right' | 'center',
+  hasPerson: boolean,
+  angle: AngleId
+): PriceBadgePosition {
+  // 人物が右側 → バッジは左下（視線の終点、写真と被らない）
+  if (layoutStyle === 'left' && hasPerson) return 'bottom-left';
+  // 人物が左側 → バッジは右上（Z 型の起点）
+  if (layoutStyle === 'right' && hasPerson) return 'top-right';
+  // 権威型はヘッダー付近
+  if (angle === 'authority') return 'top-right';
+  // 数字型は主役、センター配置
+  if (angle === 'numeric') return 'center-right';
+  return 'bottom-right';
+}
