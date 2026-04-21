@@ -17,6 +17,8 @@ import {
 import { Step1Input } from "@/components/steps/Step1Input";
 import { Step2Angles } from "@/components/steps/Step2Angles";
 import { Step3Editor } from "@/components/steps/Step3Editor";
+import { StyleProfileSelector } from "@/components/steps/StyleProfileSelector";
+import { StyleProfileEditor } from "@/components/style/StyleProfileEditor";
 import type { ImageProviderId } from "@/lib/image-providers/types";
 import type { PriceBadge, CtaTemplateId, AngleId } from '@/lib/banner-state';
 import { ANGLE_KEYWORDS, PROVIDER_PREFIX, AD_COMMON_PREFIX } from '@/lib/prompts/angle-keywords';
@@ -38,6 +40,9 @@ export default function BannerBuilder() {
 
   const [showDashboard, setShowDashboard] = useState(false);
   const [savedBanners, setSavedBanners] = useState<SavedBanner[]>([]);
+
+  const [selectedStyleProfileId, setSelectedStyleProfileId] = useState<string | null>(null);
+  const [showStyleEditor, setShowStyleEditor] = useState(false);
 
   // ---- Step 1: Input State ----
   const [inputMode, setInputMode] = useState<'lp' | 'image'>('lp');
@@ -460,19 +465,36 @@ export default function BannerBuilder() {
 
         {/* Step 1: Input Analysis */}
         {step === 1 && (
-          <Step1Input
-            inputMode={inputMode}
-            setInputMode={setInputMode}
-            url={url}
-            setUrl={setUrl}
-            productName={productName}
-            setProductName={setProductName}
-            target={target}
-            setTarget={setTarget}
-            insightData={insightData}
-            onAnalyzeLp={handleAnalyzeLp}
-            onImageUpload={handleImageUpload}
-            onGenerateCopy={handleGenerateCopy}
+          <div className="space-y-4">
+            <StyleProfileSelector
+              selectedId={selectedStyleProfileId}
+              onSelect={setSelectedStyleProfileId}
+              onCreateNew={() => setShowStyleEditor(true)}
+            />
+            <Step1Input
+              inputMode={inputMode}
+              setInputMode={setInputMode}
+              url={url}
+              setUrl={setUrl}
+              productName={productName}
+              setProductName={setProductName}
+              target={target}
+              setTarget={setTarget}
+              insightData={insightData}
+              onAnalyzeLp={handleAnalyzeLp}
+              onImageUpload={handleImageUpload}
+              onGenerateCopy={handleGenerateCopy}
+            />
+          </div>
+        )}
+
+        {showStyleEditor && (
+          <StyleProfileEditor
+            onClose={() => setShowStyleEditor(false)}
+            onSaved={(id) => {
+              setSelectedStyleProfileId(id);
+              setShowStyleEditor(false);
+            }}
           />
         )}
 
