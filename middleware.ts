@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
 
 const PUBLIC_PATHS = ['/_next', '/favicon.ico'];
 
+// Edge runtime で動く constant-time 比較（Web API のみで実装）。
+// `crypto.timingSafeEqual` は Node 専用なので使わない。
 function safeEq(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  return timingSafeEqual(ab, bb);
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
 }
 
 export function middleware(req: NextRequest) {
@@ -32,9 +35,20 @@ export function middleware(req: NextRequest) {
   const auth = req.headers.get('authorization') ?? '';
   const [scheme, encoded] = auth.split(' ');
   if (scheme === 'Basic' && encoded) {
-    const [u, p] = Buffer.from(encoded, 'base64').toString().split(':');
-    if (u && p && safeEq(u, user) && safeEq(p, pass)) {
-      return NextResponse.next();
+    // atob は Web API（Edge runtime で動作）、Buffer は使わない
+    let decoded = '';
+    try {
+      decoded = atob(encoded);
+    } catch {
+      // 不正な base64
+    }
+    const idx = decoded.indexOf(':');
+    if (idx > 0) {
+      const u = decoded.slice(0, idx);
+      const p = decoded.slice(idx + 1);
+      if (u && p && safeEq(u, user) && safeEq(p, pass)) {
+        return NextResponse.next();
+      }
     }
   }
 
