@@ -33,6 +33,8 @@ type Variation = {
     tone_and_manner?: string;
     image_gen_prompt?: string;
   };
+  // Phase A.5
+  urgency?: 'low' | 'high';
 };
 
 type SavedBanner = Record<string, unknown>;
@@ -171,7 +173,14 @@ export default function BannerBuilder() {
            body: JSON.stringify({
                productName, lpUrl: url, target, mainCopy: manualMainCopy, subCopy: manualSubCopy,
                elements: editorTexts, base64Image: b64, angle: v?.strategy?.angle || 'Manual',
-               imageModel: lastProviderUsed ?? imageModel
+               imageModel: lastProviderUsed ?? imageModel,
+               // Phase A.5
+               angleId: activeAngleId,
+               priceBadge: activeBadge,
+               ctaTemplateId: activeCtaTemplateId,
+               ctaText: activeCtaText,
+               emphasisRatio: activeEmphasisRatio,
+               urgency: v?.urgency ?? 'low',
            })
        });
        if(res.ok) alert("マイリストに保存されました！");

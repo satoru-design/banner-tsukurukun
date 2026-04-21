@@ -18,6 +18,13 @@ export async function POST(req: Request) {
       base64Image,
       angle,
       imageModel,
+      // Phase A.5
+      angleId,
+      priceBadge,
+      ctaTemplateId,
+      ctaText,
+      emphasisRatio,
+      urgency,
     } = data;
 
     const banner = await prisma.banner.create({
@@ -31,6 +38,12 @@ export async function POST(req: Request) {
         base64Image,
         angle,
         imageModel,
+        angleId,
+        priceBadge: priceBadge ? JSON.stringify(priceBadge) : null,
+        ctaTemplateId,
+        ctaText,
+        emphasisRatio,
+        urgency,
       },
     });
 
