@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Wand2, Zap, History } from "lucide-react";
 import html2canvas from "html2canvas";
 import {
@@ -19,6 +19,7 @@ import { Step2Angles } from "@/components/steps/Step2Angles";
 import { Step3Editor } from "@/components/steps/Step3Editor";
 import { StyleProfileSelector } from "@/components/steps/StyleProfileSelector";
 import { StyleProfileEditor } from "@/components/style/StyleProfileEditor";
+import type { StyleProfile } from "@/lib/style-profile/schema";
 import type { ImageProviderId } from "@/lib/image-providers/types";
 import type { PriceBadge, CtaTemplateId, AngleId } from '@/lib/banner-state';
 import { ANGLE_KEYWORDS, PROVIDER_PREFIX, AD_COMMON_PREFIX } from '@/lib/prompts/angle-keywords';
@@ -43,6 +44,27 @@ export default function BannerBuilder() {
 
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState<string | null>(null);
   const [showStyleEditor, setShowStyleEditor] = useState(false);
+  const [activeStyleProfile, setActiveStyleProfile] = useState<StyleProfile | null>(null);
+
+  useEffect(() => {
+    if (!selectedStyleProfileId) {
+      setActiveStyleProfile(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/style-profile/${selectedStyleProfileId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data && !data.error) setActiveStyleProfile(data as StyleProfile);
+      })
+      .catch(() => {
+        if (!cancelled) setActiveStyleProfile(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStyleProfileId]);
 
   // ---- Step 1: Input State ----
   const [inputMode, setInputMode] = useState<'lp' | 'image'>('lp');
@@ -128,6 +150,7 @@ export default function BannerBuilder() {
 
   // ---- Phase A5: Price Badge & CTA ----
   const [activeBadge, setActiveBadge] = useState<PriceBadge | null>(null);
+  const [activeSecondaryBadge, setActiveSecondaryBadge] = useState<PriceBadge | null>(null);
   const [activeCtaTemplateId, setActiveCtaTemplateId] = useState<CtaTemplateId>('cta-orange-arrow');
   const [activeCtaText, setActiveCtaText] = useState<string>('');
 
@@ -311,24 +334,59 @@ export default function BannerBuilder() {
 
     const productCategory: ProductCategory = insightData?.productCategory ?? 'ec-general';
 
-    // Phase A5: PriceBadge - supply default position when Gemini omits it
-    const rawBadge = v.priceBadge ?? null;
-    const badge: PriceBadge | null = rawBadge
-      ? {
-          ...rawBadge,
-          position:
-            rawBadge.position ??
-            computeDefaultBadgePosition(nextLayoutStyle, hasPerson === 'yes', angle),
-        }
-      : null;
-    setActiveBadge(badge);
+    // Phase A.6: If a StyleProfile is active, override badge/CTA/emphasisRatio with profile defaults
+    if (activeStyleProfile) {
+      const pb = activeStyleProfile.priceBadge.primary;
+      const emphasisNumber = v.priceBadge?.emphasisNumber;
+      setActiveBadge({
+        text: pb.textPattern.replace('{NUMBER}', String(emphasisNumber ?? '980')),
+        shape: (pb.shape as PriceBadge['shape']),
+        color: pb.color,
+        position: (pb.position as PriceBadge['position']) ??
+          computeDefaultBadgePosition(nextLayoutStyle, hasPerson === 'yes', angle),
+        emphasisNumber,
+      });
 
-    // Phase A5: CTA template - fallback to category x urgency matrix when missing
-    const ctaId: CtaTemplateId = v.ctaTemplate?.id ?? autoSelectCta(productCategory, urgency);
-    setActiveCtaTemplateId(ctaId);
-    setActiveCtaText(v.ctaTemplate?.text ?? '今すぐ購入');
+      if (activeStyleProfile.priceBadge.secondary) {
+        const sb = activeStyleProfile.priceBadge.secondary;
+        setActiveSecondaryBadge({
+          text: sb.textPattern.replace('{NUMBER}', '3,000 万'),
+          shape: 'circle-gold',
+          color: sb.color,
+          position: (sb.position as PriceBadge['position']),
+        });
+      } else {
+        setActiveSecondaryBadge(null);
+      }
 
-    setActiveEmphasisRatio(v.copy?.emphasis_ratio ?? '2x');
+      setActiveCtaTemplateId(activeStyleProfile.cta.templateId);
+      setActiveCtaText(
+        activeStyleProfile.cta.textPattern.replace('{ACTION}', v.ctaTemplate?.text ?? '購入'),
+      );
+
+      const profileRatio = activeStyleProfile.typography.mainCopyStyle.emphasisRatio;
+      setActiveEmphasisRatio(profileRatio === '4x' ? '3x' : (profileRatio as '2x' | '3x'));
+    } else {
+      // Phase A5: PriceBadge - supply default position when Gemini omits it
+      const rawBadge = v.priceBadge ?? null;
+      const badge: PriceBadge | null = rawBadge
+        ? {
+            ...rawBadge,
+            position:
+              rawBadge.position ??
+              computeDefaultBadgePosition(nextLayoutStyle, hasPerson === 'yes', angle),
+          }
+        : null;
+      setActiveBadge(badge);
+      setActiveSecondaryBadge(null);
+
+      // Phase A5: CTA template - fallback to category x urgency matrix when missing
+      const ctaId: CtaTemplateId = v.ctaTemplate?.id ?? autoSelectCta(productCategory, urgency);
+      setActiveCtaTemplateId(ctaId);
+      setActiveCtaText(v.ctaTemplate?.text ?? '今すぐ購入');
+
+      setActiveEmphasisRatio(v.copy?.emphasis_ratio ?? '2x');
+    }
 
     setStep(3);
   };
@@ -565,6 +623,7 @@ export default function BannerBuilder() {
             lastFallback={lastFallback}
             activeBadge={activeBadge}
             setActiveBadge={setActiveBadge}
+            activeSecondaryBadge={activeSecondaryBadge}
             activeCtaTemplateId={activeCtaTemplateId}
             setActiveCtaTemplateId={setActiveCtaTemplateId}
             activeCtaText={activeCtaText}

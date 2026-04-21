@@ -82,6 +82,8 @@ type Props = {
   // Phase A5: Price Badge
   activeBadge: PriceBadgeType | null;
   setActiveBadge: (badge: PriceBadgeType | null) => void;
+  // Phase A6: Secondary Badge (authority / social proof)
+  activeSecondaryBadge?: PriceBadgeType | null;
   // Phase A5: CTA
   activeCtaTemplateId: CtaTemplateId;
   setActiveCtaTemplateId: (id: CtaTemplateId) => void;
@@ -430,6 +432,16 @@ export function Step3Editor(props: Props) {
                      style={getBadgePositionStyle(props.activeBadge.position, canvasSize)}
                    >
                      <PriceBadge badge={props.activeBadge} />
+                   </div>
+                 )}
+
+                 {/* Phase A6: Secondary Badge overlay (authority / social proof) */}
+                 {props.activeSecondaryBadge && (
+                   <div
+                     className="absolute z-20"
+                     style={getBadgePositionStyle(props.activeSecondaryBadge.position, canvasSize)}
+                   >
+                     <PriceBadge badge={props.activeSecondaryBadge} />
                    </div>
                  )}
 
