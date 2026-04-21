@@ -102,6 +102,11 @@ export default function BannerBuilder() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewScale, setViewScale] = useState(1);
 
+  // ---- Phase A5: Image Model Selection ----
+  const [imageModel, setImageModel] = useState<'imagen4' | 'flux'>('imagen4');
+  const [lastProviderUsed, setLastProviderUsed] = useState<string | null>(null);
+  const [lastFallback, setLastFallback] = useState<boolean>(false);
+
   React.useEffect(() => {
     const updateScale = () => {
       if (!containerRef.current) return;
@@ -241,17 +246,29 @@ export default function BannerBuilder() {
 
   const handleGenerateBg = async () => {
     const masterPrompt = manualImagePrompt;
+    const aspectRatio: '1:1' | '16:9' | '9:16' =
+      canvasSize.w === canvasSize.h
+        ? '1:1'
+        : canvasSize.w > canvasSize.h
+          ? '16:9'
+          : '9:16';
 
-    setLoading(true); setLoadingMsg("AIが指定条件をもとに背景画像を生成中...");
+    setLoading(true); setLoadingMsg(`AI(${imageModel})が背景画像を生成中...`);
     try {
       const res = await fetch('/api/generate-image', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: masterPrompt })
+        body: JSON.stringify({
+          prompt: masterPrompt,
+          provider: imageModel,
+          aspectRatio,
+        })
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
       setGeneratedBg(data.imageUrl);
+      setLastProviderUsed(data.provider);
+      setLastFallback(Boolean(data.fallback));
       enterEditor(data.imageUrl);
     } catch (err: unknown) {
       alert("画像生成エラー: " + (err instanceof Error ? err.message : String(err)));
@@ -443,6 +460,10 @@ export default function BannerBuilder() {
             onSaveList={handleSaveList}
             onSlackShare={handleSlackShare}
             onBackToConditions={() => setStep(3)}
+            imageModel={imageModel}
+            setImageModel={setImageModel}
+            lastProviderUsed={lastProviderUsed}
+            lastFallback={lastFallback}
           />
         )}
       </div>

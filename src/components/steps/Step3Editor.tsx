@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Wand2, Download, LayoutTemplate, Type, Palette, Share2, Save, ImagePlus, User, MousePointerClick } from "lucide-react";
 import html2canvas from "html2canvas";
 import { CanvasElement, CanvasSize, SIZES, renderRichText } from '@/lib/banner-state';
+import { ModelSelector } from './ModelSelector';
 
 type DesignSpecs = {
   layout_id?: string;
@@ -67,6 +68,12 @@ type Props = {
   onSaveList: () => void;
   onSlackShare: () => void;
   onBackToConditions: () => void;
+
+  // Phase A5: Image model selection
+  imageModel: 'imagen4' | 'flux';
+  setImageModel: (v: 'imagen4' | 'flux') => void;
+  lastProviderUsed: string | null;
+  lastFallback: boolean;
 };
 
 export function Step3Editor(props: Props) {
@@ -213,6 +220,20 @@ export function Step3Editor(props: Props) {
               </div>
            </div>
         </Card>
+
+        <div className="mb-3">
+          <div className="text-xs text-slate-400 mb-1">画像生成モデル</div>
+          <ModelSelector
+            value={props.imageModel}
+            onChange={props.setImageModel}
+            disabled={false}
+          />
+          {props.lastProviderUsed && props.lastFallback && (
+            <div className="mt-1 text-xs text-amber-400">
+              ※ {props.imageModel} 失敗のため {props.lastProviderUsed} にフォールバック
+            </div>
+          )}
+        </div>
 
         <div className="flex justify-between items-center pt-4">
            <button onClick={onBackToStep2} className="px-6 py-3 bg-neutral-700 hover:bg-neutral-600 rounded text-white font-bold">Step 2に戻る</button>
