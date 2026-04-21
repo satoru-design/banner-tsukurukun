@@ -121,6 +121,30 @@ export interface CtaTemplate {
   arrow: boolean;
 }
 
+export interface Variation {
+  strategy?: {
+    angle?: string;
+    angle_id?: AngleId;
+    angle_label?: string;
+    target_insight?: string;
+  };
+  copy?: {
+    main_copy?: string;
+    sub_copy?: string;
+    cta_text?: string;
+    emphasis_ratio?: EmphasisRatio;
+  };
+  priceBadge?: PriceBadge | null;
+  ctaTemplate?: CtaTemplate;
+  urgency?: Urgency;
+  design_specs?: {
+    layout_id?: string;
+    color_palette?: { accent?: string; main?: string };
+    tone_and_manner?: string;
+    image_gen_prompt?: string;
+  } & Record<string, unknown>;
+}
+
 // アングル別のデフォルト emphasis_ratio
 export const ANGLE_EMPHASIS_RATIO: Record<AngleId, EmphasisRatio> = {
   numeric: '3x',
@@ -162,8 +186,8 @@ export function validateAndFixMarkTag(mainCopy: string): string {
     // 数字を自動検出してラップ
     const withNumberMark = mainCopy.replace(/([0-9]+[%円]?)/, '<mark>$1</mark>');
     if (withNumberMark !== mainCopy) return withNumberMark;
-    // 数字がなければ先頭の漢字/カタカナ/ひらがなをラップ
-    return mainCopy.replace(/^([ぁ-んァ-ヶ一-龠]{2,5})/, '<mark>$1</mark>');
+    // 数字がなければ先頭の漢字/カタカナ/ひらがな/英字をラップ（髙・﨑・々・〆 等も拾う）
+    return mainCopy.replace(/^([ぁ-んァ-ヶ一-龥々〆〇ヵヶA-Za-z]{2,6})/, '<mark>$1</mark>');
   }
   // 2 個以上ある場合は最初だけ残す
   let count = 0;

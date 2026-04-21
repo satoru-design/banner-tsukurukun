@@ -25,7 +25,7 @@ export const CTA_TEMPLATES: Record<CtaTemplateId, CtaTemplateDef> = {
   'cta-red-urgent': {
     id: 'cta-red-urgent',
     className:
-      'px-8 py-4 rounded-xl bg-gradient-to-b from-[#EF4444] to-[#B91C1C] text-white font-black text-lg shadow-[0_4px_12px_rgba(185,28,28,0.5)] hover:scale-[1.03] transition-all animate-pulse',
+      'px-8 py-4 rounded-xl bg-gradient-to-b from-[#EF4444] to-[#B91C1C] text-white font-black text-lg shadow-[0_4px_12px_rgba(185,28,28,0.5)] hover:scale-[1.03] transition-all',
     suggestedText: ['本日限り', '残りわずか', '今すぐ申し込む'],
     arrow: true,
   },

@@ -89,6 +89,11 @@ type Props = {
   setActiveCtaText: (text: string) => void;
   // Phase A5: Jump rate (emphasis ratio)
   activeEmphasisRatio: '2x' | '3x';
+  // Phase A5: Urgency (drives CTA pulse)
+  activeUrgency: 'low' | 'high';
+  // Phase A5: html2canvas capture mode (disables animations to avoid flicker)
+  isCapturing: boolean;
+  setIsCapturing: (v: boolean) => void;
 };
 
 export function Step3Editor(props: Props) {
@@ -349,9 +354,14 @@ export function Step3Editor(props: Props) {
               onClick={async () => {
                 if(!canvasRef.current) return;
                 setSelectedElementId(null);
+                props.setIsCapturing(true);
                 setTimeout(async () => {
-                  const canvas = await html2canvas(canvasRef.current!, { scale: 2, useCORS: true });
-                  const link = document.createElement('a'); link.download = 'creative.png'; link.href = canvas.toDataURL(); link.click();
+                  try {
+                    const canvas = await html2canvas(canvasRef.current!, { scale: 2, useCORS: true });
+                    const link = document.createElement('a'); link.download = 'creative.png'; link.href = canvas.toDataURL(); link.click();
+                  } finally {
+                    props.setIsCapturing(false);
+                  }
                 }, 100);
               }}
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-12 rounded-lg flex items-center justify-center gap-2"
@@ -424,7 +434,7 @@ export function Step3Editor(props: Props) {
                  )}
 
                  {/* Phase A5: CTA overlay */}
-                 {props.activeCtaText && (
+                 {props.activeCtaText && hasCta !== 'no' && (
                    <div
                      className="absolute z-20"
                      style={{
@@ -437,6 +447,7 @@ export function Step3Editor(props: Props) {
                        templateId={props.activeCtaTemplateId}
                        text={props.activeCtaText}
                        showArrow={true}
+                       pulse={props.activeUrgency === 'high' && !props.isCapturing}
                      />
                    </div>
                  )}

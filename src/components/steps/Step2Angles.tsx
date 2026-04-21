@@ -3,15 +3,7 @@
 
 import React from 'react';
 import { Type } from "lucide-react";
-
-type Variation = {
-  strategy?: { angle?: string; angle_id?: string; angle_label?: string; target_insight?: string };
-  copy?: { main_copy?: string; sub_copy?: string; cta_text?: string; emphasis_ratio?: '2x' | '3x' };
-  priceBadge?: unknown;
-  ctaTemplate?: { id: string; text: string; arrow: boolean };
-  urgency?: 'low' | 'high';
-  design_specs?: Record<string, unknown>;
-};
+import type { Variation } from '@/lib/banner-state';
 
 type Props = {
   variations: Variation[];

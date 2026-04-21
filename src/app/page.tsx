@@ -9,6 +9,10 @@ import {
   SIZES,
   readAsBase64,
   validateAndFixMarkTag,
+  computeDefaultBadgePosition,
+  autoSelectCta,
+  type Variation,
+  type ProductCategory,
 } from "@/lib/banner-state";
 import { Step1Input } from "@/components/steps/Step1Input";
 import { Step2Angles } from "@/components/steps/Step2Angles";
@@ -22,20 +26,8 @@ type InsightData = {
   inferred_target_demographic?: string;
   main_appeal?: string;
   worldview?: string;
+  productCategory?: ProductCategory;
 } | null;
-
-type Variation = {
-  strategy?: { angle?: string; target_insight?: string };
-  copy?: { main_copy?: string; sub_copy?: string; cta_text?: string };
-  design_specs?: {
-    layout_id?: string;
-    color_palette?: { accent?: string; main?: string };
-    tone_and_manner?: string;
-    image_gen_prompt?: string;
-  };
-  // Phase A.5
-  urgency?: 'low' | 'high';
-};
 
 type SavedBanner = Record<string, unknown>;
 
@@ -132,10 +124,16 @@ export default function BannerBuilder() {
   // ---- Phase A5: Price Badge & CTA ----
   const [activeBadge, setActiveBadge] = useState<PriceBadge | null>(null);
   const [activeCtaTemplateId, setActiveCtaTemplateId] = useState<CtaTemplateId>('cta-orange-arrow');
-  const [activeCtaText, setActiveCtaText] = useState<string>('今すぐ購入');
+  const [activeCtaText, setActiveCtaText] = useState<string>('');
 
   // ---- Phase A5: Jump rate (emphasis ratio) ----
   const [activeEmphasisRatio, setActiveEmphasisRatio] = useState<'2x' | '3x'>('2x');
+
+  // ---- Phase A5: Urgency (for CTA pulse) ----
+  const [activeUrgency, setActiveUrgency] = useState<'low' | 'high'>('low');
+
+  // ---- Phase A5: html2canvas capture flag (disables CSS animation) ----
+  const [isCapturing, setIsCapturing] = useState<boolean>(false);
 
   React.useEffect(() => {
     const updateScale = () => {
@@ -161,6 +159,7 @@ export default function BannerBuilder() {
   const handleSaveList = async () => {
     if(!canvasRef.current) return;
     setLoading(true); setLoadingMsg("マイリストに保存中...");
+    setIsCapturing(true);
     try {
        setSelectedElementId(null);
        await new Promise(r => setTimeout(r, 100));
@@ -180,11 +179,14 @@ export default function BannerBuilder() {
                ctaTemplateId: activeCtaTemplateId,
                ctaText: activeCtaText,
                emphasisRatio: activeEmphasisRatio,
-               urgency: v?.urgency ?? 'low',
+               urgency: activeUrgency,
            })
        });
        if(res.ok) alert("マイリストに保存されました！");
-    } finally { setLoading(false); }
+    } finally {
+      setIsCapturing(false);
+      setLoading(false);
+    }
   };
 
   const handleSlackShare = async () => {
@@ -264,6 +266,9 @@ export default function BannerBuilder() {
           main_copy: validateAndFixMarkTag(v.copy?.main_copy ?? ''),
         },
       }));
+      if (Array.isArray(data.variations) && data.variations.length < 8) {
+        console.warn(`Gemini returned only ${data.variations.length} angles (expected 8). UI may show gaps.`);
+      }
       setVariations(cleaned);
       setStep(2);
     } catch (err: unknown) {
@@ -281,27 +286,42 @@ export default function BannerBuilder() {
     // Don't set setManualImagePrompt here directly, let useEffect handle it
     if (v.copy?.cta_text) setCtaText(v.copy.cta_text);
     if (v.design_specs?.tone_and_manner) setBannerTone(v.design_specs.tone_and_manner);
-    setActiveDesignSpecs(v.design_specs || null);
+    setActiveDesignSpecs(v.design_specs ?? null);
 
+    let nextLayoutStyle: 'left' | 'right' | 'center' = layoutStyle;
     if (v.design_specs && v.design_specs.layout_id) {
        const lid = v.design_specs.layout_id;
-       setLayoutStyle(lid === 'center-focus' ? 'center' : (lid === 'split-screen' ? 'left' : 'left'));
+       nextLayoutStyle = lid === 'center-focus' ? 'center' : 'left';
+       setLayoutStyle(nextLayoutStyle);
     }
 
-    // Phase A5: Load priceBadge / ctaTemplate from variation
-    const vAny = v as unknown as {
-      strategy?: { angle_id?: AngleId };
-      priceBadge?: PriceBadge | null;
-      ctaTemplate?: { id: CtaTemplateId; text: string; arrow?: boolean };
-      copy?: { emphasis_ratio?: '2x' | '3x' };
-    };
-    setActiveBadge(vAny.priceBadge ?? null);
-    if (vAny.ctaTemplate) {
-      setActiveCtaTemplateId(vAny.ctaTemplate.id);
-      setActiveCtaText(vAny.ctaTemplate.text);
-    }
-    setActiveEmphasisRatio(vAny.copy?.emphasis_ratio ?? '2x');
-    setActiveAngleId(vAny.strategy?.angle_id ?? 'benefit');
+    // Phase A5: Resolve angle + urgency + productCategory
+    const angle: AngleId = v.strategy?.angle_id ?? 'benefit';
+    setActiveAngleId(angle);
+
+    const urgency = v.urgency ?? 'low';
+    setActiveUrgency(urgency);
+
+    const productCategory: ProductCategory = insightData?.productCategory ?? 'ec-general';
+
+    // Phase A5: PriceBadge - supply default position when Gemini omits it
+    const rawBadge = v.priceBadge ?? null;
+    const badge: PriceBadge | null = rawBadge
+      ? {
+          ...rawBadge,
+          position:
+            rawBadge.position ??
+            computeDefaultBadgePosition(nextLayoutStyle, hasPerson === 'yes', angle),
+        }
+      : null;
+    setActiveBadge(badge);
+
+    // Phase A5: CTA template - fallback to category x urgency matrix when missing
+    const ctaId: CtaTemplateId = v.ctaTemplate?.id ?? autoSelectCta(productCategory, urgency);
+    setActiveCtaTemplateId(ctaId);
+    setActiveCtaText(v.ctaTemplate?.text ?? '今すぐ購入');
+
+    setActiveEmphasisRatio(v.copy?.emphasis_ratio ?? '2x');
 
     setStep(3);
   };
@@ -352,7 +372,6 @@ export default function BannerBuilder() {
     }
 
     const layoutId = activeDesignSpecs?.layout_id || (isLeft ? 'split-screen' : 'z-pattern');
-    const accentColor = activeDesignSpecs?.color_palette?.accent || "#38bdf8";
     const mainColor = activeDesignSpecs?.color_palette?.main || "#ffffff";
 
     const initialElements: CanvasElement[] = [];
@@ -382,14 +401,7 @@ export default function BannerBuilder() {
         defaultPos: layoutId === 'z-pattern' ? { x: canvasSize.w * 0.2, y: canvasSize.h * 0.55, w: canvasSize.w * 0.6, h: 80 } : { x: tx, y: canvasSize.h * 0.6, w: canvasSize.w * 0.55, h: 100 }
     });
 
-    if (hasCta === 'yes') {
-        initialElements.push({
-            id: 'cta-btn', type: 'cta', content: ctaText,
-            style: "px-8 py-4 rounded-full shadow-2xl transition-transform hover:scale-105 cursor-pointer flex items-center justify-center outline-none",
-            textStyle: { fontFamily: "'Noto Sans JP', sans-serif", textStrokeWidth: 0, textStrokeColor: "transparent", textShadow: "0px 4px 15px rgba(0,0,0,0.4)", color: "#ffffff", backgroundColor: accentColor, fontSize: 32, fontWeight: "900", textAlign: "center" },
-            defaultPos: layoutId === 'z-pattern' ? { x: canvasSize.w * 0.65, y: canvasSize.h * 0.8, w: 350, h: 90 } : { x: tx, y: canvasSize.h * 0.8, w: canvasSize.w * 0.55, h: 90 }
-        });
-    }
+    // Phase A.5: legacy Rnd-based CTA removed. CTA is rendered via <CtaButton> overlay in Step3Editor.
 
     logosBase64.forEach((logo, i) => {
         initialElements.push({
@@ -533,6 +545,9 @@ export default function BannerBuilder() {
             activeCtaText={activeCtaText}
             setActiveCtaText={setActiveCtaText}
             activeEmphasisRatio={activeEmphasisRatio}
+            activeUrgency={activeUrgency}
+            isCapturing={isCapturing}
+            setIsCapturing={setIsCapturing}
           />
         )}
       </div>

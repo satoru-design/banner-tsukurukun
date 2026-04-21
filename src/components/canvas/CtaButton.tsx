@@ -8,6 +8,7 @@ type Props = {
   templateId: CtaTemplateId;
   text: string;
   showArrow?: boolean;
+  pulse?: boolean;
 };
 
 const CtaArrow = () => (
@@ -16,11 +17,12 @@ const CtaArrow = () => (
   </svg>
 );
 
-export function CtaButton({ templateId, text, showArrow }: Props) {
+export function CtaButton({ templateId, text, showArrow, pulse }: Props) {
   const template = CTA_TEMPLATES[templateId] ?? CTA_TEMPLATES['cta-orange-arrow'];
   const withArrow = showArrow ?? template.arrow;
+  const className = pulse ? `${template.className} animate-pulse` : template.className;
   return (
-    <button type="button" className={template.className} data-testid={`cta-${template.id}`}>
+    <button type="button" className={className} data-testid={`cta-${template.id}`}>
       {text}
       {withArrow && <CtaArrow />}
     </button>

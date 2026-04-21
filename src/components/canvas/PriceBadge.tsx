@@ -24,16 +24,21 @@ export function PriceBadge({ badge }: Props) {
   const base = BADGE_STYLES[badge.shape] ?? BADGE_STYLES['circle-red'];
   const style = { backgroundColor: badge.color || undefined };
 
-  // emphasisNumber がある場合は数字部分を他のテキストと分離表示（1.5x）
+  // emphasisNumber がある場合は数字部分を他のテキストと分離表示（ジャンプ率強調）
   if (badge.emphasisNumber) {
-    const [before, after] = badge.text.split(badge.emphasisNumber);
-    return (
-      <div className={base} style={style} data-testid="price-badge">
-        {before && <span className="text-[14px] leading-none">{before}</span>}
-        <span className="text-[32px] leading-none">{badge.emphasisNumber}</span>
-        {after && <span className="text-[14px] leading-none">{after}</span>}
-      </div>
-    );
+    const idx = badge.text.indexOf(badge.emphasisNumber);
+    if (idx >= 0) {
+      const before = badge.text.slice(0, idx);
+      const after = badge.text.slice(idx + badge.emphasisNumber.length);
+      return (
+        <div className={base} style={style} data-testid="price-badge">
+          {before && <span className="text-[14px] leading-none">{before}</span>}
+          <span className="text-[32px] leading-none">{badge.emphasisNumber}</span>
+          {after && <span className="text-[14px] leading-none">{after}</span>}
+        </div>
+      );
+    }
+    // Fallback: emphasisNumber not in text, render as single line
   }
 
   return (
