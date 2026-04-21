@@ -142,7 +142,8 @@ export default function BannerBuilder() {
            method: 'POST', headers: {'Content-Type':'application/json'},
            body: JSON.stringify({
                productName, lpUrl: url, target, mainCopy: manualMainCopy, subCopy: manualSubCopy,
-               elements: editorTexts, base64Image: b64, angle: v?.strategy?.angle || 'Manual'
+               elements: editorTexts, base64Image: b64, angle: v?.strategy?.angle || 'Manual',
+               imageModel: lastProviderUsed ?? imageModel
            })
        });
        if(res.ok) alert("マイリストに保存されました！");

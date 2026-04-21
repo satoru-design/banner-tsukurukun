@@ -11,7 +11,7 @@ export async function POST(req: Request) {
 
   try {
     const data = await req.json();
-    const { productName, lpUrl, target, mainCopy, subCopy, elements, base64Image, angle } = data;
+    const { productName, lpUrl, target, mainCopy, subCopy, elements, base64Image, angle, imageModel } = data;
 
     const banner = await prisma.banner.create({
       data: {
@@ -22,7 +22,8 @@ export async function POST(req: Request) {
         subCopy,
         elements: JSON.stringify(elements),
         base64Image,
-        angle
+        angle,
+        imageModel
       }
     });
 

@@ -16,6 +16,7 @@ model Banner {
   elements    String?  // JSON serialized drag & drop elements
   base64Image String?  // プレビュー保存用
   angle       String?  // アングル種別
+  imageModel  String?  // NEW: "imagen4" | "flux"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
