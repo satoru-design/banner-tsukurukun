@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { loadStyleProfile, injectIntoCopyPrompt } from '@/lib/style-profile/injector';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function POST(req: Request) {
   try {
-    const { productName, target, competitorInsights, lpText } = await req.json();
+    const { productName, target, competitorInsights, lpText, styleProfileId } = await req.json();
 
     if (!productName && !competitorInsights && !lpText) {
       return NextResponse.json({ error: 'Product Name or Insights or LP Text is required' }, { status: 400 });
     }
+
+    const styleProfile = await loadStyleProfile(styleProfileId);
 
     const systemPrompt = `
 あなたは日本のダイレクトレスポンス広告に 15 年従事したコピーライター兼クリエイティブディレクターです。
@@ -109,10 +112,12 @@ ${competitorInsights || 'なし'}
     // 注: 元は 'gemini-3.1-pro-preview' を指定していたが、モデル ID が現行 Gemini API で
     // 不安定または存在しないため JSON パースが頻繁に失敗していた。
     // 他ルート（analyze-lp / analyze-banner）で動作実績のある 'gemini-2.5-pro' に統一。
+    const extendedSystemPrompt = injectIntoCopyPrompt(systemPrompt, styleProfile);
+
     const generateResponse = await ai.models.generateContent({
       model: 'gemini-2.5-pro',
       contents: [
-        systemPrompt + "\n\n" + userPrompt
+        extendedSystemPrompt + "\n\n" + userPrompt
       ],
       config: {
         responseMimeType: 'application/json',

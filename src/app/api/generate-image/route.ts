@@ -4,6 +4,7 @@ import {
   AspectRatio,
   generateWithFallback,
 } from '@/lib/image-providers';
+import { loadStyleProfile, injectIntoImagePrompt } from '@/lib/style-profile/injector';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -20,6 +21,7 @@ export async function POST(req: Request) {
     const seed: number | undefined =
       typeof body.seed === 'number' ? body.seed : undefined;
     const negativePrompt: string | undefined = body.negativePrompt;
+    const styleProfileId: string | null | undefined = body.styleProfileId;
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -32,8 +34,11 @@ export async function POST(req: Request) {
       ? (ratioRaw as AspectRatio)
       : '1:1';
 
+    const styleProfile = await loadStyleProfile(styleProfileId);
+    const extendedPrompt = injectIntoImagePrompt(prompt, styleProfile);
+
     const result = await generateWithFallback(provider, {
-      prompt,
+      prompt: extendedPrompt,
       aspectRatio,
       seed,
       negativePrompt,

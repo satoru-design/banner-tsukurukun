@@ -185,6 +185,8 @@ export default function BannerBuilder() {
                ctaText: activeCtaText,
                emphasisRatio: activeEmphasisRatio,
                urgency: activeUrgency,
+               // Phase A.6
+               styleProfileId: selectedStyleProfileId,
            })
        });
        if(res.ok) alert("マイリストに保存されました！");
@@ -258,7 +260,7 @@ export default function BannerBuilder() {
       const insightsStr = insightData ? JSON.stringify(insightData) : '';
       const res = await fetch('/api/generate-copy', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productName, target, competitorInsights: insightsStr, lpText: lpRawText })
+        body: JSON.stringify({ productName, target, competitorInsights: insightsStr, lpText: lpRawText, styleProfileId: selectedStyleProfileId })
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -348,6 +350,7 @@ export default function BannerBuilder() {
           prompt: masterPrompt,
           provider: imageModel,
           aspectRatio,
+          styleProfileId: selectedStyleProfileId,
         })
       });
       const data = await res.json();
