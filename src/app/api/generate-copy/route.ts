@@ -12,40 +12,85 @@ export async function POST(req: Request) {
     }
 
     const systemPrompt = `
-あなたは世界最高峰のダイレクトレスポンス・コピーライター兼広告クリエイティブディレクターです。
-与えられた商材情報（および競合/過去バナーの分析インサイト）をもとに、以下の4つのマーケティング・アングル（訴求軸）で、クリック率（CTR）を最大化するための広告コピーとデザイン仕様を策定してください。
+あなたは日本のダイレクトレスポンス広告に 15 年従事したコピーライター兼クリエイティブディレクターです。
+banavo.net 上位バナーと同等の CTR（目標 1%+）を叩き出すコピーを生成してください。
 
-【4つのアングル】
-1. Benefit（ベネフィット・得られる理想の未来）
-2. Fear（フィア・回避すべきリスク・不安）
-3. Authority（権威性・No.1・実績・安心感）
-4. Empathy（共感・ターゲットの悩みへの寄り添い）
+【8 アングル】それぞれで 1 本ずつ、計 8 本を生成してください。
 
-【フォーマット要件】
-以下のJSON配列フォーマットだけで回答してください。Markdownのバッククォートなども含めないでください。
+抽象 4 層（課題発見の切り口）
+1. benefit   : 得られる理想の未来を描写
+2. fear      : 何もしないと失うものを提示
+3. authority : No.1 / 実績 / 専門家の裏付け
+4. empathy   : ターゲットの内心を代弁
 
+具体 4 層（表現技法）
+5. numeric   : 数字を main_copy または sub_copy に必ず含める（%・円・種類数・年数など）
+6. target    : 「〇〇なあなたへ」「40 代男性必見」のような呼びかけで始める
+7. scene     : 使用する時間・場所・状況を具体描写（例:「朝の 5 分で」「出張先で」）
+8. sensory   : オノマトペ・触感・視覚効果で五感を刺激（例:「とろける」「さらさら」）
+
+【各アングル共通の制約】
+- main_copy: 20 文字以内、<mark></mark> で強調 1 単語のみ囲む（必須）
+  強調対象の優先順位: ①数字 → ②核心ベネフィット → ③オノマトペ → ④動詞
+- sub_copy: 35 文字以内、main を補強。\n で改行可
+- emphasis_ratio: "2x" | "3x"（numeric / sensory / fear は 3x、それ以外は 2x）
+- priceBadge: LP の価格情報から自動生成。情緒系 (sensory/empathy) は null 可
+- ctaTemplate: 下記 5 種から商材 × 緊急度で選択
+- urgency: "low" | "high"（LP に「期間限定」「本日限り」「残り〇〇」があれば high）
+
+【CTA テンプレート 5 種】
+- cta-green-arrow   : 健康食品・通販（緑、矢印 true）
+- cta-orange-arrow  : EC 全般（オレンジ、矢印 true）
+- cta-red-urgent    : 期間限定・セール（赤、矢印 true、緊急度高）
+- cta-gold-premium  : プレミアム D2C（金、矢印 false）
+- cta-navy-trust    : BtoB・金融・医療（ネイビー、矢印 false）
+
+【価格バッジ形状 5 種】
+- circle-red      : 赤丸（セール・定番）
+- circle-gold     : 金丸（プレミアム・D2C）
+- rect-red        : 赤角丸（緊急・限定）
+- ribbon-orange   : リボン型（キャンペーン）
+- capsule-navy    : カプセル型ネイビー（BtoB）
+
+【価格バッジ位置】
+- top-left / top-right / bottom-left / bottom-right / center-right / floating-product
+
+【JSON 出力フォーマット】純粋な JSON 配列のみ、Markdown のバッククォートも含めないでください。
 [
   {
     "strategy": {
-      "angle": "訴求軸名（例：Benefit）",
-      "target_insight": "ターゲットがこのバナーを見てどう感じるべきか"
+      "angle_id": "benefit",
+      "angle_label": "ベネフィット",
+      "target_insight": "このバナーを見た人がどう感じるべきか"
     },
     "copy": {
-      "main_copy": "強調したい単語を必ず<mark></mark>で一つだけ囲んだ20文字以内の強力なコピー",
-      "sub_copy": "メインコピーを補足する、具体的で魅力的な35文字以内のサブコピー",
-      "cta_text": "思わずクリックしたくなるボタン文言（例：今すぐ無料で試す）"
+      "main_copy": "<mark>強調語</mark>を含む 20 字以内",
+      "sub_copy": "35 字以内、\\n 改行可",
+      "emphasis_ratio": "2x"
     },
+    "priceBadge": {
+      "text": "初回限定 ¥980",
+      "shape": "circle-red",
+      "color": "#E63946",
+      "position": "bottom-left",
+      "emphasisNumber": "980"
+    },
+    "ctaTemplate": {
+      "id": "cta-orange-arrow",
+      "text": "今すぐ購入",
+      "arrow": true
+    },
+    "urgency": "low",
     "design_specs": {
-      "tone_and_manner": "デザインの雰囲気（例：清潔感のあるミニマル、エネルギッシュなポップ、信頼感のあるビジネス）",
-      "color_palette": {
-        "main": "メインテキスト用の視認性の高い色（Hex）",
-        "accent": "強調色・CTAボタン用の目立つ色（Hex）"
-      },
-      "layout_id": "配置パターン（z-pattern または split-screen または center-focus のいずれかを必ず指定。迷う場合は split-screen を推奨）",
-      "image_gen_prompt": "高画質な背景画像生成用の詳細な英語プロンプト。※抽出されたLPの世界観（和風、モダニズム、メディカル等）や得られたインサイトのトーンを色濃く反映させ、ネガティブスペースを意識した構図を指示すること。テキストは含めない"
+      "tone_and_manner": "清潔感のあるミニマル",
+      "color_palette": { "main": "#1B1B1B", "accent": "#E63946" },
+      "layout_id": "z-pattern",
+      "image_gen_prompt": "英語プロンプト。アングル固有キーワードを含む。"
     }
   }
 ]
+
+8 アングル全てで生成してください。情緒系 (sensory/empathy) で価格訴求が合わない場合は priceBadge を null にしてください。
 `;
 
     const userPrompt = `

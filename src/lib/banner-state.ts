@@ -56,3 +56,67 @@ export const renderRichText = (text: string, accentColor: string): React.ReactNo
     return React.createElement('span', { key: i }, part);
   });
 };
+
+// ========== Phase A.5: Ad Quality Uplift ==========
+
+export type AngleId =
+  | 'benefit'
+  | 'fear'
+  | 'authority'
+  | 'empathy'
+  | 'numeric'
+  | 'target'
+  | 'scene'
+  | 'sensory';
+
+export type Urgency = 'low' | 'high';
+
+export type EmphasisRatio = '2x' | '3x';
+
+export type PriceBadgeShape =
+  | 'circle-red'
+  | 'circle-gold'
+  | 'rect-red'
+  | 'ribbon-orange'
+  | 'capsule-navy';
+
+export type PriceBadgePosition =
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right'
+  | 'center-right'
+  | 'floating-product';
+
+export interface PriceBadge {
+  text: string;
+  shape: PriceBadgeShape;
+  color: string;
+  position: PriceBadgePosition;
+  emphasisNumber?: string;
+}
+
+export type CtaTemplateId =
+  | 'cta-green-arrow'
+  | 'cta-orange-arrow'
+  | 'cta-red-urgent'
+  | 'cta-gold-premium'
+  | 'cta-navy-trust';
+
+export interface CtaTemplate {
+  id: CtaTemplateId;
+  text: string;
+  arrow: boolean;
+}
+
+// アングル別のデフォルト emphasis_ratio
+export const ANGLE_EMPHASIS_RATIO: Record<AngleId, EmphasisRatio> = {
+  numeric: '3x',
+  sensory: '3x',
+  fear: '3x',
+  benefit: '2x',
+  authority: '2x',
+  empathy: '2x',
+  target: '2x',
+  scene: '2x',
+};
