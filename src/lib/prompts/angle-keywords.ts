@@ -15,6 +15,7 @@ export const ANGLE_KEYWORDS: Record<AngleId, string> = {
 export const PROVIDER_PREFIX: Record<ImageProviderId, string> = {
   imagen4: 'photorealistic, magazine cover quality, soft rim light',
   flux: 'cinematic color grading, product hero shot, editorial advertising style',
+  'gpt-image': 'polished Japanese advertising banner, studio-grade composition, crisp Japanese typography rendered natively in the image',
 };
 
 export const AD_COMMON_PREFIX =

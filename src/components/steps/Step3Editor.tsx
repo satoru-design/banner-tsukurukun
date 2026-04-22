@@ -84,6 +84,10 @@ type Props = {
   setActiveBadge: (badge: PriceBadgeType | null) => void;
   // Phase A6: Secondary Badge (authority / social proof)
   activeSecondaryBadge?: PriceBadgeType | null;
+  // Phase A.7: Bake text into image toggle. When true, HTML overlays (copies/badges/CTA) are hidden
+  // because the generated image already contains them.
+  bakeTextIntoImage?: boolean;
+  setBakeTextIntoImage?: (v: boolean) => void;
   // Phase A5: CTA
   activeCtaTemplateId: CtaTemplateId;
   setActiveCtaTemplateId: (id: CtaTemplateId) => void;
@@ -255,6 +259,20 @@ export function Step3Editor(props: Props) {
               ※ {props.imageModel} 失敗のため {props.lastProviderUsed} にフォールバック
             </div>
           )}
+
+          {props.setBakeTextIntoImage && (
+            <label className="mt-2 flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={!!props.bakeTextIntoImage}
+                onChange={(e) => props.setBakeTextIntoImage?.(e.target.checked)}
+                className="accent-sky-500"
+              />
+              <span>
+                テキストを画像に焼き込む（ON: 完成バナー / OFF: 背景+HTMLオーバーレイ）
+              </span>
+            </label>
+          )}
         </div>
 
         <div className="flex justify-between items-center pt-4">
@@ -396,8 +414,8 @@ export function Step3Editor(props: Props) {
                  }}
                  onClick={() => setSelectedElementId(null)}
               >
-                 {/* Draggable Elements */}
-                 {editorTexts.map((el) => (
+                 {/* Draggable Elements — hidden when bake mode is ON (text already in image) */}
+                 {!props.bakeTextIntoImage && editorTexts.map((el) => (
                     <Rnd
                        key={el.id} default={{ x: el.defaultPos.x, y: el.defaultPos.y, width: (el.defaultPos as { w?: number | string; width?: number | string }).w || (el.defaultPos as { w?: number | string; width?: number | string }).width || 0, height: (el.defaultPos as { h?: number | string; height?: number | string }).h || (el.defaultPos as { h?: number | string; height?: number | string }).height || 0 }} bounds="parent" cancel=".no-drag"
                        onDragStart={() => setSelectedElementId(el.id)}
@@ -425,8 +443,8 @@ export function Step3Editor(props: Props) {
                     </Rnd>
                  ))}
 
-                 {/* Phase A5: Price Badge overlay */}
-                 {props.activeBadge && (
+                 {/* Phase A5: Price Badge overlay — hidden when bake mode is ON */}
+                 {!props.bakeTextIntoImage && props.activeBadge && (
                    <div
                      className="absolute z-20"
                      style={getBadgePositionStyle(props.activeBadge.position, canvasSize)}
@@ -435,8 +453,8 @@ export function Step3Editor(props: Props) {
                    </div>
                  )}
 
-                 {/* Phase A6: Secondary Badge overlay (authority / social proof) */}
-                 {props.activeSecondaryBadge && (
+                 {/* Phase A6: Secondary Badge overlay — hidden when bake mode is ON */}
+                 {!props.bakeTextIntoImage && props.activeSecondaryBadge && (
                    <div
                      className="absolute z-20"
                      style={getBadgePositionStyle(props.activeSecondaryBadge.position, canvasSize)}
@@ -445,8 +463,8 @@ export function Step3Editor(props: Props) {
                    </div>
                  )}
 
-                 {/* Phase A5: CTA overlay */}
-                 {props.activeCtaText && hasCta !== 'no' && (
+                 {/* Phase A5: CTA overlay — hidden when bake mode is ON */}
+                 {!props.bakeTextIntoImage && props.activeCtaText && hasCta !== 'no' && (
                    <div
                      className="absolute z-20"
                      style={{

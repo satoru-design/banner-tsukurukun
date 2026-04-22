@@ -9,7 +9,7 @@ import { loadStyleProfile, injectIntoImagePrompt } from '@/lib/style-profile/inj
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const VALID_PROVIDERS: ImageProviderId[] = ['imagen4', 'flux'];
+const VALID_PROVIDERS: ImageProviderId[] = ['imagen4', 'flux', 'gpt-image'];
 const VALID_RATIOS: AspectRatio[] = ['1:1', '16:9', '9:16'];
 
 export async function POST(req: Request) {
@@ -22,6 +22,13 @@ export async function POST(req: Request) {
       typeof body.seed === 'number' ? body.seed : undefined;
     const negativePrompt: string | undefined = body.negativePrompt;
     const styleProfileId: string | null | undefined = body.styleProfileId;
+    const copyBundle: {
+      mainCopy?: string;
+      subCopy?: string;
+      ctaText?: string;
+      primaryBadgeText?: string;
+      secondaryBadgeText?: string;
+    } | undefined = body.copyBundle;
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -42,6 +49,8 @@ export async function POST(req: Request) {
       aspectRatio,
       seed,
       negativePrompt,
+      referenceImageUrls: styleProfile?.referenceImageUrls,
+      copyBundle,
     });
 
     return NextResponse.json({

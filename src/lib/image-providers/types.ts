@@ -1,4 +1,4 @@
-export type ImageProviderId = 'imagen4' | 'flux';
+export type ImageProviderId = 'imagen4' | 'flux' | 'gpt-image';
 
 export type AspectRatio = '1:1' | '16:9' | '9:16';
 
@@ -7,6 +7,16 @@ export interface GenerateParams {
   aspectRatio: AspectRatio;
   seed?: number;
   negativePrompt?: string;
+  // Phase A.7: StyleProfile の参考画像 URL 配列。指定時は各プロバイダの reference-capable エンドポイントを使用。
+  referenceImageUrls?: string[];
+  // Phase A.7: バナーに焼き込むべき日本語テキスト束。指定時は画像に完成バナーとしてテキストを描画。
+  copyBundle?: {
+    mainCopy?: string;
+    subCopy?: string;
+    ctaText?: string;
+    primaryBadgeText?: string;
+    secondaryBadgeText?: string;
+  };
 }
 
 export interface GenerateResult {

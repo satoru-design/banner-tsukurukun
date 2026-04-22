@@ -17,6 +17,7 @@ export function ModelSelector({ value, onChange, disabled }: Props) {
   }> = [
     { id: 'imagen4', label: 'Imagen 4 Ultra', hint: '写実・人物・和風に強い / seed非対応' },
     { id: 'flux', label: 'FLUX 1.1 pro', hint: 'アート・ダイナミック・抽象に強い / seed対応' },
+    { id: 'gpt-image', label: 'GPT Image (gpt-image-1)', hint: '日本語テキスト描画に最強 / 単価高め' },
   ];
 
   return (
