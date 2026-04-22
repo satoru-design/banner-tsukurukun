@@ -6,6 +6,7 @@ import {
   ImageProviderError,
   AspectRatio,
 } from './types';
+import { buildBakeTextInstruction } from './prompt-helpers';
 
 const IMAGE_MODEL = 'gpt-image-1';
 const ORCHESTRATOR_MODEL = 'gpt-5';
@@ -37,9 +38,14 @@ async function generateTextOnly(
   params: GenerateParams,
 ): Promise<GenerateResult> {
   const size = toSize(params.aspectRatio);
+  const bakeInstruction = params.copyBundle
+    ? `\n\n${buildBakeTextInstruction(params.copyBundle)}`
+    : '';
+  const finalPrompt = `${params.prompt}${bakeInstruction}`;
+
   const response = await openai.images.generate({
     model: IMAGE_MODEL,
-    prompt: params.prompt,
+    prompt: finalPrompt,
     size,
     quality: 'high',
     n: 1,
@@ -73,6 +79,10 @@ async function generateWithReferences(
   const size = toSize(params.aspectRatio);
   const referenceImageUrls = params.referenceImageUrls ?? [];
 
+  const bakeInstruction = params.copyBundle
+    ? `\n\n${buildBakeTextInstruction(params.copyBundle)}`
+    : '';
+
   const userContent: Array<
     | { type: 'input_text'; text: string }
     | { type: 'input_image'; image_url: string; detail: 'high' }
@@ -81,10 +91,11 @@ async function generateWithReferences(
       type: 'input_text',
       text:
         `以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
-        `指定プロンプトに沿った新規バナーを image_generation tool で 1 枚生成してください。\n\n` +
+        `指定プロンプトに沿った完成バナーを image_generation tool で 1 枚生成してください。\n\n` +
         `【プロンプト】\n${params.prompt}\n\n` +
         `【重要】参考画像のレイアウト・色使い・日本語フォント・価格バッジ/CTA スタイルを最優先で模倣。` +
-        `プロンプトは補助情報として扱ってください。`,
+        `プロンプトは補助情報として扱ってください。` +
+        bakeInstruction,
     },
     ...referenceImageUrls.map(
       (url) =>

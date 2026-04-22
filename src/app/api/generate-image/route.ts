@@ -22,6 +22,13 @@ export async function POST(req: Request) {
       typeof body.seed === 'number' ? body.seed : undefined;
     const negativePrompt: string | undefined = body.negativePrompt;
     const styleProfileId: string | null | undefined = body.styleProfileId;
+    const copyBundle: {
+      mainCopy?: string;
+      subCopy?: string;
+      ctaText?: string;
+      primaryBadgeText?: string;
+      secondaryBadgeText?: string;
+    } | undefined = body.copyBundle;
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -43,6 +50,7 @@ export async function POST(req: Request) {
       seed,
       negativePrompt,
       referenceImageUrls: styleProfile?.referenceImageUrls,
+      copyBundle,
     });
 
     return NextResponse.json({

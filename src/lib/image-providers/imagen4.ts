@@ -5,9 +5,10 @@ import {
   GenerateResult,
   ImageProviderError,
 } from './types';
+import { buildBakeTextInstruction } from './prompt-helpers';
 
 const IMAGEN_MODEL = 'imagen-4.0-ultra-generate-001';
-const GEMINI_IMAGE_MODEL = 'gemini-2.5-flash-image-preview';
+const GEMINI_IMAGE_MODEL = 'gemini-3-pro-image-preview';
 
 const GOOGLE_AI_KEY =
   process.env.GOOGLE_AI_STUDIO_API_KEY ||
@@ -31,9 +32,14 @@ async function generateTextOnly(
   ai: GoogleGenAI,
   params: GenerateParams,
 ): Promise<GenerateResult> {
+  const bakeInstruction = params.copyBundle
+    ? `\n\n${buildBakeTextInstruction(params.copyBundle)}`
+    : '';
+  const finalPrompt = `${params.prompt}${bakeInstruction}`;
+
   const response = await ai.models.generateImages({
     model: IMAGEN_MODEL,
-    prompt: params.prompt,
+    prompt: finalPrompt,
     config: {
       numberOfImages: 1,
       aspectRatio: params.aspectRatio,
@@ -87,12 +93,17 @@ async function generateWithReferences(
     }),
   );
 
+  const bakeInstruction = params.copyBundle
+    ? `\n\n${buildBakeTextInstruction(params.copyBundle)}`
+    : '';
+
   const instructionText =
     `以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
-    `指定プロンプトに沿った新規バナーを 1 枚生成してください。\n\n` +
+    `指定プロンプトに沿った完成バナーを 1 枚生成してください。\n\n` +
     `【プロンプト】\n${params.prompt}\n\n` +
     `【重要】参考画像のレイアウト・色使い・日本語フォント・価格バッジ/CTA スタイルを最優先で模倣。` +
-    `プロンプトは補助情報として扱ってください。aspect ratio: ${params.aspectRatio}.`;
+    `プロンプトは補助情報として扱ってください。aspect ratio: ${params.aspectRatio}.` +
+    bakeInstruction;
 
   const response = await ai.models.generateContent({
     model: GEMINI_IMAGE_MODEL,

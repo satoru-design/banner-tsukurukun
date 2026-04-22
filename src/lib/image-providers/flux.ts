@@ -5,6 +5,7 @@ import {
   GenerateResult,
   ImageProviderError,
 } from './types';
+import { buildBakeTextInstruction } from './prompt-helpers';
 
 const FLUX_TEXT_MODEL = 'black-forest-labs/flux-1.1-pro';
 const FLUX_KONTEXT_MODEL = 'black-forest-labs/flux-kontext-pro';
@@ -78,8 +79,13 @@ async function generateTextOnly(
   params: GenerateParams,
   signal: AbortSignal,
 ): Promise<GenerateResult> {
+  const bakeInstruction = params.copyBundle
+    ? `\n\n${buildBakeTextInstruction(params.copyBundle)}`
+    : '';
+  const finalPrompt = `${params.prompt}${bakeInstruction}`;
+
   const input = {
-    prompt: params.prompt,
+    prompt: finalPrompt,
     ...aspectToFluxArgs(params.aspectRatio),
     output_format: 'png',
     safety_tolerance: 2,
@@ -125,9 +131,13 @@ async function generateWithReferences(
     throw new ImageProviderError('flux', 'referenceImageUrls empty in reference mode');
   }
 
+  const bakeInstruction = params.copyBundle
+    ? `\n\n${buildBakeTextInstruction(params.copyBundle)}`
+    : '';
+
   const kontextPrompt =
     `Match the advertising style, Japanese typography, color palette, layout, and badge/CTA design of the reference image. ` +
-    `Generate a new banner that follows these guidelines: ${params.prompt}`;
+    `Generate a new banner that follows these guidelines: ${params.prompt}${bakeInstruction}`;
 
   const input = {
     input_image: primaryRef,

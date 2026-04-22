@@ -45,6 +45,9 @@ export default function BannerBuilder() {
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState<string | null>(null);
   const [showStyleEditor, setShowStyleEditor] = useState(false);
   const [activeStyleProfile, setActiveStyleProfile] = useState<StyleProfile | null>(null);
+  // Phase A.7: Bake main/sub/cta/badge text directly into the generated image (ChatGPT Web style).
+  // When true, HTML overlays are hidden in Step3Editor to avoid double-rendering.
+  const [bakeTextIntoImage, setBakeTextIntoImage] = useState<boolean>(true);
 
   useEffect(() => {
     if (!selectedStyleProfileId) {
@@ -410,6 +413,16 @@ export default function BannerBuilder() {
 
     setLoading(true); setLoadingMsg(`AI(${imageModel})が背景画像を生成中...`);
     try {
+      const copyBundle = bakeTextIntoImage
+        ? {
+            mainCopy: manualMainCopy || undefined,
+            subCopy: manualSubCopy || undefined,
+            ctaText: activeCtaText || undefined,
+            primaryBadgeText: activeBadge?.text || undefined,
+            secondaryBadgeText: activeSecondaryBadge?.text || undefined,
+          }
+        : undefined;
+
       const res = await fetch('/api/generate-image', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -417,6 +430,7 @@ export default function BannerBuilder() {
           provider: imageModel,
           aspectRatio,
           styleProfileId: selectedStyleProfileId,
+          copyBundle,
         })
       });
       const data = await res.json();
@@ -632,6 +646,8 @@ export default function BannerBuilder() {
             activeBadge={activeBadge}
             setActiveBadge={setActiveBadge}
             activeSecondaryBadge={activeSecondaryBadge}
+            bakeTextIntoImage={bakeTextIntoImage}
+            setBakeTextIntoImage={setBakeTextIntoImage}
             activeCtaTemplateId={activeCtaTemplateId}
             setActiveCtaTemplateId={setActiveCtaTemplateId}
             activeCtaText={activeCtaText}
