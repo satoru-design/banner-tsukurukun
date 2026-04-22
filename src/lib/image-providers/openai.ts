@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import {
   ImageProvider,
   GenerateParams,
@@ -9,7 +9,9 @@ import {
 import { buildBakeTextInstruction } from './prompt-helpers';
 
 const IMAGE_MODEL = 'gpt-image-1';
-const ORCHESTRATOR_MODEL = 'gpt-5';
+// gpt-5 は orchestrator として要約が強くプロンプトを崩すため gpt-4o を使用。
+// gpt-4o は ChatGPT Web の画像生成で実績があり、プロンプト保存性が高い。
+const ORCHESTRATOR_MODEL = 'gpt-4o';
 
 function ensureKey(): string {
   const key = process.env.OPENAI_API_KEY || '';
@@ -31,7 +33,7 @@ function toSize(ratio: AspectRatio): '1024x1024' | '1024x1536' | '1536x1024' {
 }
 
 /**
- * Reference 画像なしのシンプル生成（Images API）
+ * 参考画像なし: Images API の通常 generate
  */
 async function generateTextOnly(
   openai: OpenAI,
@@ -39,9 +41,10 @@ async function generateTextOnly(
 ): Promise<GenerateResult> {
   const size = toSize(params.aspectRatio);
   const bakeInstruction = params.copyBundle
-    ? `\n\n${buildBakeTextInstruction(params.copyBundle)}`
+    ? `${buildBakeTextInstruction(params.copyBundle)}\n\n---\n\n`
     : '';
-  const finalPrompt = `${params.prompt}${bakeInstruction}`;
+  // 日本語テキスト指示を先頭に置き、prompt本体（補助）は後ろ
+  const finalPrompt = `${bakeInstruction}[Visual direction (secondary)]\n${params.prompt}`;
 
   const response = await openai.images.generate({
     model: IMAGE_MODEL,
@@ -53,7 +56,7 @@ async function generateTextOnly(
 
   const b64 = response.data?.[0]?.b64_json;
   if (!b64) {
-    throw new ImageProviderError('gpt-image', 'No image data returned from OpenAI Images API');
+    throw new ImageProviderError('gpt-image', 'No image data returned from Images API');
   }
 
   return {
@@ -69,10 +72,77 @@ async function generateTextOnly(
 }
 
 /**
- * Reference 画像あり生成（Responses API + image_generation tool）
- * ChatGPT Web 相当の挙動: GPT-5 が参考画像を見て詳細プロンプトを内部生成 → gpt-image-1 を tool 呼び出し
+ * 参考画像あり: images.edit() エンドポイントを使用。
+ * ChatGPT Web の "Upload reference images then generate" と同等の公式パス。
+ * orchestrator を介さないため日本語テキスト指示がそのまま gpt-image-1 に届く。
  */
-async function generateWithReferences(
+async function generateWithReferencesEdit(
+  openai: OpenAI,
+  params: GenerateParams,
+): Promise<GenerateResult> {
+  const size = toSize(params.aspectRatio);
+  const referenceImageUrls = params.referenceImageUrls ?? [];
+
+  const bakeInstruction = params.copyBundle
+    ? `${buildBakeTextInstruction(params.copyBundle)}\n\n---\n\n`
+    : '';
+
+  // 日本語テキスト指示を最前面に、visual direction は後方支援
+  const finalPrompt =
+    `${bakeInstruction}` +
+    `[Style reference]\n以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
+    `完成バナーを1枚生成してください。参考画像のレイアウト・色使い・日本語フォント・バッジ/CTAスタイルを最優先。\n\n` +
+    `[Visual direction (secondary)]\n${params.prompt}`;
+
+  // URL から File オブジェクトを生成（OpenAI SDK の toFile ヘルパー）
+  const files = await Promise.all(
+    referenceImageUrls.slice(0, 10).map(async (url, idx) => {
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new ImageProviderError(
+          'gpt-image',
+          `Failed to fetch reference image ${url}: ${res.status}`,
+        );
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      const mime = res.headers.get('content-type') ?? 'image/jpeg';
+      const ext = mime.split('/')[1]?.split(';')[0] ?? 'jpg';
+      return toFile(buf, `ref-${idx}.${ext}`, { type: mime });
+    }),
+  );
+
+  const response = await openai.images.edit({
+    model: IMAGE_MODEL,
+    image: files,
+    prompt: finalPrompt,
+    size,
+    quality: 'high',
+    n: 1,
+  });
+
+  const b64 = response.data?.[0]?.b64_json;
+  if (!b64) {
+    throw new ImageProviderError('gpt-image', 'No image data returned from images.edit()');
+  }
+
+  return {
+    base64: `data:image/png;base64,${b64}`,
+    providerId: 'gpt-image',
+    providerMetadata: {
+      model: IMAGE_MODEL,
+      size,
+      aspectRatio: params.aspectRatio,
+      mode: 'references-edit',
+      referenceCount: referenceImageUrls.length,
+    },
+  };
+}
+
+/**
+ * Fallback: Responses API + image_generation tool with gpt-4o orchestrator.
+ * images.edit() が失敗した場合のみ使用。
+ */
+async function generateWithReferencesResponses(
   openai: OpenAI,
   params: GenerateParams,
 ): Promise<GenerateResult> {
@@ -92,9 +162,7 @@ async function generateWithReferences(
       text:
         `以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
         `指定プロンプトに沿った完成バナーを image_generation tool で 1 枚生成してください。\n\n` +
-        `【プロンプト】\n${params.prompt}\n\n` +
-        `【重要】参考画像のレイアウト・色使い・日本語フォント・価格バッジ/CTA スタイルを最優先で模倣。` +
-        `プロンプトは補助情報として扱ってください。` +
+        `【プロンプト】\n${params.prompt}` +
         bakeInstruction,
     },
     ...referenceImageUrls.map(
@@ -106,17 +174,9 @@ async function generateWithReferences(
   const response = await openai.responses.create({
     model: ORCHESTRATOR_MODEL,
     input: [{ role: 'user', content: userContent }],
-    tools: [
-      {
-        type: 'image_generation',
-        size,
-        quality: 'high',
-      },
-    ],
+    tools: [{ type: 'image_generation', size, quality: 'high' }],
   });
 
-  // Responses API の output 配列から image_generation_call の結果を取り出す
-  // SDK の型には image_generation_call variant が含まれていないため unknown 経由で narrow する。
   const outputItems = (response.output ?? []) as unknown as Array<{
     type?: string;
     result?: string;
@@ -138,7 +198,7 @@ async function generateWithReferences(
       orchestrator: ORCHESTRATOR_MODEL,
       size,
       aspectRatio: params.aspectRatio,
-      mode: 'references',
+      mode: 'references-responses',
       referenceCount: referenceImageUrls.length,
     },
   };
@@ -152,17 +212,37 @@ export const gptImageProvider: ImageProvider = {
     const openai = new OpenAI({ apiKey: ensureKey() });
     const hasRefs = (params.referenceImageUrls?.length ?? 0) > 0;
 
+    if (!hasRefs) {
+      try {
+        return await generateTextOnly(openai, params);
+      } catch (err) {
+        if (err instanceof ImageProviderError) throw err;
+        throw new ImageProviderError(
+          'gpt-image',
+          err instanceof Error ? err.message : 'Unknown error',
+          err,
+        );
+      }
+    }
+
+    // Refs あり: まず images.edit() を試す（orchestrator bypass のため日本語品質高い）
     try {
-      return hasRefs
-        ? await generateWithReferences(openai, params)
-        : await generateTextOnly(openai, params);
-    } catch (err) {
-      if (err instanceof ImageProviderError) throw err;
-      throw new ImageProviderError(
-        'gpt-image',
-        err instanceof Error ? err.message : 'Unknown error',
-        err,
+      return await generateWithReferencesEdit(openai, params);
+    } catch (editErr) {
+      console.warn(
+        '[gpt-image] images.edit() failed, falling back to Responses API:',
+        editErr instanceof Error ? editErr.message : editErr,
       );
+      try {
+        return await generateWithReferencesResponses(openai, params);
+      } catch (respErr) {
+        if (respErr instanceof ImageProviderError) throw respErr;
+        throw new ImageProviderError(
+          'gpt-image',
+          respErr instanceof Error ? respErr.message : 'Unknown error',
+          respErr,
+        );
+      }
     }
   },
 };
