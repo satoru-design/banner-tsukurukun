@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { Link2, Loader2, Wand2, AlertTriangle } from 'lucide-react';
 import { IRONCLAD_PATTERNS, IroncladBrief, IroncladPattern, IroncladSize } from '@/lib/prompts/ironclad-banner';
 import { AssetLibrary, Asset } from './AssetLibrary';
 
@@ -47,6 +48,48 @@ export function IroncladBriefForm({
     onChangeBrief({ ...brief, sizes: nextSizes });
   };
 
+  const [lpUrl, setLpUrl] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+
+  const handleAnalyzeLp = async () => {
+    const url = lpUrl.trim();
+    if (!url) return;
+    if (!/^https?:\/\//.test(url)) {
+      setAnalyzeError('http:// または https:// で始まる URL を入力してください');
+      return;
+    }
+    setAnalyzing(true);
+    setAnalyzeError(null);
+    try {
+      const res = await fetch('/api/analyze-lp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      const insights = json.insights ?? {};
+      const product = insights.inferred_product_name ?? '';
+      const target = insights.inferred_target_demographic ?? '';
+      const purposeParts = [
+        insights.main_appeal,
+        insights.worldview ? `（世界観: ${insights.worldview}）` : '',
+        insights.insight ? `インサイト: ${insights.insight}` : '',
+      ].filter(Boolean);
+      onChangeBrief({
+        ...brief,
+        product: product || brief.product,
+        target: target || brief.target,
+        purpose: purposeParts.join(' / ') || brief.purpose,
+      });
+    } catch (e) {
+      setAnalyzeError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
@@ -54,6 +97,50 @@ export function IroncladBriefForm({
         <p className="text-sm text-slate-400 mt-1">
           パターンと商材情報を入力してください。次の画面で AI が コピー・デザイン要件の候補を自動生成します。
         </p>
+      </div>
+
+      <div className="border border-sky-700/50 rounded-lg p-4 bg-sky-950/20 space-y-3">
+        <div className="flex items-center gap-2">
+          <Link2 className="w-4 h-4 text-sky-400" />
+          <h3 className="text-sm font-bold text-sky-300">LP URL から自動抽出（任意）</h3>
+        </div>
+        <p className="text-xs text-slate-400">
+          商材 LP の URL を貼ると Gemini が読み込んで「商材 / ターゲット / 目的」を自動入力します（既存の入力は上書き）。
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="url"
+            placeholder="https://example.com/products/xxx"
+            value={lpUrl}
+            onChange={(e) => setLpUrl(e.target.value)}
+            disabled={analyzing}
+            className="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white disabled:opacity-50"
+          />
+          <button
+            type="button"
+            onClick={handleAnalyzeLp}
+            disabled={analyzing || !lpUrl.trim()}
+            className="flex items-center gap-1 px-4 py-2 rounded bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {analyzing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                解析中…
+              </>
+            ) : (
+              <>
+                <Wand2 className="w-4 h-4" />
+                解析して自動入力
+              </>
+            )}
+          </button>
+        </div>
+        {analyzeError && (
+          <div className="flex items-start gap-2 text-xs text-red-300 bg-red-950/40 rounded px-2 py-1">
+            <AlertTriangle className="w-3 h-3 mt-0.5" />
+            {analyzeError}
+          </div>
+        )}
       </div>
 
       <div>
@@ -80,10 +167,14 @@ export function IroncladBriefForm({
       </div>
 
       <div>
-        <label className="block text-sm font-bold text-slate-200 mb-2">商材 *</label>
+        <label className="block text-sm font-bold text-slate-200 mb-2">
+          商材 *<span className="text-[11px] font-normal text-slate-400 ml-2">
+            テキスト入力 or LP URL 貼り付け（どちらでも可）
+          </span>
+        </label>
         <input
           type="text"
-          placeholder="例: 5 POINT DETOX（デトックスドリンク）"
+          placeholder="例: 5 POINT DETOX / または LP URL"
           value={brief.product}
           onChange={(e) => onChangeBrief({ ...brief, product: e.target.value })}
           className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white"
