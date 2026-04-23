@@ -174,6 +174,48 @@ export function computeDefaultBadgePosition(
 }
 
 /**
+ * Secondary Badge の自動配置ロジック（Primary Badge と衝突しないポジションを選択）。
+ * CTA は bottom-center に固定描画されるため、Secondary は top 系を優先して視認性を確保する。
+ */
+export function computeSecondaryBadgePosition(
+  primaryPosition: PriceBadgePosition
+): PriceBadgePosition {
+  switch (primaryPosition) {
+    case 'top-left': return 'top-right';
+    case 'top-right': return 'top-left';
+    case 'bottom-left': return 'top-right';
+    case 'bottom-right': return 'top-left';
+    case 'center-right': return 'top-left';
+    case 'floating-product':
+    default: return 'top-right';
+  }
+}
+
+/**
+ * StyleProfile が指定した Secondary Badge 位置を検証し、Primary Badge や CTA と衝突する場合は
+ * 自動的に対角線上の安全な位置へ退避させる。
+ */
+export function resolveSecondaryBadgePosition(
+  requestedPosition: PriceBadgePosition | undefined,
+  primaryPosition: PriceBadgePosition
+): PriceBadgePosition {
+  if (!requestedPosition) {
+    return computeSecondaryBadgePosition(primaryPosition);
+  }
+  // 完全一致 → 対角に退避
+  if (requestedPosition === primaryPosition) {
+    return computeSecondaryBadgePosition(primaryPosition);
+  }
+  // Primary/Secondary が両方 bottom 系 → CTA との3重衝突回避のため top 系へ退避
+  const primaryIsBottom = primaryPosition.startsWith('bottom');
+  const secondaryIsBottom = requestedPosition.startsWith('bottom');
+  if (primaryIsBottom && secondaryIsBottom) {
+    return computeSecondaryBadgePosition(primaryPosition);
+  }
+  return requestedPosition;
+}
+
+/**
  * main_copy の <mark></mark> タグを検証・修正する。
  * - 0 個 → 数字優先で自動ラップ（なければ先頭の名詞）
  * - 1 個 → そのまま
