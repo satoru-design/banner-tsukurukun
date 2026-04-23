@@ -23,7 +23,7 @@ function ensureKey(): string {
   return key;
 }
 
-function toSize(ratio: AspectRatio): '1024x1024' | '1024x1536' | '1536x1024' {
+function toSize(ratio: AspectRatio): string {
   switch (ratio) {
     case '1:1':
       return '1024x1024';
@@ -35,13 +35,24 @@ function toSize(ratio: AspectRatio): '1024x1024' | '1024x1536' | '1536x1024' {
 }
 
 /**
+ * apiSizeOverride が渡されればそれを優先、なければ aspectRatio から 3 サイズにマップ。
+ * gpt-image-2 は柔軟サイズ対応（16px倍数・≤3:1・総ピクセル 655,360〜8,294,400）。
+ */
+function resolveApiSize(params: GenerateParams): string {
+  if (params.apiSizeOverride && /^\d+x\d+$/.test(params.apiSizeOverride)) {
+    return params.apiSizeOverride;
+  }
+  return toSize(params.aspectRatio);
+}
+
+/**
  * 参考画像なし: Images API の通常 generate
  */
 async function generateTextOnly(
   openai: OpenAI,
   params: GenerateParams,
 ): Promise<GenerateResult> {
-  const size = toSize(params.aspectRatio);
+  const size = resolveApiSize(params);
   const bakeInstruction = params.copyBundle
     ? `${buildBakeTextInstruction(params.copyBundle)}\n\n---\n\n`
     : '';
@@ -51,7 +62,8 @@ async function generateTextOnly(
   const response = await openai.images.generate({
     model: IMAGE_MODEL,
     prompt: finalPrompt,
-    size,
+    // gpt-image-2 は柔軟サイズ対応だが SDK 型が古い union に限定されているためキャスト
+    size: size as '1024x1024',
     quality: 'high',
     n: 1,
   });
@@ -82,7 +94,7 @@ async function generateWithReferencesEdit(
   openai: OpenAI,
   params: GenerateParams,
 ): Promise<GenerateResult> {
-  const size = toSize(params.aspectRatio);
+  const size = resolveApiSize(params);
   const referenceImageUrls = params.referenceImageUrls ?? [];
 
   // 参考画像の扱い方をモード分岐
@@ -168,7 +180,8 @@ async function generateWithReferencesEdit(
     model: IMAGE_MODEL,
     image: files,
     prompt: finalPrompt,
-    size,
+    // gpt-image-2 柔軟サイズのため SDK の古い union 型をキャスト
+    size: size as '1024x1024',
     quality: 'high',
     n: 1,
   });
@@ -199,7 +212,7 @@ async function generateWithReferencesResponses(
   openai: OpenAI,
   params: GenerateParams,
 ): Promise<GenerateResult> {
-  const size = toSize(params.aspectRatio);
+  const size = resolveApiSize(params);
   const referenceImageUrls = params.referenceImageUrls ?? [];
 
   const bakeInstruction = params.copyBundle
@@ -235,7 +248,8 @@ async function generateWithReferencesResponses(
   const response = await openai.responses.create({
     model: ORCHESTRATOR_MODEL,
     input: [{ role: 'user', content: userContent }],
-    tools: [{ type: 'image_generation', size, quality: 'high' }],
+    // SDK の size union 型を柔軟サイズ対応のためキャスト
+    tools: [{ type: 'image_generation', size: size as '1024x1024', quality: 'high' }],
   });
 
   const outputItems = (response.output ?? []) as unknown as Array<{

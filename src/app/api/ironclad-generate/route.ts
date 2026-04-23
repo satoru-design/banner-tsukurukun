@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   buildIroncladImagePromptWithPrefix,
+  SIZE_TO_API_IRONCLAD,
   type IroncladMaterials,
 } from '@/lib/prompts/ironclad-banner';
 import { generateWithFallback } from '@/lib/image-providers';
@@ -29,12 +30,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const aspectRatio =
-      materials.size === 'FB/GDN (1200x628)'
-        ? ('16:9' as const)
-        : materials.size === 'Stories (1080x1920)'
-          ? ('9:16' as const)
-          : ('1:1' as const);
+    const sizeMeta = SIZE_TO_API_IRONCLAD[materials.size];
+    if (!sizeMeta) {
+      return NextResponse.json({ error: `Unknown size: ${materials.size}` }, { status: 400 });
+    }
+    const aspectRatio = sizeMeta.aspectRatio;
+    const apiSizeOverride = sizeMeta.apiSize;
 
     const finalPrompt = buildIroncladImagePromptWithPrefix(materials);
 
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
     const result = await generateWithFallback('gpt-image', {
       prompt: finalPrompt,
       aspectRatio,
+      apiSizeOverride,
       referenceImageUrls: referenceImageUrls.length > 0 ? referenceImageUrls : undefined,
       // Ironclad: アップロードされた素材（商品画像・認証バッジ）をそのまま配置。改変禁止モード。
       referenceMode: 'composite',

@@ -26,9 +26,29 @@ export const IRONCLAD_PATTERNS: IroncladPattern[] = [
 ];
 
 export type IroncladSize =
+  // SNS 標準
   | 'Instagram (1080x1080)'
   | 'FB/GDN (1200x628)'
-  | 'Stories (1080x1920)';
+  | 'Stories (1080x1920)'
+  | 'SNS 1:1 (1200x1200)'
+  | 'Instagram 4:5 (1080x1350)'
+  | 'YDA 1.91:1 (600x314)'
+  // Display 共通
+  | 'Display 300x250'
+  | 'Display 336x280'
+  | 'Display 200x200'
+  | 'Display 250x250'
+  // Display PC
+  | 'Display PC 728x90'
+  | 'Display PC 160x600'
+  | 'Display PC 300x600'
+  | 'Display PC 468x60'
+  | 'Display PC 970x90'
+  // Display SP
+  | 'Display SP 320x50'
+  | 'Display SP 320x100';
+
+export type IroncladSizeCategory = 'SNS' | 'Display共通' | 'DisplayPC' | 'DisplaySP';
 
 /**
  * Screen 1 で入力される基礎ブリーフ。
@@ -186,27 +206,182 @@ export const GPT2_PREFIX = `## 最重要ルール
 
 /**
  * サイズ → 画像生成APIに渡すサイズ文字列 & レイアウト指定の組み合わせ。
+ * - apiSize: gpt-image-2 に実際に投げるサイズ（16px倍数・総ピクセル655,360〜8,294,400・アスペクト比≤3:1 を満たす）
+ * - aspectRatio: Imagen4/FLUX などの汎用プロバイダー向け近似アスペクト
+ * - category: UI グルーピング用
+ * - needsCrop: true のサイズは最終比率が 3:1 を超えるため gpt-image-2 では 3:1 で生成して手動クロップが必要
  */
 export const SIZE_TO_API_IRONCLAD: Record<
   IroncladSize,
-  { apiSize: string; layoutHint: string; aspectRatio: '1:1' | '16:9' | '9:16' }
+  {
+    apiSize: string;
+    layoutHint: string;
+    aspectRatio: '1:1' | '16:9' | '9:16';
+    category: IroncladSizeCategory;
+    needsCrop?: boolean;
+  }
 > = {
+  // SNS 標準 ------------------------------------------------------------
   'Instagram (1080x1080)': {
     apiSize: '1024x1024',
     layoutHint: '1:1 正方形構図。左右均等、中央にメイン被写体を据える構成',
     aspectRatio: '1:1',
+    category: 'SNS',
   },
   'FB/GDN (1200x628)': {
     apiSize: '1536x1024',
-    layoutHint: '横長 16:9 相当。左右分割構成（左テキスト / 右メイン被写体）',
+    layoutHint: '横長 1.91:1 相当。左右分割構成（左テキスト / 右メイン被写体）',
     aspectRatio: '16:9',
+    category: 'SNS',
   },
   'Stories (1080x1920)': {
     apiSize: '1024x1536',
     layoutHint: '縦長 9:16 相当。上段メイン訴求 / 中段人物・商品 / 下段CTA の3段構成',
     aspectRatio: '9:16',
+    category: 'SNS',
+  },
+  'SNS 1:1 (1200x1200)': {
+    apiSize: '1024x1024',
+    layoutHint: '1:1 正方形。SNS全般レスポンシブ対応の最汎用サイズ',
+    aspectRatio: '1:1',
+    category: 'SNS',
+  },
+  'Instagram 4:5 (1080x1350)': {
+    apiSize: '1024x1280',
+    layoutHint: '4:5 縦長。Instagramフィードで画面占有率が高い推奨比率',
+    aspectRatio: '9:16',
+    category: 'SNS',
+  },
+  'YDA 1.91:1 (600x314)': {
+    apiSize: '1536x1024',
+    layoutHint: '横長 1.91:1。YDA旧基準（1200x628 と同比率）',
+    aspectRatio: '16:9',
+    category: 'SNS',
+  },
+  // Display 共通 --------------------------------------------------------
+  'Display 300x250': {
+    apiSize: '1024x864',
+    layoutHint: '中レクタングル 6:5 比率。記事中・サイドバーの国内最重要枠',
+    aspectRatio: '1:1',
+    category: 'Display共通',
+  },
+  'Display 336x280': {
+    apiSize: '1024x864',
+    layoutHint: 'レクタングル(大) 6:5 比率。300x250とセット運用',
+    aspectRatio: '1:1',
+    category: 'Display共通',
+  },
+  'Display 200x200': {
+    apiSize: '1024x1024',
+    layoutHint: '小スクエア 1:1。古いブログパーツ枠向け',
+    aspectRatio: '1:1',
+    category: 'Display共通',
+  },
+  'Display 250x250': {
+    apiSize: '1024x1024',
+    layoutHint: 'スクエア 1:1',
+    aspectRatio: '1:1',
+    category: 'Display共通',
+  },
+  // Display PC ----------------------------------------------------------
+  'Display PC 728x90': {
+    apiSize: '1536x512',
+    layoutHint: 'リーダーボード（横長 8.09:1）。gpt-image-2 は 3:1 で生成 → 手動クロップ推奨',
+    aspectRatio: '16:9',
+    category: 'DisplayPC',
+    needsCrop: true,
+  },
+  'Display PC 160x600': {
+    apiSize: '512x1536',
+    layoutHint: 'ワイドスカイスクレイパー（縦長 1:3.75）。gpt-image-2 は 1:3 で生成 → 手動クロップ推奨',
+    aspectRatio: '9:16',
+    category: 'DisplayPC',
+    needsCrop: true,
+  },
+  'Display PC 300x600': {
+    apiSize: '1024x2048',
+    layoutHint: 'ハーフページ 1:2 縦長。PCサイドバーの広面積リッチ訴求枠',
+    aspectRatio: '9:16',
+    category: 'DisplayPC',
+  },
+  'Display PC 468x60': {
+    apiSize: '1536x512',
+    layoutHint: 'バナー(フル) 7.8:1。gpt-image-2 は 3:1 で生成 → 手動クロップ推奨',
+    aspectRatio: '16:9',
+    category: 'DisplayPC',
+    needsCrop: true,
+  },
+  'Display PC 970x90': {
+    apiSize: '1536x512',
+    layoutHint: '大型リーダーボード 10.78:1。gpt-image-2 は 3:1 で生成 → 手動クロップ推奨',
+    aspectRatio: '16:9',
+    category: 'DisplayPC',
+    needsCrop: true,
+  },
+  // Display SP ----------------------------------------------------------
+  'Display SP 320x50': {
+    apiSize: '1536x512',
+    layoutHint: 'モバイルバナー 6.4:1。gpt-image-2 は 3:1 で生成 → 手動クロップ推奨',
+    aspectRatio: '16:9',
+    category: 'DisplaySP',
+    needsCrop: true,
+  },
+  'Display SP 320x100': {
+    apiSize: '1536x512',
+    layoutHint: 'モバイルラージ 3.2:1。gpt-image-2 は 3:1 で生成 → 手動クロップ推奨',
+    aspectRatio: '16:9',
+    category: 'DisplaySP',
+    needsCrop: true,
   },
 };
+
+/**
+ * UI のカテゴリ別グルーピング用メタデータ。
+ */
+export const IRONCLAD_SIZE_CATEGORIES: Array<{
+  key: IroncladSizeCategory;
+  label: string;
+  emoji: string;
+  sizes: IroncladSize[];
+}> = [
+  {
+    key: 'SNS',
+    label: 'SNS / レスポンシブ',
+    emoji: '📱',
+    sizes: [
+      'Instagram (1080x1080)',
+      'FB/GDN (1200x628)',
+      'Stories (1080x1920)',
+      'SNS 1:1 (1200x1200)',
+      'Instagram 4:5 (1080x1350)',
+      'YDA 1.91:1 (600x314)',
+    ],
+  },
+  {
+    key: 'Display共通',
+    label: 'Display 共通（PC/SP）',
+    emoji: '🌐',
+    sizes: ['Display 300x250', 'Display 336x280', 'Display 200x200', 'Display 250x250'],
+  },
+  {
+    key: 'DisplayPC',
+    label: 'Display PC',
+    emoji: '💻',
+    sizes: [
+      'Display PC 728x90',
+      'Display PC 160x600',
+      'Display PC 300x600',
+      'Display PC 468x60',
+      'Display PC 970x90',
+    ],
+  },
+  {
+    key: 'DisplaySP',
+    label: 'Display SP (スマートフォン)',
+    emoji: '📲',
+    sizes: ['Display SP 320x50', 'Display SP 320x100'],
+  },
+];
 
 /**
  * GPT-4o を介さず、Screen 2 の最終材料から直接鉄板プロンプトを構築する 1-shot 関数。

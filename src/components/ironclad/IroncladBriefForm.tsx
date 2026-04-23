@@ -2,7 +2,14 @@
 
 import React, { useState } from 'react';
 import { Link2, Loader2, Wand2, AlertTriangle } from 'lucide-react';
-import { IRONCLAD_PATTERNS, IroncladBrief, IroncladPattern, IroncladSize } from '@/lib/prompts/ironclad-banner';
+import {
+  IRONCLAD_PATTERNS,
+  IroncladBrief,
+  IroncladPattern,
+  IroncladSize,
+  IRONCLAD_SIZE_CATEGORIES,
+  SIZE_TO_API_IRONCLAD,
+} from '@/lib/prompts/ironclad-banner';
 import { AssetLibrary, Asset } from './AssetLibrary';
 
 type Props = {
@@ -17,11 +24,6 @@ type Props = {
   onNext: () => void;
 };
 
-const SIZE_OPTIONS: IroncladSize[] = [
-  'Instagram (1080x1080)',
-  'FB/GDN (1200x628)',
-  'Stories (1080x1920)',
-];
 
 export function IroncladBriefForm({
   brief,
@@ -202,32 +204,67 @@ export function IroncladBriefForm({
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-bold text-slate-200 mb-2">
-          サイズ *（複数選択可。統一感のある複数バリエーションを一括生成）
+      <div className="space-y-3">
+        <label className="block text-sm font-bold text-slate-200">
+          サイズ *（複数選択可・カテゴリ別。統一感のある複数バリエーションを一括生成）
         </label>
-        <div className="grid grid-cols-3 gap-2">
-          {SIZE_OPTIONS.map((s) => {
-            const active = brief.sizes.includes(s);
-            return (
-              <button
-                key={s}
-                type="button"
-                onClick={() => toggleSize(s)}
-                className={`px-3 py-2 rounded text-xs transition border ${
-                  active
-                    ? 'bg-teal-500 text-white shadow border-teal-400'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
-                }`}
-              >
-                <span className="mr-1">{active ? '✓' : '☐'}</span>
-                {s}
-              </button>
-            );
-          })}
-        </div>
+
+        {IRONCLAD_SIZE_CATEGORIES.map((cat) => {
+          const anyCropInCat = cat.sizes.some((s) => SIZE_TO_API_IRONCLAD[s].needsCrop);
+          return (
+            <div
+              key={cat.key}
+              className="border border-slate-700 rounded-lg p-3 bg-slate-900/40 space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold text-slate-300">
+                  {cat.emoji} {cat.label}
+                </div>
+                {anyCropInCat && (
+                  <span className="text-[10px] text-amber-400 bg-amber-950/40 rounded px-2 py-0.5 border border-amber-800">
+                    ⚠ 3:1超を含む（自動クロップ推奨）
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {cat.sizes.map((s) => {
+                  const meta = SIZE_TO_API_IRONCLAD[s];
+                  const active = brief.sizes.includes(s);
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => toggleSize(s)}
+                      className={`px-2 py-2 rounded text-[11px] transition border text-left ${
+                        active
+                          ? 'bg-teal-500 text-white shadow border-teal-400'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
+                      }`}
+                      title={meta.layoutHint}
+                    >
+                      <span className="mr-1">{active ? '✓' : '☐'}</span>
+                      {s}
+                      {meta.needsCrop && (
+                        <span className="ml-1 text-amber-300" title="3:1を超えるため自動クロップが必要">
+                          ✂
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
         {brief.sizes.length === 0 && (
-          <p className="text-xs text-amber-400 mt-1">少なくとも1つ選択してください</p>
+          <p className="text-xs text-amber-400">少なくとも1つ選択してください</p>
+        )}
+        {brief.sizes.some((s) => SIZE_TO_API_IRONCLAD[s].needsCrop) && (
+          <p className="text-xs text-amber-300 bg-amber-950/30 rounded px-2 py-1 border border-amber-900">
+            ✂ マーク付きサイズは gpt-image-2 の 3:1 制限により 3:1 で生成されます。
+            最終サイズに合わせた手動クロップが必要です。
+          </p>
         )}
       </div>
 
