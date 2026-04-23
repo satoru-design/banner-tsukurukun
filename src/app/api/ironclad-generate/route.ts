@@ -7,7 +7,7 @@ import {
 import { generateWithFallback } from '@/lib/image-providers';
 
 export const runtime = 'nodejs';
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   try {
