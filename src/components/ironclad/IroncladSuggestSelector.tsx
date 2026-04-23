@@ -59,6 +59,7 @@ export function IroncladSuggestSelector({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSuggestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

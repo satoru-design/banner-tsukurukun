@@ -51,6 +51,7 @@ export function AssetLibrary({ assetType, selectedId, onSelect, label }: Props) 
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchAssets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetType]);

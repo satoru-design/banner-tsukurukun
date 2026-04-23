@@ -6,6 +6,7 @@ import {
   IroncladSuggestSelector,
   IroncladSelections,
 } from '@/components/ironclad/IroncladSuggestSelector';
+import { IroncladGenerateScreen } from '@/components/ironclad/IroncladGenerateScreen';
 import { Asset } from '@/components/ironclad/AssetLibrary';
 import type { IroncladBrief, IroncladMaterials } from '@/lib/prompts/ironclad-banner';
 
@@ -87,24 +88,7 @@ export default function IroncladPage() {
         )}
 
         {step === 3 && materials && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white">STEP 3. 生成</h2>
-              <p className="text-sm text-slate-400 mt-1">
-                （Stage D で実装予定）鉄板プロンプトを組み立てて gpt-image-2 で生成します。
-              </p>
-            </div>
-            <pre className="text-xs bg-slate-900 border border-slate-700 rounded p-4 whitespace-pre-wrap">
-{JSON.stringify(materials, null, 2)}
-            </pre>
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              className="px-6 py-2 rounded bg-slate-700 hover:bg-slate-600"
-            >
-              ← 戻る
-            </button>
-          </div>
+          <IroncladGenerateScreen materials={materials} onBack={() => setStep(2)} />
         )}
       </main>
     </div>
