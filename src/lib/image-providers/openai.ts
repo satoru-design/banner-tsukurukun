@@ -8,7 +8,9 @@ import {
 } from './types';
 import { buildBakeTextInstruction } from './prompt-helpers';
 
-const IMAGE_MODEL = 'gpt-image-1';
+// gpt-image-2: 日本語テキスト描画・商品画像忠実性・権威バッジ再現性が gpt-image-1 比で大幅改善。
+// 組織認証（Business verification）済みアカウントのみアクセス可能。
+const IMAGE_MODEL = 'gpt-image-2';
 // gpt-5 は orchestrator として要約が強くプロンプトを崩すため gpt-4o を使用。
 // gpt-4o は ChatGPT Web の画像生成で実績があり、プロンプト保存性が高い。
 const ORCHESTRATOR_MODEL = 'gpt-4o';
@@ -21,7 +23,7 @@ function ensureKey(): string {
   return key;
 }
 
-function toSize(ratio: AspectRatio): '1024x1024' | '1024x1536' | '1536x1024' {
+function toSize(ratio: AspectRatio): string {
   switch (ratio) {
     case '1:1':
       return '1024x1024';
@@ -33,13 +35,24 @@ function toSize(ratio: AspectRatio): '1024x1024' | '1024x1536' | '1536x1024' {
 }
 
 /**
+ * apiSizeOverride が渡されればそれを優先、なければ aspectRatio から 3 サイズにマップ。
+ * gpt-image-2 は柔軟サイズ対応（16px倍数・≤3:1・総ピクセル 655,360〜8,294,400）。
+ */
+function resolveApiSize(params: GenerateParams): string {
+  if (params.apiSizeOverride && /^\d+x\d+$/.test(params.apiSizeOverride)) {
+    return params.apiSizeOverride;
+  }
+  return toSize(params.aspectRatio);
+}
+
+/**
  * 参考画像なし: Images API の通常 generate
  */
 async function generateTextOnly(
   openai: OpenAI,
   params: GenerateParams,
 ): Promise<GenerateResult> {
-  const size = toSize(params.aspectRatio);
+  const size = resolveApiSize(params);
   const bakeInstruction = params.copyBundle
     ? `${buildBakeTextInstruction(params.copyBundle)}\n\n---\n\n`
     : '';
@@ -49,7 +62,8 @@ async function generateTextOnly(
   const response = await openai.images.generate({
     model: IMAGE_MODEL,
     prompt: finalPrompt,
-    size,
+    // gpt-image-2 は柔軟サイズ対応だが SDK 型が古い union に限定されているためキャスト
+    size: size as '1024x1024',
     quality: 'high',
     n: 1,
   });
@@ -74,25 +88,69 @@ async function generateTextOnly(
 /**
  * 参考画像あり: images.edit() エンドポイントを使用。
  * ChatGPT Web の "Upload reference images then generate" と同等の公式パス。
- * orchestrator を介さないため日本語テキスト指示がそのまま gpt-image-1 に届く。
+ * orchestrator を介さないため日本語テキスト指示がそのまま gpt-image-2 に届く。
  */
 async function generateWithReferencesEdit(
   openai: OpenAI,
   params: GenerateParams,
 ): Promise<GenerateResult> {
-  const size = toSize(params.aspectRatio);
+  const size = resolveApiSize(params);
   const referenceImageUrls = params.referenceImageUrls ?? [];
 
+  // 参考画像の扱い方をモード分岐
+  // - 'composite': 素材ライブラリから渡された商品画像・認証バッジを「そのまま配置」するモード（Ironclad 用途）
+  // - 'style' (default): StyleProfile 由来のリファレンスを「世界観テンプレ」として模倣するモード
+  const mode = params.referenceMode ?? 'style';
+
+  // テキスト描画指示。composite モードではプロンプト容量を節約して素材固定指示を優先。
   const bakeInstruction = params.copyBundle
-    ? `${buildBakeTextInstruction(params.copyBundle)}\n\n---\n\n`
+    ? mode === 'composite'
+      ? `${buildBakeTextInstruction(params.copyBundle)}\n\n---\n\n`
+      : `${buildBakeTextInstruction(params.copyBundle)}\n\n---\n\n`
     : '';
 
-  // 日本語テキスト指示を最前面に、visual direction は後方支援
-  const finalPrompt =
-    `${bakeInstruction}` +
-    `[Style reference]\n以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
-    `完成バナーを1枚生成してください。参考画像のレイアウト・色使い・日本語フォント・バッジ/CTAスタイルを最優先。\n\n` +
-    `[Visual direction (secondary)]\n${params.prompt}`;
+  let finalPrompt: string;
+
+  if (mode === 'composite') {
+    // 🚨 composite モード: 添付画像を「絶対に改変しない素材」として扱う
+    // プロンプトの最前面に強烈な指示を置き、かつ末尾でもリマインドする (bookend戦略)。
+    const compositeHeader =
+      `🚨🚨🚨 CRITICAL IMAGE PRESERVATION RULES 🚨🚨🚨\n\n` +
+      `INPUT_IMAGES: ${referenceImageUrls.length} image(s) are attached below as INPUT ASSETS.\n\n` +
+      `RULE 1 (ABSOLUTE): The attached images ARE the actual product and badge assets.\n` +
+      `  You MUST place them in the output banner EXACTLY as provided.\n` +
+      `  DO NOT generate a new product container, package, or bottle.\n` +
+      `  DO NOT redraw, re-sketch, re-illustrate, re-imagine, or re-brand.\n` +
+      `  DO NOT change pouch to bottle, bottle to pouch, or any container shape.\n` +
+      `  DO NOT change label text, brand name spelling, logo, color, cap, proportions.\n\n` +
+      `RULE 2: Compose the banner AROUND the provided assets. Only generate:\n` +
+      `  - Background (models, scenery, splash, gradient, color blocks)\n` +
+      `  - Japanese text (headlines, badges as text, CTA button)\n` +
+      `  - Decorative elements (arrows, lines, shapes)\n\n` +
+      `RULE 3: Lighting / shadow adjustments on the pasted assets are OK.\n` +
+      `  Cropping a portion is OK. Changing form/color/text is FORBIDDEN.\n\n` +
+      `RULE 4: If no badge image is attached, DO NOT add a fake certification badge.\n` +
+      `  If no product image is attached, DO NOT invent a product visual.\n\n` +
+      `---\n\n`;
+
+    const compositeFooter =
+      `\n\n---\n\n🚨 FINAL CHECK before output:\n` +
+      `- Is the product container in the output IDENTICAL to the attached image? If not, FIX IT.\n` +
+      `- Are attached badges used as-is (no redrawing)? If not, FIX IT.\n` +
+      `- Did you invent any product / badge / certification not in attachments? If yes, REMOVE IT.\n`;
+
+    finalPrompt =
+      compositeHeader +
+      bakeInstruction +
+      `[Banner brief]\n${params.prompt}` +
+      compositeFooter;
+  } else {
+    finalPrompt =
+      bakeInstruction +
+      `[Style reference]\n以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
+      `完成バナーを1枚生成してください。参考画像のレイアウト・色使い・日本語フォント・バッジ/CTAスタイルを最優先。\n\n` +
+      `[Visual direction]\n${params.prompt}`;
+  }
 
   // URL から File オブジェクトを生成（OpenAI SDK の toFile ヘルパー）
   const files = await Promise.all(
@@ -107,15 +165,23 @@ async function generateWithReferencesEdit(
       const buf = Buffer.from(await res.arrayBuffer());
       const mime = res.headers.get('content-type') ?? 'image/jpeg';
       const ext = mime.split('/')[1]?.split(';')[0] ?? 'jpg';
+      console.log(
+        `[gpt-image] ref#${idx}: url=${url.slice(0, 80)}... mime=${mime} bytes=${buf.byteLength}`,
+      );
       return toFile(buf, `ref-${idx}.${ext}`, { type: mime });
     }),
+  );
+
+  console.log(
+    `[gpt-image] calling images.edit: mode=${mode} files=${files.length} size=${size} promptLength=${finalPrompt.length}`,
   );
 
   const response = await openai.images.edit({
     model: IMAGE_MODEL,
     image: files,
     prompt: finalPrompt,
-    size,
+    // gpt-image-2 柔軟サイズのため SDK の古い union 型をキャスト
+    size: size as '1024x1024',
     quality: 'high',
     n: 1,
   });
@@ -132,7 +198,7 @@ async function generateWithReferencesEdit(
       model: IMAGE_MODEL,
       size,
       aspectRatio: params.aspectRatio,
-      mode: 'references-edit',
+      mode: `references-edit-${mode}`,
       referenceCount: referenceImageUrls.length,
     },
   };
@@ -146,12 +212,21 @@ async function generateWithReferencesResponses(
   openai: OpenAI,
   params: GenerateParams,
 ): Promise<GenerateResult> {
-  const size = toSize(params.aspectRatio);
+  const size = resolveApiSize(params);
   const referenceImageUrls = params.referenceImageUrls ?? [];
 
   const bakeInstruction = params.copyBundle
     ? `\n\n${buildBakeTextInstruction(params.copyBundle)}`
     : '';
+
+  const mode = params.referenceMode ?? 'style';
+  const fallbackInstruction =
+    mode === 'composite'
+      ? `添付された画像は実在の商品画像・認証バッジです。これらを「そのままの素材」として完成バナーに配置してください。` +
+        `商品の容器形状・ラベル文字・ロゴ・色・ブランド名を絶対に改変しないこと。新規生成も禁止。\n\n` +
+        `指定プロンプトに沿って背景と構図を組み立て、添付素材を改変せず合成した完成バナーを image_generation tool で 1 枚生成してください。`
+      : `以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
+        `指定プロンプトに沿った完成バナーを image_generation tool で 1 枚生成してください。`;
 
   const userContent: Array<
     | { type: 'input_text'; text: string }
@@ -160,9 +235,8 @@ async function generateWithReferencesResponses(
     {
       type: 'input_text',
       text:
-        `以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
-        `指定プロンプトに沿った完成バナーを image_generation tool で 1 枚生成してください。\n\n` +
-        `【プロンプト】\n${params.prompt}` +
+        fallbackInstruction +
+        `\n\n【プロンプト】\n${params.prompt}` +
         bakeInstruction,
     },
     ...referenceImageUrls.map(
@@ -174,7 +248,8 @@ async function generateWithReferencesResponses(
   const response = await openai.responses.create({
     model: ORCHESTRATOR_MODEL,
     input: [{ role: 'user', content: userContent }],
-    tools: [{ type: 'image_generation', size, quality: 'high' }],
+    // SDK の size union 型を柔軟サイズ対応のためキャスト
+    tools: [{ type: 'image_generation', size: size as '1024x1024', quality: 'high' }],
   });
 
   const outputItems = (response.output ?? []) as unknown as Array<{
@@ -206,7 +281,7 @@ async function generateWithReferencesResponses(
 
 export const gptImageProvider: ImageProvider = {
   id: 'gpt-image',
-  displayName: 'GPT Image (gpt-image-1)',
+  displayName: 'GPT Image (gpt-image-2)',
 
   async generate(params: GenerateParams): Promise<GenerateResult> {
     const openai = new OpenAI({ apiKey: ensureKey() });

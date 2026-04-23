@@ -10,6 +10,7 @@ import {
   readAsBase64,
   validateAndFixMarkTag,
   computeDefaultBadgePosition,
+  resolveSecondaryBadgePosition,
   autoSelectCta,
   type Variation,
   type ProductCategory,
@@ -341,12 +342,14 @@ export default function BannerBuilder() {
     if (activeStyleProfile) {
       const pb = activeStyleProfile.priceBadge.primary;
       const emphasisNumber = v.priceBadge?.emphasisNumber;
+      const primaryPosition: PriceBadge['position'] =
+        (pb.position as PriceBadge['position']) ??
+        computeDefaultBadgePosition(nextLayoutStyle, hasPerson === 'yes', angle);
       setActiveBadge({
         text: pb.textPattern.replace('{NUMBER}', String(emphasisNumber ?? '980')),
         shape: (pb.shape as PriceBadge['shape']),
         color: pb.color,
-        position: (pb.position as PriceBadge['position']) ??
-          computeDefaultBadgePosition(nextLayoutStyle, hasPerson === 'yes', angle),
+        position: primaryPosition,
         emphasisNumber,
       });
 
@@ -356,7 +359,10 @@ export default function BannerBuilder() {
           text: sb.textPattern.replace('{NUMBER}', '3,000 万'),
           shape: 'circle-gold',
           color: sb.color,
-          position: (sb.position as PriceBadge['position']),
+          position: resolveSecondaryBadgePosition(
+            sb.position as PriceBadge['position'] | undefined,
+            primaryPosition,
+          ),
         });
       } else {
         setActiveSecondaryBadge(null);

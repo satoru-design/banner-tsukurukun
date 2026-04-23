@@ -54,3 +54,25 @@ model StyleProfile {
 
   banners             Banner[]
 }
+
+/// Phase A.7 Ironclad: 永続素材ライブラリ。商品画像・認証バッジ等を一度アップロードしたら
+/// 以降のバナー生成で都度再アップロード不要に。Vercel Blob (Public) に実体保存。
+model Asset {
+  id          String   @id @default(cuid())
+  /// 'product' | 'badge' | 'logo' | 'other'
+  type        String
+  /// ユーザー表示名（例: "5 Point Detox", "GMP Quality"）
+  name        String
+  /// Vercel Blob の Public URL
+  blobUrl     String
+  /// 画像の MIME type (image/png, image/jpeg など)
+  mimeType    String?
+  /// Screen 1 のデフォルト選択対象か（最後に使ったものを自動選択するため）
+  isPinned    Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([createdAt])
+}
