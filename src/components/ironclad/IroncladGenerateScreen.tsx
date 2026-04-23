@@ -20,6 +20,7 @@ type SizeResult = {
   imageUrl?: string;
   promptPreview?: string;
   errorMessage?: string;
+  metadata?: Record<string, unknown>;
 };
 
 export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) {
@@ -50,6 +51,7 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
         status: 'success',
         imageUrl: json.imageUrl,
         promptPreview: json.promptPreview,
+        metadata: json.metadata,
       });
     } catch (e) {
       updateResult(size, {
@@ -142,7 +144,21 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
           >
             <div className="flex items-center justify-between">
               <div className="text-xs font-bold text-slate-200">{r.size}</div>
-              <StatusBadge status={r.status} />
+              <div className="flex items-center gap-1">
+                {r.status === 'success' && r.metadata && typeof r.metadata.referenceCount === 'number' && (
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                      r.metadata.referenceCount > 0
+                        ? 'bg-teal-900/50 text-teal-300 border-teal-700'
+                        : 'bg-amber-900/50 text-amber-300 border-amber-700'
+                    }`}
+                    title={`素材 ${r.metadata.referenceCount} 枚使用 / mode: ${r.metadata.mode ?? 'unknown'}`}
+                  >
+                    素材: {r.metadata.referenceCount as number}枚
+                  </span>
+                )}
+                <StatusBadge status={r.status} />
+              </div>
             </div>
             <div className="min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
               {r.status === 'generating' && (
@@ -166,7 +182,9 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
                 />
               )}
               {r.status === 'idle' && (
-                <div className="text-slate-500 text-xs">生成ボタンを押してください</div>
+                <div className="text-slate-500 text-xs">
+                  {overallGenerating ? '待機中…' : '生成ボタンを押してください'}
+                </div>
               )}
             </div>
             {r.status === 'success' && r.imageUrl && (
@@ -232,7 +250,7 @@ function StatusBadge({ status }: { status: SizeResult['status'] }) {
         ? '生成中'
         : status === 'error'
           ? 'エラー'
-          : '待機';
+          : '待機中';
   return (
     <span className={`text-[10px] px-2 py-0.5 rounded-full border ${cls}`}>{label}</span>
   );

@@ -85,31 +85,60 @@ async function generateWithReferencesEdit(
   const size = toSize(params.aspectRatio);
   const referenceImageUrls = params.referenceImageUrls ?? [];
 
-  const bakeInstruction = params.copyBundle
-    ? `${buildBakeTextInstruction(params.copyBundle)}\n\n---\n\n`
-    : '';
-
   // 参考画像の扱い方をモード分岐
   // - 'composite': 素材ライブラリから渡された商品画像・認証バッジを「そのまま配置」するモード（Ironclad 用途）
   // - 'style' (default): StyleProfile 由来のリファレンスを「世界観テンプレ」として模倣するモード
   const mode = params.referenceMode ?? 'style';
-  const referenceInstruction =
-    mode === 'composite'
-      ? `[Composite assets — USE AS-IS, DO NOT REDRAW]\n` +
-        `添付された画像は実在の商品画像・認証バッジです。以下のルールを絶対に守ってください。\n` +
-        `1. 添付画像を「素材」として完成バナーに配置すること。新規生成や描き直しは禁止。\n` +
-        `2. 商品画像は容器の形・ラベル文字・ロゴ・色・キャップ・比率・ブランド名を1ピクセルも変えない。\n` +
-        `3. バッジ画像も同様にそのまま配置。添付されていないバッジや認証マークを勝手に足さない。\n` +
-        `4. 明るさ・コントラスト・影の微調整は可。形状・テキスト・色相の変更は禁止。\n` +
-        `5. 余白や背景は新規生成して構成するが、素材そのものは触らない。\n\n`
-      : `[Style reference]\n以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
-        `完成バナーを1枚生成してください。参考画像のレイアウト・色使い・日本語フォント・バッジ/CTAスタイルを最優先。\n\n`;
 
-  // 日本語テキスト指示を最前面に、visual direction は後方支援
-  const finalPrompt =
-    `${bakeInstruction}` +
-    referenceInstruction +
-    `[Visual direction]\n${params.prompt}`;
+  // テキスト描画指示。composite モードではプロンプト容量を節約して素材固定指示を優先。
+  const bakeInstruction = params.copyBundle
+    ? mode === 'composite'
+      ? `${buildBakeTextInstruction(params.copyBundle)}\n\n---\n\n`
+      : `${buildBakeTextInstruction(params.copyBundle)}\n\n---\n\n`
+    : '';
+
+  let finalPrompt: string;
+
+  if (mode === 'composite') {
+    // 🚨 composite モード: 添付画像を「絶対に改変しない素材」として扱う
+    // プロンプトの最前面に強烈な指示を置き、かつ末尾でもリマインドする (bookend戦略)。
+    const compositeHeader =
+      `🚨🚨🚨 CRITICAL IMAGE PRESERVATION RULES 🚨🚨🚨\n\n` +
+      `INPUT_IMAGES: ${referenceImageUrls.length} image(s) are attached below as INPUT ASSETS.\n\n` +
+      `RULE 1 (ABSOLUTE): The attached images ARE the actual product and badge assets.\n` +
+      `  You MUST place them in the output banner EXACTLY as provided.\n` +
+      `  DO NOT generate a new product container, package, or bottle.\n` +
+      `  DO NOT redraw, re-sketch, re-illustrate, re-imagine, or re-brand.\n` +
+      `  DO NOT change pouch to bottle, bottle to pouch, or any container shape.\n` +
+      `  DO NOT change label text, brand name spelling, logo, color, cap, proportions.\n\n` +
+      `RULE 2: Compose the banner AROUND the provided assets. Only generate:\n` +
+      `  - Background (models, scenery, splash, gradient, color blocks)\n` +
+      `  - Japanese text (headlines, badges as text, CTA button)\n` +
+      `  - Decorative elements (arrows, lines, shapes)\n\n` +
+      `RULE 3: Lighting / shadow adjustments on the pasted assets are OK.\n` +
+      `  Cropping a portion is OK. Changing form/color/text is FORBIDDEN.\n\n` +
+      `RULE 4: If no badge image is attached, DO NOT add a fake certification badge.\n` +
+      `  If no product image is attached, DO NOT invent a product visual.\n\n` +
+      `---\n\n`;
+
+    const compositeFooter =
+      `\n\n---\n\n🚨 FINAL CHECK before output:\n` +
+      `- Is the product container in the output IDENTICAL to the attached image? If not, FIX IT.\n` +
+      `- Are attached badges used as-is (no redrawing)? If not, FIX IT.\n` +
+      `- Did you invent any product / badge / certification not in attachments? If yes, REMOVE IT.\n`;
+
+    finalPrompt =
+      compositeHeader +
+      bakeInstruction +
+      `[Banner brief]\n${params.prompt}` +
+      compositeFooter;
+  } else {
+    finalPrompt =
+      bakeInstruction +
+      `[Style reference]\n以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
+      `完成バナーを1枚生成してください。参考画像のレイアウト・色使い・日本語フォント・バッジ/CTAスタイルを最優先。\n\n` +
+      `[Visual direction]\n${params.prompt}`;
+  }
 
   // URL から File オブジェクトを生成（OpenAI SDK の toFile ヘルパー）
   const files = await Promise.all(
@@ -124,8 +153,15 @@ async function generateWithReferencesEdit(
       const buf = Buffer.from(await res.arrayBuffer());
       const mime = res.headers.get('content-type') ?? 'image/jpeg';
       const ext = mime.split('/')[1]?.split(';')[0] ?? 'jpg';
+      console.log(
+        `[gpt-image] ref#${idx}: url=${url.slice(0, 80)}... mime=${mime} bytes=${buf.byteLength}`,
+      );
       return toFile(buf, `ref-${idx}.${ext}`, { type: mime });
     }),
+  );
+
+  console.log(
+    `[gpt-image] calling images.edit: mode=${mode} files=${files.length} size=${size} promptLength=${finalPrompt.length}`,
   );
 
   const response = await openai.images.edit({
