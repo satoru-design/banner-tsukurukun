@@ -8,7 +8,7 @@ import {
 } from '@/components/ironclad/IroncladSuggestSelector';
 import { IroncladGenerateScreen } from '@/components/ironclad/IroncladGenerateScreen';
 import { Asset } from '@/components/ironclad/AssetLibrary';
-import type { IroncladBrief, IroncladMaterials } from '@/lib/prompts/ironclad-banner';
+import type { IroncladBrief, IroncladBaseMaterials } from '@/lib/prompts/ironclad-banner';
 
 type IroncladStep = 1 | 2 | 3;
 
@@ -17,7 +17,7 @@ const INITIAL_BRIEF: IroncladBrief = {
   product: '',
   target: '',
   purpose: '',
-  size: 'Instagram (1080x1080)',
+  sizes: ['Instagram (1080x1080)'],
 };
 
 const INITIAL_SELECTIONS: IroncladSelections = {
@@ -35,7 +35,7 @@ export default function IroncladPage() {
   const [badge1Asset, setBadge1Asset] = useState<Asset | null>(null);
   const [badge2Asset, setBadge2Asset] = useState<Asset | null>(null);
   const [selections, setSelections] = useState<IroncladSelections>(INITIAL_SELECTIONS);
-  const [materials, setMaterials] = useState<IroncladMaterials | null>(null);
+  const [baseMaterials, setBaseMaterials] = useState<IroncladBaseMaterials | null>(null);
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
@@ -76,7 +76,7 @@ export default function IroncladPage() {
             onChangeSelections={setSelections}
             onBack={() => setStep(1)}
             onNext={(partial) => {
-              setMaterials({
+              setBaseMaterials({
                 ...partial,
                 productImageUrl: productAsset?.blobUrl,
                 badgeImageUrl1: badge1Asset?.blobUrl,
@@ -87,8 +87,12 @@ export default function IroncladPage() {
           />
         )}
 
-        {step === 3 && materials && (
-          <IroncladGenerateScreen materials={materials} onBack={() => setStep(2)} />
+        {step === 3 && baseMaterials && (
+          <IroncladGenerateScreen
+            baseMaterials={baseMaterials}
+            sizes={brief.sizes}
+            onBack={() => setStep(2)}
+          />
         )}
       </main>
     </div>

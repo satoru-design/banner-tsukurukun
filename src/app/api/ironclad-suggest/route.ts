@@ -12,7 +12,8 @@ interface ReqBody {
   product: string;
   target: string;
   purpose: string;
-  size: string;
+  /** 複数サイズ選択対応。Gemini へのプロンプト構築は先頭サイズのみ使用（候補の傾向は全サイズで概ね共通）。 */
+  sizes: string[];
 }
 
 export interface IroncladSuggestions {
@@ -108,6 +109,7 @@ CTA:
 }
 
 function buildUserPrompt(body: ReqBody): string {
+  const sizesLabel = body.sizes.join(' / ');
   return `以下のブリーフに合う素材候補を生成してください。
 
 【パターン】${body.pattern}
@@ -119,7 +121,8 @@ function buildUserPrompt(body: ReqBody): string {
 
 【目的・コンセプト】${body.purpose}
 
-【サイズ】${body.size}
+【生成対象サイズ】${sizesLabel}
+（複数サイズで統一感を持たせたい。デザイン要件は汎用的に記述し、極端な1サイズ特化指示は避ける）
 
 出力は上記スキーマ通りの JSON オブジェクトのみ。
 `;
@@ -134,12 +137,17 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
+    if (!Array.isArray(body.sizes) || body.sizes.length === 0) {
+      return NextResponse.json({ error: 'sizes must be a non-empty array' }, { status: 400 });
+    }
 
     const systemPrompt = buildSystemPrompt();
     const userPrompt = buildUserPrompt(body);
 
+    // gemini-3.1-flash-lite-preview: 軽量・高速・低コストで JSON 構造化タスクに十分な品質。
+    // より高品質が欲しい場合は gemini-2.5-pro または gemini-3.1-pro-preview に切替可。
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-pro',
+      model: 'gemini-3.1-flash-lite-preview',
       contents: [systemPrompt + '\n\n' + userPrompt],
       config: {
         responseMimeType: 'application/json',

@@ -59,6 +59,8 @@ export async function POST(req: Request) {
       prompt: finalPrompt,
       aspectRatio,
       referenceImageUrls: referenceImageUrls.length > 0 ? referenceImageUrls : undefined,
+      // Ironclad: アップロードされた素材（商品画像・認証バッジ）をそのまま配置。改変禁止モード。
+      referenceMode: 'composite',
       copyBundle,
     });
 

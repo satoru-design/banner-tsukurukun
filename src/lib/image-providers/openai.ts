@@ -89,12 +89,27 @@ async function generateWithReferencesEdit(
     ? `${buildBakeTextInstruction(params.copyBundle)}\n\n---\n\n`
     : '';
 
+  // 参考画像の扱い方をモード分岐
+  // - 'composite': 素材ライブラリから渡された商品画像・認証バッジを「そのまま配置」するモード（Ironclad 用途）
+  // - 'style' (default): StyleProfile 由来のリファレンスを「世界観テンプレ」として模倣するモード
+  const mode = params.referenceMode ?? 'style';
+  const referenceInstruction =
+    mode === 'composite'
+      ? `[Composite assets — USE AS-IS, DO NOT REDRAW]\n` +
+        `添付された画像は実在の商品画像・認証バッジです。以下のルールを絶対に守ってください。\n` +
+        `1. 添付画像を「素材」として完成バナーに配置すること。新規生成や描き直しは禁止。\n` +
+        `2. 商品画像は容器の形・ラベル文字・ロゴ・色・キャップ・比率・ブランド名を1ピクセルも変えない。\n` +
+        `3. バッジ画像も同様にそのまま配置。添付されていないバッジや認証マークを勝手に足さない。\n` +
+        `4. 明るさ・コントラスト・影の微調整は可。形状・テキスト・色相の変更は禁止。\n` +
+        `5. 余白や背景は新規生成して構成するが、素材そのものは触らない。\n\n`
+      : `[Style reference]\n以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
+        `完成バナーを1枚生成してください。参考画像のレイアウト・色使い・日本語フォント・バッジ/CTAスタイルを最優先。\n\n`;
+
   // 日本語テキスト指示を最前面に、visual direction は後方支援
   const finalPrompt =
     `${bakeInstruction}` +
-    `[Style reference]\n以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
-    `完成バナーを1枚生成してください。参考画像のレイアウト・色使い・日本語フォント・バッジ/CTAスタイルを最優先。\n\n` +
-    `[Visual direction (secondary)]\n${params.prompt}`;
+    referenceInstruction +
+    `[Visual direction]\n${params.prompt}`;
 
   // URL から File オブジェクトを生成（OpenAI SDK の toFile ヘルパー）
   const files = await Promise.all(
@@ -134,7 +149,7 @@ async function generateWithReferencesEdit(
       model: IMAGE_MODEL,
       size,
       aspectRatio: params.aspectRatio,
-      mode: 'references-edit',
+      mode: `references-edit-${mode}`,
       referenceCount: referenceImageUrls.length,
     },
   };
@@ -155,6 +170,15 @@ async function generateWithReferencesResponses(
     ? `\n\n${buildBakeTextInstruction(params.copyBundle)}`
     : '';
 
+  const mode = params.referenceMode ?? 'style';
+  const fallbackInstruction =
+    mode === 'composite'
+      ? `添付された画像は実在の商品画像・認証バッジです。これらを「そのままの素材」として完成バナーに配置してください。` +
+        `商品の容器形状・ラベル文字・ロゴ・色・ブランド名を絶対に改変しないこと。新規生成も禁止。\n\n` +
+        `指定プロンプトに沿って背景と構図を組み立て、添付素材を改変せず合成した完成バナーを image_generation tool で 1 枚生成してください。`
+      : `以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
+        `指定プロンプトに沿った完成バナーを image_generation tool で 1 枚生成してください。`;
+
   const userContent: Array<
     | { type: 'input_text'; text: string }
     | { type: 'input_image'; image_url: string; detail: 'high' }
@@ -162,9 +186,8 @@ async function generateWithReferencesResponses(
     {
       type: 'input_text',
       text:
-        `以下の参考広告バナーと同等のクオリティ・世界観・タイポグラフィ・構図で、` +
-        `指定プロンプトに沿った完成バナーを image_generation tool で 1 枚生成してください。\n\n` +
-        `【プロンプト】\n${params.prompt}` +
+        fallbackInstruction +
+        `\n\n【プロンプト】\n${params.prompt}` +
         bakeInstruction,
     },
     ...referenceImageUrls.map(

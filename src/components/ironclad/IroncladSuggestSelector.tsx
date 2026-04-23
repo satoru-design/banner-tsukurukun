@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
-import type { IroncladBrief, IroncladMaterials } from '@/lib/prompts/ironclad-banner';
+import type { IroncladBrief, IroncladBaseMaterials } from '@/lib/prompts/ironclad-banner';
 
 export interface IroncladSuggestions {
   copies: [string[], string[], string[], string[]];
@@ -25,7 +25,7 @@ type Props = {
   selections: IroncladSelections;
   onChangeSelections: (s: IroncladSelections) => void;
   onBack: () => void;
-  onNext: (materials: Omit<IroncladMaterials, 'productImageUrl' | 'badgeImageUrl1' | 'badgeImageUrl2'>) => void;
+  onNext: (materials: Omit<IroncladBaseMaterials, 'productImageUrl' | 'badgeImageUrl1' | 'badgeImageUrl2'>) => void;
 };
 
 export function IroncladSuggestSelector({
@@ -73,7 +73,10 @@ export function IroncladSuggestSelector({
 
   const handleProceed = () => {
     onNext({
-      ...brief,
+      pattern: brief.pattern,
+      product: brief.product,
+      target: brief.target,
+      purpose: brief.purpose,
       copies: selections.copies,
       designRequirements: selections.designRequirements,
       cta: selections.cta,

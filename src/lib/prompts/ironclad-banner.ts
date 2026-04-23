@@ -25,23 +25,32 @@ export const IRONCLAD_PATTERNS: IroncladPattern[] = [
   'ラグジュアリー',
 ];
 
+export type IroncladSize =
+  | 'Instagram (1080x1080)'
+  | 'FB/GDN (1200x628)'
+  | 'Stories (1080x1920)';
+
 /**
  * Screen 1 で入力される基礎ブリーフ。
  * Screen 2 のサジェスト生成の入力源にもなる。
+ * sizes は複数選択可。同じ材料で統一感のある複数サイズを一括生成する。
  */
 export interface IroncladBrief {
   pattern: IroncladPattern;
   product: string;
   target: string;
   purpose: string;
-  size: 'Instagram (1080x1080)' | 'FB/GDN (1200x628)' | 'Stories (1080x1920)';
+  sizes: IroncladSize[];
 }
 
 /**
- * Screen 2 でユーザーが選択した最終材料。
- * 画像生成用の鉄板プロンプトの原材料となる。
+ * Screen 2 で選択された材料（サイズは除く）。複数サイズ生成で共有される。
  */
-export interface IroncladMaterials extends IroncladBrief {
+export interface IroncladBaseMaterials {
+  pattern: IroncladPattern;
+  product: string;
+  target: string;
+  purpose: string;
   copies: [string, string, string, string];
   designRequirements: [string, string, string, string];
   cta: string;
@@ -50,6 +59,14 @@ export interface IroncladMaterials extends IroncladBrief {
   productImageUrl?: string;
   badgeImageUrl1?: string;
   badgeImageUrl2?: string;
+}
+
+/**
+ * 最終画像生成用の単一サイズ材料。IroncladBaseMaterials に size を付けた形で
+ * ironclad-generate API に1サイズずつ渡す。
+ */
+export interface IroncladMaterials extends IroncladBaseMaterials {
+  size: IroncladSize;
 }
 
 /**
@@ -171,7 +188,7 @@ export const GPT2_PREFIX = `## 最重要ルール
  * サイズ → 画像生成APIに渡すサイズ文字列 & レイアウト指定の組み合わせ。
  */
 export const SIZE_TO_API_IRONCLAD: Record<
-  IroncladMaterials['size'],
+  IroncladSize,
   { apiSize: string; layoutHint: string; aspectRatio: '1:1' | '16:9' | '9:16' }
 > = {
   'Instagram (1080x1080)': {

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { IRONCLAD_PATTERNS, IroncladBrief, IroncladPattern } from '@/lib/prompts/ironclad-banner';
+import { IRONCLAD_PATTERNS, IroncladBrief, IroncladPattern, IroncladSize } from '@/lib/prompts/ironclad-banner';
 import { AssetLibrary, Asset } from './AssetLibrary';
 
 type Props = {
@@ -16,7 +16,7 @@ type Props = {
   onNext: () => void;
 };
 
-const SIZE_OPTIONS: IroncladBrief['size'][] = [
+const SIZE_OPTIONS: IroncladSize[] = [
   'Instagram (1080x1080)',
   'FB/GDN (1200x628)',
   'Stories (1080x1920)',
@@ -34,8 +34,18 @@ export function IroncladBriefForm({
   onNext,
 }: Props) {
   const canProceed = Boolean(
-    brief.pattern && brief.product.trim() && brief.target.trim() && brief.purpose.trim(),
+    brief.pattern &&
+      brief.product.trim() &&
+      brief.target.trim() &&
+      brief.purpose.trim() &&
+      brief.sizes.length > 0,
   );
+
+  const toggleSize = (s: IroncladSize) => {
+    const has = brief.sizes.includes(s);
+    const nextSizes = has ? brief.sizes.filter((x) => x !== s) : [...brief.sizes, s];
+    onChangeBrief({ ...brief, sizes: nextSizes });
+  };
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -102,24 +112,32 @@ export function IroncladBriefForm({
       </div>
 
       <div>
-        <label className="block text-sm font-bold text-slate-200 mb-2">サイズ *</label>
+        <label className="block text-sm font-bold text-slate-200 mb-2">
+          サイズ *（複数選択可。統一感のある複数バリエーションを一括生成）
+        </label>
         <div className="grid grid-cols-3 gap-2">
           {SIZE_OPTIONS.map((s) => {
-            const active = brief.size === s;
+            const active = brief.sizes.includes(s);
             return (
               <button
                 key={s}
                 type="button"
-                onClick={() => onChangeBrief({ ...brief, size: s })}
-                className={`px-3 py-2 rounded text-xs transition ${
-                  active ? 'bg-teal-500 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                onClick={() => toggleSize(s)}
+                className={`px-3 py-2 rounded text-xs transition border ${
+                  active
+                    ? 'bg-teal-500 text-white shadow border-teal-400'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border-slate-700'
                 }`}
               >
+                <span className="mr-1">{active ? '✓' : '☐'}</span>
                 {s}
               </button>
             );
           })}
         </div>
+        {brief.sizes.length === 0 && (
+          <p className="text-xs text-amber-400 mt-1">少なくとも1つ選択してください</p>
+        )}
       </div>
 
       <AssetLibrary
