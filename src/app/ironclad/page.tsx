@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { IroncladBriefForm } from '@/components/ironclad/IroncladBriefForm';
 import {
   IroncladSuggestSelector,
@@ -36,6 +36,33 @@ export default function IroncladPage() {
   const [badge2Asset, setBadge2Asset] = useState<Asset | null>(null);
   const [selections, setSelections] = useState<IroncladSelections>(INITIAL_SELECTIONS);
   const [baseMaterials, setBaseMaterials] = useState<IroncladBaseMaterials | null>(null);
+
+  // 初回マウント時: 各タイプの最新アセット（= 最後に使ったもの）を自動選択
+  useEffect(() => {
+    const autoSelectLatest = async () => {
+      try {
+        const [productRes, badgeRes] = await Promise.all([
+          fetch('/api/assets?type=product'),
+          fetch('/api/assets?type=badge'),
+        ]);
+        if (productRes.ok) {
+          const { assets } = await productRes.json();
+          if (assets && assets.length > 0) setProductAsset(assets[0]);
+        }
+        if (badgeRes.ok) {
+          const { assets } = await badgeRes.json();
+          if (assets && assets.length > 0) {
+            setBadge1Asset(assets[0]);
+            if (assets.length > 1) setBadge2Asset(assets[1]);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to auto-select latest assets:', err);
+      }
+    };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void autoSelectLatest();
+  }, []);
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
