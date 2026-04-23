@@ -137,7 +137,15 @@ export function AssetLibrary({ assetType, selectedId, onSelect, label }: Props) 
           <input
             type="file"
             accept="image/*"
-            onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              const f = e.target.files?.[0] ?? null;
+              setUploadFile(f);
+              // 表示名が空ならファイル名（拡張子除く）を自動入力
+              if (f && !uploadName.trim()) {
+                const base = f.name.replace(/\.[^.]+$/, '');
+                setUploadName(base);
+              }
+            }}
             className="w-full text-xs text-slate-300 file:mr-2 file:px-2 file:py-1 file:rounded file:border-0 file:bg-slate-700 file:text-slate-200 hover:file:bg-slate-600"
           />
           <div className="flex gap-2">
