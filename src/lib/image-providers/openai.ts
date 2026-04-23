@@ -8,7 +8,9 @@ import {
 } from './types';
 import { buildBakeTextInstruction } from './prompt-helpers';
 
-const IMAGE_MODEL = 'gpt-image-1';
+// gpt-image-2: 日本語テキスト描画・商品画像忠実性・権威バッジ再現性が gpt-image-1 比で大幅改善。
+// 組織認証（Business verification）済みアカウントのみアクセス可能。
+const IMAGE_MODEL = 'gpt-image-2';
 // gpt-5 は orchestrator として要約が強くプロンプトを崩すため gpt-4o を使用。
 // gpt-4o は ChatGPT Web の画像生成で実績があり、プロンプト保存性が高い。
 const ORCHESTRATOR_MODEL = 'gpt-4o';
@@ -74,7 +76,7 @@ async function generateTextOnly(
 /**
  * 参考画像あり: images.edit() エンドポイントを使用。
  * ChatGPT Web の "Upload reference images then generate" と同等の公式パス。
- * orchestrator を介さないため日本語テキスト指示がそのまま gpt-image-1 に届く。
+ * orchestrator を介さないため日本語テキスト指示がそのまま gpt-image-2 に届く。
  */
 async function generateWithReferencesEdit(
   openai: OpenAI,
@@ -206,7 +208,7 @@ async function generateWithReferencesResponses(
 
 export const gptImageProvider: ImageProvider = {
   id: 'gpt-image',
-  displayName: 'GPT Image (gpt-image-1)',
+  displayName: 'GPT Image (gpt-image-2)',
 
   async generate(params: GenerateParams): Promise<GenerateResult> {
     const openai = new OpenAI({ apiKey: ensureKey() });
