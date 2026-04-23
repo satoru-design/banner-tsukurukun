@@ -144,10 +144,11 @@ export async function POST(req: Request) {
     const systemPrompt = buildSystemPrompt();
     const userPrompt = buildUserPrompt(body);
 
-    // gemini-3.1-flash-lite-preview: 軽量・高速・低コストで JSON 構造化タスクに十分な品質。
-    // より高品質が欲しい場合は gemini-2.5-pro または gemini-3.1-pro-preview に切替可。
+    // gemini-2.5-pro: 本プロジェクトで実績ある安定モデル（analyze-lp / analyze-banner / generate-copy と同じ）。
+    // gemini-3.1-flash-lite-preview / gemini-3.1-pro-preview は現行 Gemini API で JSON レスポンスが
+    // 不安定な場合があり、パース失敗の事故があったため 2.5-pro に統一。
     const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite-preview',
+      model: 'gemini-2.5-pro',
       contents: [systemPrompt + '\n\n' + userPrompt],
       config: {
         responseMimeType: 'application/json',
