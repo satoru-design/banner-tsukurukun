@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Check, Plus, Trash2, Upload, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Check, Plus, Trash2, X, Loader2 } from 'lucide-react';
 
 export type AssetType = 'product' | 'badge' | 'logo' | 'other';
 
@@ -29,11 +29,9 @@ type Props = {
 export function AssetLibrary({ assetType, selectedId, onSelect, label }: Props) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [showUpload, setShowUpload] = useState(false);
-  const [uploadName, setUploadName] = useState('');
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadingName, setUploadingName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const fetchAssets = async () => {
     setLoading(true);
@@ -56,30 +54,26 @@ export function AssetLibrary({ assetType, selectedId, onSelect, label }: Props) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetType]);
 
-  const handleUpload = async () => {
-    if (!uploadFile || !uploadName.trim()) {
-      setError('ファイルと表示名を指定してください');
-      return;
-    }
-    setUploading(true);
+  const handleFilePicked = async (file: File) => {
+    const displayName = file.name.replace(/\.[^.]+$/, '') || 'asset';
+    setUploadingName(displayName);
     setError(null);
     try {
       const form = new FormData();
-      form.append('file', uploadFile);
+      form.append('file', file);
       form.append('type', assetType);
-      form.append('name', uploadName.trim());
+      form.append('name', displayName);
       const res = await fetch('/api/assets', { method: 'POST', body: form });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
       setAssets((prev) => [json.asset, ...prev]);
       onSelect(json.asset);
-      setShowUpload(false);
-      setUploadFile(null);
-      setUploadName('');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setUploading(false);
+      setUploadingName(null);
+      // 同じファイルを続けて選んだ場合も onChange が発火するよう value をクリア
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -94,6 +88,8 @@ export function AssetLibrary({ assetType, selectedId, onSelect, label }: Props) 
       setError(e instanceof Error ? e.message : String(e));
     }
   };
+
+  const inputId = `asset-upload-${assetType}-${label}`;
 
   return (
     <div className="border border-slate-700 rounded-lg p-3 bg-slate-900/40 space-y-2">
@@ -110,74 +106,54 @@ export function AssetLibrary({ assetType, selectedId, onSelect, label }: Props) 
               選択解除
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setShowUpload((v) => !v)}
-            className="text-[11px] px-2 py-1 rounded bg-teal-700 text-white hover:bg-teal-600"
+          <input
+            ref={fileInputRef}
+            id={inputId}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleFilePicked(f);
+            }}
+          />
+          <label
+            htmlFor={inputId}
+            className={`text-[11px] px-2 py-1 rounded text-white flex items-center ${
+              uploadingName ? 'bg-sky-700 cursor-wait' : 'bg-teal-700 hover:bg-teal-600 cursor-pointer'
+            }`}
           >
-            <Plus className="inline w-3 h-3 mr-1" />
-            新規
-          </button>
+            {uploadingName ? (
+              <>
+                <Loader2 className="inline w-3 h-3 mr-1 animate-spin" />
+                アップロード中…
+              </>
+            ) : (
+              <>
+                <Plus className="inline w-3 h-3 mr-1" />
+                新規アップロード
+              </>
+            )}
+          </label>
         </div>
       </div>
+
+      {uploadingName && (
+        <div className="text-[11px] text-sky-300 bg-sky-900/30 rounded px-2 py-1">
+          「{uploadingName}」をアップロード中…
+        </div>
+      )}
 
       {error && (
         <div className="text-[11px] text-red-400 bg-red-900/20 rounded px-2 py-1">{error}</div>
       )}
 
-      {showUpload && (
-        <div className="border border-teal-700/50 rounded p-2 space-y-2 bg-slate-950/50">
-          <input
-            type="text"
-            placeholder="表示名 (例: 5 Point Detox)"
-            value={uploadName}
-            onChange={(e) => setUploadName(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white"
-          />
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const f = e.target.files?.[0] ?? null;
-              setUploadFile(f);
-              // 表示名が空ならファイル名（拡張子除く）を自動入力
-              if (f && !uploadName.trim()) {
-                const base = f.name.replace(/\.[^.]+$/, '');
-                setUploadName(base);
-              }
-            }}
-            className="w-full text-xs text-slate-300 file:mr-2 file:px-2 file:py-1 file:rounded file:border-0 file:bg-slate-700 file:text-slate-200 hover:file:bg-slate-600"
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleUpload}
-              disabled={uploading || !uploadFile || !uploadName.trim()}
-              className="text-[11px] px-3 py-1 rounded bg-teal-600 text-white hover:bg-teal-500 disabled:opacity-50"
-            >
-              <Upload className="inline w-3 h-3 mr-1" />
-              {uploading ? 'アップロード中…' : 'アップロード'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowUpload(false);
-                setUploadFile(null);
-                setUploadName('');
-                setError(null);
-              }}
-              className="text-[11px] px-3 py-1 rounded bg-slate-700 text-slate-300 hover:bg-slate-600"
-            >
-              キャンセル
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-3 md:grid-cols-4 gap-2 min-h-[4rem]">
         {loading && <div className="col-span-full text-xs text-slate-400">読み込み中…</div>}
         {!loading && assets.length === 0 && (
-          <div className="col-span-full text-xs text-slate-500">まだ素材がありません。「新規」からアップロードしてください。</div>
+          <div className="col-span-full text-xs text-slate-500">
+            まだ素材がありません。「新規アップロード」から画像を選んでください（選択と同時にアップロード）。
+          </div>
         )}
         {assets.map((asset) => {
           const active = asset.id === selectedId;
