@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 import type { IroncladBrief, IroncladBaseMaterials } from '@/lib/prompts/ironclad-banner';
-import { GenerationProgress } from '@/components/ui/GenerationProgress';
 
 export interface IroncladSuggestions {
   copies: [string[], string[], string[], string[]];
@@ -120,8 +119,8 @@ export function IroncladSuggestSelector({
       )}
 
       {loading && !suggestions && (
-        <div className="py-16">
-          <GenerationProgress label="候補を生成中…" estimatedSeconds={20} />
+        <div className="flex items-center justify-center py-20 text-slate-400 text-sm">
+          候補を生成中です…（10〜30秒）
         </div>
       )}
 
