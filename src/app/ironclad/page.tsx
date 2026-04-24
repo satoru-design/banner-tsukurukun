@@ -5,6 +5,7 @@ import { IroncladBriefForm } from '@/components/ironclad/IroncladBriefForm';
 import {
   IroncladSuggestSelector,
   IroncladSelections,
+  IroncladSuggestions,
 } from '@/components/ironclad/IroncladSuggestSelector';
 import { IroncladGenerateScreen } from '@/components/ironclad/IroncladGenerateScreen';
 import { Asset } from '@/components/ironclad/AssetLibrary';
@@ -35,7 +36,26 @@ export default function IroncladPage() {
   const [badge1Asset, setBadge1Asset] = useState<Asset | null>(null);
   const [badge2Asset, setBadge2Asset] = useState<Asset | null>(null);
   const [selections, setSelections] = useState<IroncladSelections>(INITIAL_SELECTIONS);
+  const [suggestions, setSuggestions] = useState<IroncladSuggestions | null>(null);
+  const [suggestionsSignature, setSuggestionsSignature] = useState<string>('');
   const [baseMaterials, setBaseMaterials] = useState<IroncladBaseMaterials | null>(null);
+
+  // ブリーフの中核項目（パターン・商材・ターゲット・目的）が変わったら、
+  // 前回のサジェストは文脈外になるため破棄して再生成させる。
+  // 逆に STEP 3 ↔ STEP 2 の往復ではブリーフが変わらないので保持される。
+  const currentSignature = `${brief.pattern}|${brief.product}|${brief.target}|${brief.purpose}`;
+  useEffect(() => {
+    if (suggestions && currentSignature !== suggestionsSignature) {
+      setSuggestions(null);
+      setSuggestionsSignature('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSignature]);
+
+  const handleSuggestionsChange = (s: IroncladSuggestions | null) => {
+    setSuggestions(s);
+    setSuggestionsSignature(s ? currentSignature : '');
+  };
 
   // 初回マウント時: 各タイプの最新アセット（= 最後に使ったもの）を自動選択
   useEffect(() => {
@@ -101,6 +121,8 @@ export default function IroncladPage() {
             brief={brief}
             selections={selections}
             onChangeSelections={setSelections}
+            suggestions={suggestions}
+            onChangeSuggestions={handleSuggestionsChange}
             onBack={() => setStep(1)}
             onNext={(partial) => {
               setBaseMaterials({
