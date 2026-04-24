@@ -24,6 +24,8 @@ type Props = {
   brief: IroncladBrief;
   selections: IroncladSelections;
   onChangeSelections: (s: IroncladSelections) => void;
+  suggestions: IroncladSuggestions | null;
+  onChangeSuggestions: (s: IroncladSuggestions | null) => void;
   onBack: () => void;
   onNext: (materials: Omit<IroncladBaseMaterials, 'productImageUrl' | 'badgeImageUrl1' | 'badgeImageUrl2'>) => void;
 };
@@ -32,12 +34,13 @@ export function IroncladSuggestSelector({
   brief,
   selections,
   onChangeSelections,
+  suggestions,
+  onChangeSuggestions,
   onBack,
   onNext,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<IroncladSuggestions | null>(null);
 
   const fetchSuggestions = async () => {
     setLoading(true);
@@ -50,7 +53,7 @@ export function IroncladSuggestSelector({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      setSuggestions(json.suggestions as IroncladSuggestions);
+      onChangeSuggestions(json.suggestions as IroncladSuggestions);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -59,6 +62,9 @@ export function IroncladSuggestSelector({
   };
 
   useEffect(() => {
+    // 親が保持している suggestions が空の場合のみ初回生成する。
+    // STEP 3 → STEP 2 に戻った場合は親が前回のサジェストを保持しているので再生成しない。
+    if (suggestions) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSuggestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
