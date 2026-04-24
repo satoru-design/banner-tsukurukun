@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Download, Sparkles, AlertTriangle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Download, Sparkles, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import type {
   IroncladBaseMaterials,
   IroncladMaterials,
   IroncladSize,
 } from '@/lib/prompts/ironclad-banner';
+import { GenerationProgress } from '@/components/ui/GenerationProgress';
 
 type Props = {
   baseMaterials: IroncladBaseMaterials;
@@ -162,9 +163,8 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
             </div>
             <div className="min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
               {r.status === 'generating' && (
-                <div className="text-slate-400 text-xs flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  gpt-image-2 で生成中…
+                <div className="w-full">
+                  <GenerationProgress compact estimatedSeconds={45} />
                 </div>
               )}
               {r.status === 'error' && (

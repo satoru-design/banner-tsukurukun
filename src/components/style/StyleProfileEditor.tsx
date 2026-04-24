@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ReferenceImageUploader } from './ReferenceImageUploader';
 import type { StyleProfileInput } from '@/lib/style-profile/schema';
+import { GenerationProgress } from '@/components/ui/GenerationProgress';
 
 type Props = {
   onClose: () => void;
@@ -156,8 +157,8 @@ export function StyleProfileEditor({ onClose, onSaved }: Props) {
         )}
 
         {stage === 'extracting' && (
-          <div className="py-12 text-center text-slate-300">
-            参考画像を解析中... (30〜60 秒)
+          <div className="py-12">
+            <GenerationProgress label="参考画像を解析中…" estimatedSeconds={45} />
           </div>
         )}
 
