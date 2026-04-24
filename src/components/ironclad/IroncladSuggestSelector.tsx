@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 import type { IroncladBrief, IroncladBaseMaterials } from '@/lib/prompts/ironclad-banner';
+import { GenerationProgress } from '@/components/ui/GenerationProgress';
 
 export interface IroncladSuggestions {
   copies: [string[], string[], string[], string[]];
@@ -97,7 +98,7 @@ export function IroncladSuggestSelector({
         <div>
           <h2 className="text-2xl font-bold text-white">STEP 2. AIサジェスト選択</h2>
           <p className="text-sm text-slate-400 mt-1">
-            Gemini 2.5 Pro が候補を生成します。各項目で 1 つ選ぶか、自由入力欄で上書きしてください。
+            AIが候補を生成します。各項目で 1 つ選ぶか、自由入力欄で上書きしてください。
           </p>
         </div>
         <button
@@ -119,8 +120,8 @@ export function IroncladSuggestSelector({
       )}
 
       {loading && !suggestions && (
-        <div className="flex items-center justify-center py-20 text-slate-400 text-sm">
-          Gemini が候補を生成中です…（10〜30秒）
+        <div className="py-16">
+          <GenerationProgress label="候補を生成中…" estimatedSeconds={20} />
         </div>
       )}
 

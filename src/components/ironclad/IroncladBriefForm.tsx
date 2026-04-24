@@ -107,7 +107,7 @@ export function IroncladBriefForm({
           <h3 className="text-sm font-bold text-sky-300">LP URL から自動抽出（任意）</h3>
         </div>
         <p className="text-xs text-slate-400">
-          商材 LP の URL を貼ると Gemini が読み込んで「商材 / ターゲット / 目的」を自動入力します（既存の入力は上書き）。
+          商材 LP の URL を貼ると AI が読み込んで「商材 / ターゲット / 目的」を自動入力します（既存の入力は上書き）。
         </p>
         <div className="flex gap-2">
           <input
@@ -262,7 +262,7 @@ export function IroncladBriefForm({
         )}
         {brief.sizes.some((s) => SIZE_TO_API_IRONCLAD[s].needsCrop) && (
           <p className="text-xs text-amber-300 bg-amber-950/30 rounded px-2 py-1 border border-amber-900">
-            ✂ マーク付きサイズは gpt-image-2 の 3:1 制限により 3:1 で生成されます。
+            ✂ マーク付きサイズはアスペクト比制限により 3:1 で生成されます。
             最終サイズに合わせた手動クロップが必要です。
           </p>
         )}
