@@ -1,5 +1,3 @@
-import type { IroncladPattern } from '@/lib/prompts/ironclad-banner';
-
 /**
  * 既存 IroncladPattern に対応する内部分類キー。
  * Vision 解析時に Gemini が pattern としてどれかを返す。
