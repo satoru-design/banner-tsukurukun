@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 import type { IroncladBrief, IroncladBaseMaterials } from '@/lib/prompts/ironclad-banner';
+import { GenerationProgress } from '@/components/ui/GenerationProgress';
 
 export interface IroncladSuggestions {
   copies: [string[], string[], string[], string[]];
@@ -45,6 +46,15 @@ export function IroncladSuggestSelector({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Phase A.9: スロットの ON/OFF（OFF時は空文字で送信され、生成バナーに含まれない）
+  // メインコピー(copies[0]) と designRequirements / tone / caution はトグル対象外（必須）
+  const [enabledSlots, setEnabledSlots] = useState({
+    sub: true,        // copies[1]
+    target: true,     // copies[2]
+    authority: true,  // copies[3]
+    cta: true,
+  });
+
   const fetchSuggestions = async () => {
     setLoading(true);
     setError(null);
@@ -73,12 +83,42 @@ export function IroncladSuggestSelector({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Phase A.9: ON スロットのみ必須化
+  // メインコピー(copies[0]) と designRequirements[0] と tone は常に必須
+  // CTA は enabledSlots.cta=true のときのみ必須
+  // copies[1〜3] は対応するトグルがONのときのみ必須
   const canProceed = Boolean(
     selections.copies[0] &&
       selections.designRequirements[0] &&
-      selections.cta &&
-      selections.tone,
+      selections.tone &&
+      (!enabledSlots.cta || selections.cta) &&
+      (!enabledSlots.sub || selections.copies[1]) &&
+      (!enabledSlots.target || selections.copies[2]) &&
+      (!enabledSlots.authority || selections.copies[3]),
   );
+
+  // Phase A.9: トグルOFF切替時にそのスロットの選択値を空文字にリセット
+  // OFF→ONでは復元しない（ユーザーが選び直す）
+  const setSlotEnabled = (slot: keyof typeof enabledSlots, enabled: boolean) => {
+    setEnabledSlots((prev) => ({ ...prev, [slot]: enabled }));
+    if (!enabled) {
+      if (slot === 'sub') {
+        const next = [...selections.copies] as typeof selections.copies;
+        next[1] = '';
+        onChangeSelections({ ...selections, copies: next });
+      } else if (slot === 'target') {
+        const next = [...selections.copies] as typeof selections.copies;
+        next[2] = '';
+        onChangeSelections({ ...selections, copies: next });
+      } else if (slot === 'authority') {
+        const next = [...selections.copies] as typeof selections.copies;
+        next[3] = '';
+        onChangeSelections({ ...selections, copies: next });
+      } else if (slot === 'cta') {
+        onChangeSelections({ ...selections, cta: '' });
+      }
+    }
+  };
 
   const handleProceed = () => {
     onNext({
@@ -122,26 +162,35 @@ export function IroncladSuggestSelector({
       )}
 
       {loading && !suggestions && (
-        <div className="flex items-center justify-center py-20 text-slate-400 text-sm">
-          候補を生成中です…（10〜30秒）
+        <div className="py-12">
+          <GenerationProgress estimatedSeconds={20} label="候補を生成中…" />
         </div>
       )}
 
       {suggestions && (
         <div className="space-y-6">
-          {[0, 1, 2, 3].map((i) => (
-            <SuggestField
-              key={`copy-${i}`}
-              label={`コピー${i + 1}${i === 0 ? '（メイン）' : i === 1 ? '（サブ）' : i === 2 ? '（ターゲット/価格訴求）' : '（権威/ダメ押し）'}`}
-              candidates={suggestions.copies[i]}
-              value={selections.copies[i]}
-              onChange={(v) => {
-                const next = [...selections.copies] as typeof selections.copies;
-                next[i] = v;
-                onChangeSelections({ ...selections, copies: next });
-              }}
-            />
-          ))}
+          {[0, 1, 2, 3].map((i) => {
+            const slotKey: 'sub' | 'target' | 'authority' | null =
+              i === 1 ? 'sub' : i === 2 ? 'target' : i === 3 ? 'authority' : null;
+            const toggleable = slotKey !== null;
+            const enabled = slotKey ? enabledSlots[slotKey] : true;
+            return (
+              <SuggestField
+                key={`copy-${i}`}
+                label={`コピー${i + 1}${i === 0 ? '（メイン）' : i === 1 ? '（サブ）' : i === 2 ? '（ターゲット/価格訴求）' : '（権威/ダメ押し）'}`}
+                candidates={suggestions.copies[i]}
+                value={selections.copies[i]}
+                onChange={(v) => {
+                  const next = [...selections.copies] as typeof selections.copies;
+                  next[i] = v;
+                  onChangeSelections({ ...selections, copies: next });
+                }}
+                toggleable={toggleable}
+                enabled={enabled}
+                onToggleEnabled={slotKey ? (e) => setSlotEnabled(slotKey, e) : undefined}
+              />
+            );
+          })}
 
           {[0, 1, 2, 3].map((i) => (
             <SuggestField
@@ -162,6 +211,9 @@ export function IroncladSuggestSelector({
             candidates={suggestions.ctas}
             value={selections.cta}
             onChange={(v) => onChangeSelections({ ...selections, cta: v })}
+            toggleable={true}
+            enabled={enabledSlots.cta}
+            onToggleEnabled={(e) => setSlotEnabled('cta', e)}
           />
 
           <SuggestField
@@ -206,47 +258,83 @@ function SuggestField({
   candidates,
   value,
   onChange,
+  toggleable = false,
+  enabled = true,
+  onToggleEnabled,
 }: {
   label: string;
   candidates: string[];
   value: string;
   onChange: (v: string) => void;
+  /** Phase A.9: トグル表示するか（true: スロット ON/OFF 切替UI表示） */
+  toggleable?: boolean;
+  /** Phase A.9: スロットが有効か。toggleable=true のときのみ意味を持つ */
+  enabled?: boolean;
+  /** Phase A.9: トグル変更ハンドラ */
+  onToggleEnabled?: (next: boolean) => void;
 }) {
+  const isDisabled = toggleable && !enabled;
+
   return (
-    <div className="border border-slate-700 rounded-lg p-4 bg-slate-900/50 space-y-3">
-      <label className="block text-sm font-bold text-slate-200">{label}</label>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        {candidates.map((c, idx) => {
-          const active = value === c;
-          return (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => onChange(c)}
-              className={`text-left p-3 rounded border text-sm transition ${
-                active
-                  ? 'border-teal-400 bg-teal-950/40 text-white ring-1 ring-teal-400/40'
-                  : 'border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <span className="text-[10px] text-slate-500 mr-2">[{String.fromCharCode(65 + idx)}]</span>
-              {c}
-            </button>
-          );
-        })}
+    <div
+      className={`border border-slate-700 rounded-lg p-4 bg-slate-900/50 space-y-3 transition ${
+        isDisabled ? 'opacity-40' : ''
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <label className="block text-sm font-bold text-slate-200">{label}</label>
+        {toggleable && (
+          <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => onToggleEnabled?.(e.target.checked)}
+              className="w-3.5 h-3.5 accent-teal-500"
+            />
+            このスロットを使う
+          </label>
+        )}
       </div>
 
-      <div>
-        <label className="block text-[11px] text-slate-500 mb-1">自由入力で上書き（候補を選ばず手入力する場合）</label>
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="候補にない場合はここに入力"
-          className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-white"
-        />
-      </div>
+      {isDisabled ? (
+        <div className="text-xs text-slate-500 italic py-3 text-center">
+          このスロットは生成バナーに含めません
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {candidates.map((c, idx) => {
+              const active = value === c;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => onChange(c)}
+                  className={`text-left p-3 rounded border text-sm transition ${
+                    active
+                      ? 'border-teal-400 bg-teal-950/40 text-white ring-1 ring-teal-400/40'
+                      : 'border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <span className="text-[10px] text-slate-500 mr-2">[{String.fromCharCode(65 + idx)}]</span>
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+
+          <div>
+            <label className="block text-[11px] text-slate-500 mb-1">自由入力で上書き（候補を選ばず手入力する場合）</label>
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="候補にない場合はここに入力"
+              className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-white"
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
