@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import type { IroncladPattern } from '@/lib/prompts/ironclad-banner';
+import { getPrisma } from '@/lib/prisma';
+import { buildWinningPatternInjection } from '@/lib/winning-banner/prompt-injection';
+import type { AnalysisAbstract } from '@/lib/winning-banner/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -14,6 +17,8 @@ interface ReqBody {
   purpose: string;
   /** 複数サイズ選択対応。Gemini へのプロンプト構築は先頭サイズのみ使用（候補の傾向は全サイズで概ね共通）。 */
   sizes: string[];
+  /** Phase A.8: 勝ちバナー参照を有効化するか。未指定 / false なら既存挙動と完全同一。 */
+  useWinningRef?: boolean;
 }
 
 export interface IroncladSuggestions {
@@ -144,12 +149,33 @@ export async function POST(req: Request) {
     const systemPrompt = buildSystemPrompt();
     const userPrompt = buildUserPrompt(body);
 
+    // Phase A.8: 勝ちパターン注入（useWinningRef=true かつ機能有効時のみ）
+    let winningInjection = '';
+    const winningEnabled = process.env.WINNING_BANNER_ENABLED !== 'false';
+    if (body.useWinningRef === true && winningEnabled) {
+      try {
+        const prisma = getPrisma();
+        const recent = await prisma.asset.findMany({
+          where: { type: 'winning_banner' },
+          orderBy: { createdAt: 'desc' },
+          take: 3,
+        });
+        const abstracts = recent
+          .map((r) => r.analysisAbstract as AnalysisAbstract | null)
+          .filter((a): a is AnalysisAbstract => a !== null);
+        winningInjection = buildWinningPatternInjection(abstracts);
+      } catch (winErr) {
+        // 勝ちバナー集約失敗は致命的ではない。空注入で既存挙動にフォールバック。
+        console.warn('Winning banner injection failed, falling back to no-injection:', winErr);
+      }
+    }
+
     // gemini-2.5-pro: 本プロジェクトで実績ある安定モデル（analyze-lp / analyze-banner / generate-copy と同じ）。
     // gemini-3.1-flash-lite-preview / gemini-3.1-pro-preview は現行 Gemini API で JSON レスポンスが
     // 不安定な場合があり、パース失敗の事故があったため 2.5-pro に統一。
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-pro',
-      contents: [systemPrompt + '\n\n' + userPrompt],
+      contents: [systemPrompt + '\n\n' + userPrompt + winningInjection],
       config: {
         responseMimeType: 'application/json',
         temperature: 0.85,
