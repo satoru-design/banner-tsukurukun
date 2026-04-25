@@ -22,6 +22,8 @@ export interface IroncladSelections {
 
 type Props = {
   brief: IroncladBrief;
+  /** Phase A.8: 勝ちバナー参照を有効化するか */
+  useWinningRef: boolean;
   selections: IroncladSelections;
   onChangeSelections: (s: IroncladSelections) => void;
   suggestions: IroncladSuggestions | null;
@@ -32,6 +34,7 @@ type Props = {
 
 export function IroncladSuggestSelector({
   brief,
+  useWinningRef,
   selections,
   onChangeSelections,
   suggestions,
@@ -49,7 +52,7 @@ export function IroncladSuggestSelector({
       const res = await fetch('/api/ironclad-suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(brief),
+        body: JSON.stringify({ ...brief, useWinningRef }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);

@@ -57,9 +57,10 @@ model StyleProfile {
 
 /// Phase A.7 Ironclad: 永続素材ライブラリ。商品画像・認証バッジ等を一度アップロードしたら
 /// 以降のバナー生成で都度再アップロード不要に。Vercel Blob (Public) に実体保存。
+/// Phase A.8 拡張: type='winning_banner' で勝ちバナー解析結果も保持する二層構造。
 model Asset {
   id          String   @id @default(cuid())
-  /// 'product' | 'badge' | 'logo' | 'other'
+  /// 'product' | 'badge' | 'logo' | 'other' | 'winning_banner' (Phase A.8追加)
   type        String
   /// ユーザー表示名（例: "5 Point Detox", "GMP Quality"）
   name        String
@@ -70,9 +71,21 @@ model Asset {
   /// Screen 1 のデフォルト選択対象か（最後に使ったものを自動選択するため）
   isPinned    Boolean  @default(false)
 
+  /// Phase A.8: SaaS化見据え。Phase 1 は全 NULL で運用。
+  userId            String?
+  /// Phase A.8: 勝ちバナー解析結果（プロンプト注入用の抽象タグのみ）
+  /// JSON: { palette, copyAngle, cta, layout, typo, mood, pattern, abstractTags[] }
+  analysisAbstract  Json?
+  /// Phase A.8: 勝ちバナー解析結果（分析・デバッグ用の生抽出データ。外部APIには絶対送信禁止）
+  /// JSON: { paletteHex[], extractedTexts[], detectedElements[], rawObservations }
+  analysisConcrete  Json?
+  /// Phase A.8: 解析プロンプトのバージョン管理（将来プロンプト改善時の互換性用）
+  analysisVersion   Int?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([type])
   @@index([createdAt])
+  @@index([userId])
 }

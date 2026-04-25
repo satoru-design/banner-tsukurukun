@@ -11,6 +11,7 @@ import {
   SIZE_TO_API_IRONCLAD,
 } from '@/lib/prompts/ironclad-banner';
 import { AssetLibrary, Asset } from './AssetLibrary';
+import { WinningBannerLibrary } from './WinningBannerLibrary';
 
 type Props = {
   brief: IroncladBrief;
@@ -21,6 +22,9 @@ type Props = {
   onChangeBadge1Asset: (a: Asset | null) => void;
   badge2Asset: Asset | null;
   onChangeBadge2Asset: (a: Asset | null) => void;
+  /** Phase A.8: 勝ちバナー参照を有効化するか */
+  useWinningRef: boolean;
+  onChangeUseWinningRef: (v: boolean) => void;
   onNext: () => void;
 };
 
@@ -34,6 +38,8 @@ export function IroncladBriefForm({
   onChangeBadge1Asset,
   badge2Asset,
   onChangeBadge2Asset,
+  useWinningRef,
+  onChangeUseWinningRef,
   onNext,
 }: Props) {
   const canProceed = Boolean(
@@ -144,6 +150,12 @@ export function IroncladBriefForm({
           </div>
         )}
       </div>
+
+      {/* Phase A.8: 勝ちバナー参照セクション */}
+      <WinningBannerLibrary
+        useWinningRef={useWinningRef}
+        onChangeUseWinningRef={onChangeUseWinningRef}
+      />
 
       <div>
         <label className="block text-sm font-bold text-slate-200 mb-2">パターン *</label>

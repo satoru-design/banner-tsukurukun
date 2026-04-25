@@ -35,6 +35,7 @@ export default function IroncladPage() {
   const [productAsset, setProductAsset] = useState<Asset | null>(null);
   const [badge1Asset, setBadge1Asset] = useState<Asset | null>(null);
   const [badge2Asset, setBadge2Asset] = useState<Asset | null>(null);
+  const [useWinningRef, setUseWinningRef] = useState<boolean>(true); // Phase A.8: デフォルトON
   const [selections, setSelections] = useState<IroncladSelections>(INITIAL_SELECTIONS);
   const [suggestions, setSuggestions] = useState<IroncladSuggestions | null>(null);
   const [suggestionsSignature, setSuggestionsSignature] = useState<string>('');
@@ -112,6 +113,8 @@ export default function IroncladPage() {
             onChangeBadge1Asset={setBadge1Asset}
             badge2Asset={badge2Asset}
             onChangeBadge2Asset={setBadge2Asset}
+            useWinningRef={useWinningRef}
+            onChangeUseWinningRef={setUseWinningRef}
             onNext={() => setStep(2)}
           />
         )}
@@ -119,6 +122,7 @@ export default function IroncladPage() {
         {step === 2 && (
           <IroncladSuggestSelector
             brief={brief}
+            useWinningRef={useWinningRef}
             selections={selections}
             onChangeSelections={setSelections}
             suggestions={suggestions}
