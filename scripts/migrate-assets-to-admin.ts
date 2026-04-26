@@ -1,20 +1,21 @@
 /**
  * Phase A.10 一発スクリプト: 既存 Asset (userId=null) を admin user に紐付ける。
  *
- * 実行タイミング:
- * 1. NextAuth デプロイ完了後
- * 2. admin が Google SSO で初回ログイン → User row 自動作成
- * 3. このスクリプト実行 → 既存 Asset 全件が admin に移行
- *
  * 実行方法:
- *   DATABASE_URL=<対象DBのURL> npx tsx scripts/migrate-assets-to-admin.ts
- *
- * 本番DBに実行する場合は DATABASE_URL を本番に向けて実行。
- * 二重実行は安全（userId IS NULL の条件なので、既に紐付け済みは対象外）。
+ *   ローカル .env のとおりに:
+ *   export $(grep -E '^(DATABASE_URL|ADMIN_EMAILS)=' .env | xargs)
+ *   npx tsx scripts/migrate-assets-to-admin.ts
  */
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('DATABASE_URL is not set');
+  process.exit(1);
+}
+const adapter = new PrismaPg({ connectionString });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const adminEmailsRaw = process.env.ADMIN_EMAILS ?? '';
