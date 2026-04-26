@@ -101,7 +101,7 @@ export function IroncladBriefForm({
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
-        <h2 className="text-2xl font-bold text-white">STEP 1. ブリーフ入力</h2>
+        <h2 className="text-2xl font-bold text-white">STEP 1. お題</h2>
         <p className="text-sm text-slate-400 mt-1">
           パターンと商材情報を入力してください。次の画面で AI が コピー・デザイン要件の候補を自動生成します。
         </p>

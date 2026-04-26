@@ -90,14 +90,14 @@ export default function IroncladPage() {
       <header className="border-b border-slate-800 px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <h1 className="text-xl font-bold tracking-tight">
-            <span className="text-teal-400">Ironclad</span> Banner Studio
+            <span className="text-teal-400">勝ちバナー</span>作る君
           </h1>
           <div className="flex items-center gap-2 text-xs">
-            <StepIndicator current={step} step={1} label="ブリーフ" />
+            <StepIndicator current={step} step={1} label="お題" />
             <span className="text-slate-600">→</span>
-            <StepIndicator current={step} step={2} label="サジェスト選択" />
+            <StepIndicator current={step} step={2} label="素材" />
             <span className="text-slate-600">→</span>
-            <StepIndicator current={step} step={3} label="生成" />
+            <StepIndicator current={step} step={3} label="完成" />
           </div>
         </div>
       </header>

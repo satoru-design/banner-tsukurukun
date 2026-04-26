@@ -138,7 +138,7 @@ export function IroncladSuggestSelector({
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">STEP 2. AIサジェスト選択</h2>
+          <h2 className="text-2xl font-bold text-white">STEP 2. 素材</h2>
           <p className="text-sm text-slate-400 mt-1">
             AIが候補を生成します。各項目で 1 つ選ぶか、自由入力欄で上書きしてください。
           </p>
@@ -238,7 +238,7 @@ export function IroncladSuggestSelector({
           onClick={onBack}
           className="px-6 py-2 rounded bg-slate-700 hover:bg-slate-600 text-white"
         >
-          ← ブリーフに戻る
+          ← お題に戻る
         </button>
         <button
           type="button"

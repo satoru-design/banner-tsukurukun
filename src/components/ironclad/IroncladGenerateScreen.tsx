@@ -93,7 +93,7 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">STEP 3. 生成</h2>
+          <h2 className="text-2xl font-bold text-white">STEP 3. 完成</h2>
           <p className="text-sm text-slate-400 mt-1">
             選択した {sizes.length} サイズ全てを同じ材料で生成します。統一感を担保するため直列処理。
           </p>
@@ -227,7 +227,7 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
           onClick={onBack}
           className="px-6 py-2 rounded bg-slate-700 hover:bg-slate-600 text-white"
         >
-          ← サジェスト選択に戻る
+          ← 素材に戻る
         </button>
       </div>
     </div>
