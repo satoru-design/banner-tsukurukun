@@ -58,6 +58,7 @@ model StyleProfile {
 /// Phase A.7 Ironclad: 永続素材ライブラリ。商品画像・認証バッジ等を一度アップロードしたら
 /// 以降のバナー生成で都度再アップロード不要に。Vercel Blob (Public) に実体保存。
 /// Phase A.8 拡張: type='winning_banner' で勝ちバナー解析結果も保持する二層構造。
+/// Phase A.10 拡張: User リレーション正式化。
 model Asset {
   id          String   @id @default(cuid())
   /// 'product' | 'badge' | 'logo' | 'other' | 'winning_banner' (Phase A.8追加)
@@ -73,6 +74,9 @@ model Asset {
 
   /// Phase A.8: SaaS化見据え。Phase 1 は全 NULL で運用。
   userId            String?
+  /// Phase A.10: User リレーション
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   /// Phase A.8: 勝ちバナー解析結果（プロンプト注入用の抽象タグのみ）
   /// JSON: { palette, copyAngle, cta, layout, typo, mood, pattern, abstractTags[] }
   analysisAbstract  Json?
@@ -88,4 +92,63 @@ model Asset {
   @@index([type])
   @@index([createdAt])
   @@index([userId])
+}
+
+/// Phase A.10: NextAuth.js v5 + admin/plan 区別の基盤
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+
+  /// Phase A.10: 'free' | 'starter' | 'pro' | 'admin'
+  /// Phase A.11+ で機能 gate のキーとして使用
+  plan          String    @default("free")
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  assets        Asset[]
+}
+
+/// NextAuth.js v5 Account テーブル（Provider別の OAuth トークン保存）
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+/// NextAuth.js v5 Session テーブル（DB session strategy）
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// NextAuth.js v5 VerificationToken テーブル（Magic Link 用、Phase A.10 では未使用だが必須）
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
