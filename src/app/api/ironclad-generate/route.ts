@@ -9,6 +9,12 @@ import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { incrementUsage } from '@/lib/plans/usage';
 import { isUsageLimitReached, effectiveUsageCount } from '@/lib/plans/usage-check';
 import { getPrisma } from '@/lib/prisma';
+import {
+  buildBriefSnapshot,
+  snapshotIdentityKey,
+  type BriefSnapshot,
+} from '@/lib/generations/snapshot';
+import { uploadGenerationImage } from '@/lib/generations/blob-client';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -117,6 +123,64 @@ export async function POST(req: Request) {
       }
     }
 
+    // Phase A.11.5: 履歴保存（Generation + GenerationImage）
+    let generationId: string | undefined;
+    if (currentUser.userId) {
+      try {
+        const snapshot = buildBriefSnapshot(materials);
+        const identityKey = snapshotIdentityKey(snapshot);
+        const prisma = getPrisma();
+
+        // 同セッション判定: 過去 5 分以内に同じブリーフがあればマージ
+        const recentSessions = await prisma.generation.findMany({
+          where: {
+            userId: currentUser.userId,
+            createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        });
+        const matched = recentSessions.find((g) => {
+          const s = g.briefSnapshot as unknown as BriefSnapshot;
+          return snapshotIdentityKey(s) === identityKey;
+        });
+
+        let generation;
+        if (matched) {
+          generation = matched;
+        } else {
+          generation = await prisma.generation.create({
+            data: {
+              userId: currentUser.userId,
+              briefSnapshot: snapshot as unknown as object,
+            },
+          });
+        }
+        generationId = generation.id;
+
+        // 画像を Blob にアップロード
+        const blobUrl = await uploadGenerationImage(
+          currentUser.userId,
+          generation.id,
+          materials.size,
+          result.base64,
+        );
+
+        await prisma.generationImage.create({
+          data: {
+            generationId: generation.id,
+            size: materials.size,
+            blobUrl,
+            provider: result.providerId,
+            providerMetadata: result.providerMetadata as unknown as object,
+          },
+        });
+      } catch (err) {
+        // 履歴保存失敗はベストエフォート（生成自体は成功扱いを維持）
+        console.error('Phase A.11.5 generation save failed:', err);
+      }
+    }
+
     return NextResponse.json({
       imageUrl: result.base64,
       provider: result.providerId,
@@ -124,6 +188,7 @@ export async function POST(req: Request) {
       metadata: result.providerMetadata,
       promptPreview: finalPrompt,
       usageCount: newUsageCount,
+      generationId,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
