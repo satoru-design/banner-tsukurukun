@@ -3,10 +3,13 @@
 /**
  * Phase A.11.1: アバター + ドロップダウンメニュー。
  *
- * - ログイン時: アバター画像クリックでドロップダウン展開
+ * - ログイン時: アバターホバーでドロップダウン展開（クリックでもトグル可能、キーボード/タッチ対応）
  *   - 表示名 / メール / プラン Pill
  *   - マイアカウント / プラン変更 / サインアウト
  * - 未ログイン時: グレーの人型アイコン（クリックで /signin 直行）
+ *
+ * ホバーUX: マウスがアバターから drop down に移動する間（隙間）に閉じないよう
+ * onMouseLeave 時に 150ms ディレイを入れる。drop down 上に再 hover で復帰。
  *
  * アバターは <img> を使用（next/image は使わない、remotePatterns 不要のため）。
  * 画像 fetch 失敗時は lucide-react の <UserCircle /> にフォールバック。
@@ -22,12 +25,34 @@ interface UserMenuProps {
   user: CurrentUser;
 }
 
+const HOVER_CLOSE_DELAY_MS = 150;
+
 export function UserMenu({ user }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 外側クリックで閉じる
+  const cancelClose = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimerRef.current = setTimeout(() => {
+      setOpen(false);
+      closeTimerRef.current = null;
+    }, HOVER_CLOSE_DELAY_MS);
+  };
+  // 即時オープン（hover/click 共通）
+  const openNow = () => {
+    cancelClose();
+    setOpen(true);
+  };
+
+  // 外側クリックで閉じる（タッチデバイス/キーボード操作のため click toggle が残るので必要）
   useEffect(() => {
     const handle = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -51,6 +76,11 @@ export function UserMenu({ user }: UserMenuProps) {
     }
   }, [open]);
 
+  // unmount 時にタイマー解放
+  useEffect(() => {
+    return () => cancelClose();
+  }, []);
+
   // 未ログイン: グレーアバター → /signin 直行
   if (!user.userId) {
     return (
@@ -66,10 +96,16 @@ export function UserMenu({ user }: UserMenuProps) {
 
   // ログイン済: アバター + ドロップダウン
   return (
-    <div ref={menuRef} className="relative">
+    <div
+      ref={menuRef}
+      className="relative"
+      onMouseEnter={openNow}
+      onMouseLeave={scheduleClose}
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        onFocus={openNow}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="アカウントメニュー"
@@ -94,8 +130,13 @@ export function UserMenu({ user }: UserMenuProps) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-64 rounded-lg border border-slate-700 bg-neutral-900 shadow-xl py-1 z-50"
+          // pt-2 でアバターとの「視覚的なすき間」を要素自体に含めて、
+          // mouseLeave がトリガーされる前にドロップダウンに hover が乗り換わるようにする
+          className="absolute right-0 top-full pt-2 w-64 z-50"
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
         >
+          <div className="rounded-lg border border-slate-700 bg-neutral-900 shadow-xl py-1">
           {/* ヘッダー部 */}
           <div className="px-4 py-3 border-b border-slate-800">
             <div className="font-semibold text-white truncate">
@@ -141,6 +182,7 @@ export function UserMenu({ user }: UserMenuProps) {
               <LogOut className="w-4 h-4" />
               サインアウト
             </button>
+          </div>
           </div>
         </div>
       )}
