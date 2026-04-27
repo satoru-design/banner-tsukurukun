@@ -7,6 +7,8 @@ import {
 import { generateWithFallback } from '@/lib/image-providers';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { incrementUsage } from '@/lib/plans/usage';
+import { isUsageLimitReached, effectiveUsageCount } from '@/lib/plans/usage-check';
+import { getPrisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -39,6 +41,36 @@ export async function POST(req: Request) {
     const aspectRatio = sizeMeta.aspectRatio;
     const apiSizeOverride = sizeMeta.apiSize;
 
+    // Phase A.11.3: 上限チェック（fail-fast でコスト保護）
+    // DB から fresh な count を取得（JWT は古い可能性あり）
+    const currentUser = await getCurrentUser();
+    if (currentUser.userId && Number.isFinite(currentUser.usageLimit)) {
+      const prisma = getPrisma();
+      const dbUser = await prisma.user.findUnique({
+        where: { id: currentUser.userId },
+        select: { usageCount: true, usageResetAt: true },
+      });
+      if (dbUser) {
+        const checkInput = {
+          usageCount: dbUser.usageCount,
+          usageLimit: currentUser.usageLimit,
+          usageResetAt: dbUser.usageResetAt,
+        };
+        if (isUsageLimitReached(checkInput)) {
+          const effective = effectiveUsageCount(checkInput);
+          return NextResponse.json(
+            {
+              error: '今月の生成回数上限に到達しました',
+              usageCount: effective,
+              usageLimit: currentUser.usageLimit,
+              limitReached: true,
+            },
+            { status: 429 },
+          );
+        }
+      }
+    }
+
     const finalPrompt = buildIroncladImagePromptWithPrefix(materials);
 
     // 参考画像URLを集約（商品画像・バッジ1・バッジ2）
@@ -69,12 +101,20 @@ export async function POST(req: Request) {
     });
 
     // Phase A.11.0: 生成成功時に使用回数カウントアップ（失敗時はカウントしない）
-    const currentUser = await getCurrentUser();
+    // Phase A.11.3: 新 usageCount をレスポンスに含めてクライアント update() に渡す
+    let newUsageCount: number | undefined;
     if (currentUser.userId) {
-      // ベストエフォート（失敗してもユーザー体験を壊さない）
-      await incrementUsage(currentUser.userId).catch((err) => {
+      try {
+        await incrementUsage(currentUser.userId);
+        const prisma = getPrisma();
+        const updated = await prisma.user.findUnique({
+          where: { id: currentUser.userId },
+          select: { usageCount: true },
+        });
+        newUsageCount = updated?.usageCount;
+      } catch (err) {
         console.error('incrementUsage failed:', err);
-      });
+      }
     }
 
     return NextResponse.json({
@@ -83,6 +123,7 @@ export async function POST(req: Request) {
       fallback: result.providerMetadata.fallback === true,
       metadata: result.providerMetadata,
       promptPreview: finalPrompt,
+      usageCount: newUsageCount,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
