@@ -17,6 +17,8 @@ export interface CurrentUser {
   plan: string;
   /** 表示名（nameOverride ?? name ?? "ユーザー"） */
   displayName: string;
+  /** Phase A.11.3: ユーザー編集後の表示名 raw 値（session 同期判定用） */
+  nameOverride: string | null;
   /** Google アバター URL */
   image: string | null;
   /** 現在プラン開始日 */

@@ -20,6 +20,7 @@ import { getUsageLimit } from '@/lib/plans/limits';
 import { ProfileSection } from './ProfileSection';
 import { PlanSection } from './PlanSection';
 import { SecuritySection } from './SecuritySection';
+import { SessionSyncer } from './SessionSyncer';
 
 /**
  * /account 専用: DB から fresh な User を読み取り CurrentUser 形式で返す。
@@ -35,6 +36,7 @@ async function getFreshCurrentUser(userId: string): Promise<CurrentUser | null> 
     email: u.email,
     plan: u.plan,
     displayName: u.nameOverride ?? u.name ?? 'ユーザー',
+    nameOverride: u.nameOverride,
     image: u.image,
     planStartedAt: u.planStartedAt,
     planExpiresAt: u.planExpiresAt,
@@ -59,6 +61,8 @@ export default async function AccountPage() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
+      {/* Phase A.11.3: session が DB と乖離していれば update() で merge してヘッダーも追従 */}
+      <SessionSyncer freshUser={user} />
       <Header />
       <main className="max-w-3xl mx-auto px-6 py-12 space-y-12">
         <h1 className="text-2xl font-bold">マイアカウント</h1>
