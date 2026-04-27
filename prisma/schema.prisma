@@ -95,6 +95,7 @@ model Asset {
 }
 
 /// Phase A.10: NextAuth.js v5 + admin/plan 区別の基盤
+/// Phase A.11.0: nameOverride / planStartedAt / planExpiresAt / stripe* / usageCount / usageResetAt 追加
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -106,12 +107,29 @@ model User {
   /// Phase A.11+ で機能 gate のキーとして使用
   plan          String    @default("free")
 
+  /// Phase A.11.0: ユーザー編集後の表示名（NULL なら name を使う）
+  nameOverride          String?
+  /// Phase A.11.0: 現在プラン開始日（既存ユーザーは migration で createdAt をセット）
+  planStartedAt         DateTime?
+  /// Phase A.11.0: 有料プラン期限（free/admin は NULL）
+  planExpiresAt         DateTime?
+  /// Phase A.11.0: Stripe Customer ID（A.12 で使用、今は NULL）
+  stripeCustomerId      String?  @unique
+  /// Phase A.11.0: Stripe Subscription ID（A.12 で使用、今は NULL）
+  stripeSubscriptionId  String?  @unique
+  /// Phase A.11.0: 当月使用回数（lazy reset）
+  usageCount            Int       @default(0)
+  /// Phase A.11.0: 次回リセット日時（NULL なら初回アクセス時にセット）
+  usageResetAt          DateTime?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   accounts      Account[]
   sessions      Session[]
   assets        Asset[]
+
+  @@index([stripeCustomerId])
 }
 
 /// NextAuth.js v5 Account テーブル（Provider別の OAuth トークン保存）
