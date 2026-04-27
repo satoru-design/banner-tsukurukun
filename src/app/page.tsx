@@ -32,6 +32,8 @@ const INITIAL_SELECTIONS: IroncladSelections = {
 
 export default function IroncladPage() {
   const [step, setStep] = useState<IroncladStep>(1);
+  // Phase A.11.2: 訪問済みの最大ステップを記録。ステップ表示クリック時のジャンプ可否判定に使う。
+  const [maxVisitedStep, setMaxVisitedStep] = useState<IroncladStep>(1);
   const [brief, setBrief] = useState<IroncladBrief>(INITIAL_BRIEF);
   const [productAsset, setProductAsset] = useState<Asset | null>(null);
   const [badge1Asset, setBadge1Asset] = useState<Asset | null>(null);
@@ -57,6 +59,16 @@ export default function IroncladPage() {
   const handleSuggestionsChange = (s: IroncladSuggestions | null) => {
     setSuggestions(s);
     setSuggestionsSignature(s ? currentSignature : '');
+  };
+
+  // Phase A.11.2: step が更新されたら maxVisitedStep も追従させる
+  useEffect(() => {
+    setMaxVisitedStep((prev) => (step > prev ? step : prev));
+  }, [step]);
+
+  // Phase A.11.2: ヘッダーのステップ表示クリックで訪問済みステップにジャンプ
+  const handleJumpToStep = (target: IroncladStep) => {
+    if (target <= maxVisitedStep) setStep(target);
   };
 
   // 初回マウント時: 各タイプの最新アセット（= 最後に使ったもの）を自動選択
@@ -89,7 +101,15 @@ export default function IroncladPage() {
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
       {/* Phase A.11.1: 共有 Header に置換。Step インジケータは中央スロットへ */}
-      <Header rightSlot={<StepIndicatorRow current={step} />} />
+      <Header
+        rightSlot={
+          <StepIndicatorRow
+            current={step}
+            maxVisited={maxVisitedStep}
+            onJumpTo={handleJumpToStep}
+          />
+        }
+      />
 
       <main className="px-6 py-8">
         {step === 1 && (
@@ -145,14 +165,40 @@ export default function IroncladPage() {
  * Phase A.11.1: 既存の StepIndicator を 3 連で並べる Row。Header の rightSlot に渡す。
  * モバイル幅では数字のみ（label を sm:inline で隠す）。
  */
-function StepIndicatorRow({ current }: { current: IroncladStep }) {
+function StepIndicatorRow({
+  current,
+  maxVisited,
+  onJumpTo,
+}: {
+  current: IroncladStep;
+  maxVisited: IroncladStep;
+  onJumpTo: (target: IroncladStep) => void;
+}) {
   return (
     <div className="flex items-center gap-2 text-xs">
-      <StepIndicator current={current} step={1} label="お題" />
+      <StepIndicator
+        current={current}
+        step={1}
+        label="お題"
+        enabled={1 <= maxVisited}
+        onClick={() => onJumpTo(1)}
+      />
       <span className="text-slate-600">→</span>
-      <StepIndicator current={current} step={2} label="素材" />
+      <StepIndicator
+        current={current}
+        step={2}
+        label="素材"
+        enabled={2 <= maxVisited}
+        onClick={() => onJumpTo(2)}
+      />
       <span className="text-slate-600">→</span>
-      <StepIndicator current={current} step={3} label="完成" />
+      <StepIndicator
+        current={current}
+        step={3}
+        label="完成"
+        enabled={3 <= maxVisited}
+        onClick={() => onJumpTo(3)}
+      />
     </div>
   );
 }
@@ -161,25 +207,43 @@ function StepIndicator({
   current,
   step,
   label,
+  enabled,
+  onClick,
 }: {
   current: IroncladStep;
   step: IroncladStep;
   label: string;
+  enabled: boolean;
+  onClick: () => void;
 }) {
   const active = current === step;
   const done = current > step;
+  // 現在ステップは disable（自分自身へのジャンプは無意味）。未到達ステップも disable。
+  const isDisabled = active || !enabled;
   return (
-    <div
-      className={`px-3 py-1 rounded-full border transition ${
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={isDisabled}
+      aria-label={
         active
-          ? 'bg-teal-500 text-white border-teal-500'
+          ? `現在のステップ ${step}: ${label}`
+          : enabled
+            ? `ステップ ${step} へ戻る: ${label}`
+            : `ステップ ${step} は未到達: ${label}`
+      }
+      className={`px-3 py-1 rounded-full border transition focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+        active
+          ? 'bg-teal-500 text-white border-teal-500 cursor-default'
           : done
-            ? 'bg-teal-900/40 text-teal-300 border-teal-700'
-            : 'bg-slate-800 text-slate-400 border-slate-700'
+            ? 'bg-teal-900/40 text-teal-300 border-teal-700 hover:bg-teal-800/60 hover:text-teal-200 cursor-pointer'
+            : enabled
+              ? 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 cursor-pointer'
+              : 'bg-slate-800/40 text-slate-600 border-slate-800 cursor-not-allowed opacity-60'
       }`}
     >
       <span>{step}.</span>
       <span className="hidden sm:inline ml-1">{label}</span>
-    </div>
+    </button>
   );
 }
