@@ -284,7 +284,17 @@ export const gptImageProvider: ImageProvider = {
   displayName: 'GPT Image (gpt-image-2)',
 
   async generate(params: GenerateParams): Promise<GenerateResult> {
-    const openai = new OpenAI({ apiKey: ensureKey() });
+    // Phase A.11.2 hotfix: SDK デフォルトの timeout=600s, maxRetries=2 だと、OpenAI が
+    // 応答しない場合にハングして合計 30 分以上待つ事象が発生（実測 230〜297s で
+    // Vercel maxDuration=300s に張り付く）。明示的に短縮する：
+    // - timeout: 60s/試行（成功 30s 平均なので 2x 余裕）
+    // - maxRetries: 1（指数 backoff 込みで最大 ~125s）
+    // - images.edit 失敗時は呼び出し側で Responses API に自動フォールバック
+    const openai = new OpenAI({
+      apiKey: ensureKey(),
+      timeout: 60 * 1000,
+      maxRetries: 1,
+    });
     const hasRefs = (params.referenceImageUrls?.length ?? 0) > 0;
 
     if (!hasRefs) {
