@@ -121,6 +121,9 @@ model User {
   usageCount            Int       @default(0)
   /// Phase A.11.0: 次回リセット日時（NULL なら初回アクセス時にセット）
   usageResetAt          DateTime?
+  /// Phase A.12: 直近の支払い失敗時刻（NULL なら正常）
+  /// invoice.payment_failed で now() / payment_succeeded で NULL
+  paymentFailedAt       DateTime?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -212,4 +215,17 @@ model GenerationImage {
 
   @@index([generationId])
   @@index([isFavorite, favoritedAt])
+}
+
+/// Phase A.12: Stripe Webhook idempotency 用
+/// id は Stripe event.id をそのまま使い、重複処理を防ぐ
+model WebhookEvent {
+  id          String    @id
+  type        String
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+  payload     Json
+
+  @@index([type])
+  @@index([receivedAt])
 }
