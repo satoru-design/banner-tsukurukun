@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { IroncladBriefForm } from '@/components/ironclad/IroncladBriefForm';
 import {
@@ -70,6 +71,75 @@ export default function IroncladPage() {
   const handleJumpToStep = (target: IroncladStep) => {
     if (target <= maxVisitedStep) setStep(target);
   };
+
+  // Phase A.11.5: ?regenerate=<id> または ?prefill=<id> で履歴から復元
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const regenerateId = searchParams.get('regenerate');
+    const prefillId = searchParams.get('prefill');
+    const targetId = regenerateId || prefillId;
+    if (!targetId) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/history/${targetId}/regenerate`, {
+          method: 'POST',
+        });
+        if (!res.ok) {
+          console.warn('failed to load regenerate target');
+          return;
+        }
+        const { briefSnapshot } = await res.json();
+        // brief を復元
+        setBrief({
+          pattern: briefSnapshot.pattern,
+          product: briefSnapshot.product,
+          target: briefSnapshot.target,
+          purpose: briefSnapshot.purpose,
+          sizes: briefSnapshot.sizes ?? ['Instagram (1080x1080)'],
+        });
+        // selections を復元
+        setSelections({
+          copies: briefSnapshot.copies,
+          designRequirements: briefSnapshot.designRequirements,
+          cta: briefSnapshot.cta,
+          tone: briefSnapshot.tone,
+          caution: briefSnapshot.caution,
+        });
+        setSuggestionsSignature(
+          `${briefSnapshot.pattern}|${briefSnapshot.product}|${briefSnapshot.target}|${briefSnapshot.purpose}`,
+        );
+        // useWinningRef も復元（snapshot に含まれている）
+        if (typeof briefSnapshot.useWinningRef === 'boolean') {
+          setUseWinningRef(briefSnapshot.useWinningRef);
+        }
+        // baseMaterials を復元（regenerate のみ Step 3 直行）
+        if (regenerateId) {
+          setBaseMaterials({
+            pattern: briefSnapshot.pattern,
+            product: briefSnapshot.product,
+            target: briefSnapshot.target,
+            purpose: briefSnapshot.purpose,
+            copies: briefSnapshot.copies,
+            designRequirements: briefSnapshot.designRequirements,
+            cta: briefSnapshot.cta,
+            tone: briefSnapshot.tone,
+            caution: briefSnapshot.caution,
+            productImageUrl: briefSnapshot.productImageUrl ?? undefined,
+            badgeImageUrl1: briefSnapshot.badgeImageUrl1 ?? undefined,
+            badgeImageUrl2: briefSnapshot.badgeImageUrl2 ?? undefined,
+          });
+          setStep(3);
+          setMaxVisitedStep(3);
+        } else {
+          setStep(1);
+        }
+      } catch (err) {
+        console.error('regenerate/prefill failed:', err);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 初回マウント時: 各タイプの最新アセット（= 最後に使ったもの）を自動選択
   useEffect(() => {

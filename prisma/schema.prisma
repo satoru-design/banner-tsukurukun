@@ -128,6 +128,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   assets        Asset[]
+  generations   Generation[]
 
   @@index([stripeCustomerId])
 }
@@ -169,4 +170,46 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+/// Phase A.11.5: 生成履歴。1 ブリーフ = 1 セッション、複数サイズ画像を含む
+model Generation {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// IroncladBrief + IroncladSelections + 使用 asset の id 群を JSON でスナップショット保存
+  briefSnapshot   Json
+
+  createdAt       DateTime  @default(now())
+
+  images          GenerationImage[]
+
+  @@index([userId, createdAt])
+}
+
+/// Phase A.11.5: Generation 内の各サイズ画像
+model GenerationImage {
+  id                String     @id @default(cuid())
+  generationId      String
+  generation        Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+
+  /// 'Instagram (1080x1080)' 等
+  size              String
+  /// Vercel Blob Public URL
+  blobUrl           String
+  /// 'gpt-image' / 'flux' / 'imagen4'
+  provider          String
+  /// model, fallback flag 等
+  providerMetadata  Json?
+
+  /// ★お気に入り（永続アクセス保護対象）
+  isFavorite        Boolean    @default(false)
+  /// お気に入り化された日時（プラン別 5 枚カウント用）
+  favoritedAt       DateTime?
+
+  createdAt         DateTime   @default(now())
+
+  @@index([generationId])
+  @@index([isFavorite, favoritedAt])
 }

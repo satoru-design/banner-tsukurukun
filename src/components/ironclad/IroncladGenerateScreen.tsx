@@ -9,6 +9,7 @@ import type {
   IroncladSize,
 } from '@/lib/prompts/ironclad-banner';
 import { GenerationProgress } from '@/components/ui/GenerationProgress';
+import { Toast } from '@/components/ui/Toast';
 import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
 import { isUsageLimitReached } from '@/lib/plans/usage-check';
 import { UsageLimitModal } from '@/components/layout/UsageLimitModal';
@@ -34,6 +35,8 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
   const { data: session, update: updateSession } = useSession();
   const user = sessionToCurrentUser(session);
   const [usageLimitModalOpen, setUsageLimitModalOpen] = useState(false);
+  // Phase A.11.5: 履歴保存通知トースト
+  const [toastInfo, setToastInfo] = useState<{ generationId: string } | null>(null);
 
   const [results, setResults] = useState<SizeResult[]>(
     sizes.map((size) => ({ size, status: 'idle' })),
@@ -109,6 +112,11 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
       // Phase A.11.3: ヘッダーカウンタ即時反映（client-side session merge）
       if (typeof json.usageCount === 'number') {
         await updateSession({ usageCount: json.usageCount });
+      }
+
+      // Phase A.11.5: 履歴保存通知トースト
+      if (typeof json.generationId === 'string') {
+        setToastInfo({ generationId: json.generationId });
       }
     } catch (e) {
       const isAbort = e instanceof DOMException && e.name === 'AbortError';
@@ -303,6 +311,16 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
         usageLimit={user.usageLimit}
         plan={user.plan}
       />
+
+      {/* Phase A.11.5: 履歴保存通知トースト */}
+      {toastInfo && (
+        <Toast
+          message="履歴に保存しました"
+          actionLabel="履歴を見る"
+          actionHref={`/history/${toastInfo.generationId}`}
+          onClose={() => setToastInfo(null)}
+        />
+      )}
     </div>
   );
 }
