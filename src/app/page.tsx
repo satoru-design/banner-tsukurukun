@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Header } from '@/components/layout/Header';
 import { IroncladBriefForm } from '@/components/ironclad/IroncladBriefForm';
 import {
   IroncladSuggestSelector,
@@ -87,20 +88,8 @@ export default function IroncladPage() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
-      <header className="border-b border-slate-800 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-bold tracking-tight">
-            <span className="text-teal-400">勝ちバナー</span>作る君
-          </h1>
-          <div className="flex items-center gap-2 text-xs">
-            <StepIndicator current={step} step={1} label="お題" />
-            <span className="text-slate-600">→</span>
-            <StepIndicator current={step} step={2} label="素材" />
-            <span className="text-slate-600">→</span>
-            <StepIndicator current={step} step={3} label="完成" />
-          </div>
-        </div>
-      </header>
+      {/* Phase A.11.1: 共有 Header に置換。Step インジケータは中央スロットへ */}
+      <Header rightSlot={<StepIndicatorRow current={step} />} />
 
       <main className="px-6 py-8">
         {step === 1 && (
@@ -152,7 +141,31 @@ export default function IroncladPage() {
   );
 }
 
-function StepIndicator({ current, step, label }: { current: IroncladStep; step: IroncladStep; label: string }) {
+/**
+ * Phase A.11.1: 既存の StepIndicator を 3 連で並べる Row。Header の rightSlot に渡す。
+ * モバイル幅では数字のみ（label を sm:inline で隠す）。
+ */
+function StepIndicatorRow({ current }: { current: IroncladStep }) {
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <StepIndicator current={current} step={1} label="お題" />
+      <span className="text-slate-600">→</span>
+      <StepIndicator current={current} step={2} label="素材" />
+      <span className="text-slate-600">→</span>
+      <StepIndicator current={current} step={3} label="完成" />
+    </div>
+  );
+}
+
+function StepIndicator({
+  current,
+  step,
+  label,
+}: {
+  current: IroncladStep;
+  step: IroncladStep;
+  label: string;
+}) {
   const active = current === step;
   const done = current > step;
   return (
@@ -165,7 +178,8 @@ function StepIndicator({ current, step, label }: { current: IroncladStep; step: 
             : 'bg-slate-800 text-slate-400 border-slate-700'
       }`}
     >
-      {step}. {label}
+      <span>{step}.</span>
+      <span className="hidden sm:inline ml-1">{label}</span>
     </div>
   );
 }
