@@ -16,6 +16,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { UserCircle, User, CreditCard, LogOut } from 'lucide-react';
 import { PlanPill } from './PlanPill';
@@ -28,10 +29,24 @@ interface UserMenuProps {
 const HOVER_CLOSE_DELAY_MS = 150;
 
 export function UserMenu({ user }: UserMenuProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 「プラン変更」: 同一ページ /account では即スクロール、別ページからは router.push で遷移
+  const handlePlanClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setOpen(false);
+    if (pathname === '/account') {
+      const el = document.getElementById('plan');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      router.push('/account#plan');
+    }
+  };
 
   const cancelClose = () => {
     if (closeTimerRef.current) {
@@ -158,15 +173,15 @@ export function UserMenu({ user }: UserMenuProps) {
             <User className="w-4 h-4" />
             マイアカウント
           </Link>
-          <Link
+          <a
             href="/account#plan"
             role="menuitem"
             className="flex items-center gap-2 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 transition"
-            onClick={() => setOpen(false)}
+            onClick={handlePlanClick}
           >
             <CreditCard className="w-4 h-4" />
             プラン変更
-          </Link>
+          </a>
 
           {/* サインアウト */}
           <div className="border-t border-slate-800 mt-1 pt-1">

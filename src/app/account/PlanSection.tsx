@@ -45,7 +45,7 @@ export function PlanSection({ user }: PlanSectionProps) {
         : 'bg-teal-500';
 
   return (
-    <section id="plan">
+    <section id="plan" className="scroll-mt-20">
       <h2 className="text-lg font-semibold border-b border-slate-800 pb-2 mb-4">
         プラン
       </h2>
