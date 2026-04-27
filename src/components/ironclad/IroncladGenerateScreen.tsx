@@ -2,12 +2,16 @@
 
 import React, { useState } from 'react';
 import { Download, Sparkles, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import type {
   IroncladBaseMaterials,
   IroncladMaterials,
   IroncladSize,
 } from '@/lib/prompts/ironclad-banner';
 import { GenerationProgress } from '@/components/ui/GenerationProgress';
+import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
+import { isUsageLimitReached } from '@/lib/plans/usage-check';
+import { UsageLimitModal } from '@/components/layout/UsageLimitModal';
 
 type Props = {
   baseMaterials: IroncladBaseMaterials;
@@ -25,6 +29,12 @@ type SizeResult = {
 };
 
 export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) {
+  // Phase A.11.3: useSession で current user を取得し、生成前の上限 pre-check と
+  // 成功時の usageCount session 反映に使用
+  const { data: session, update: updateSession } = useSession();
+  const user = sessionToCurrentUser(session);
+  const [usageLimitModalOpen, setUsageLimitModalOpen] = useState(false);
+
   const [results, setResults] = useState<SizeResult[]>(
     sizes.map((size) => ({ size, status: 'idle' })),
   );
@@ -38,6 +48,19 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
   };
 
   const generateOne = async (size: IroncladSize): Promise<void> => {
+    // Phase A.11.3: 生成前 pre-check（API 呼出前に上限到達なら即 Modal）
+    if (
+      user.userId &&
+      isUsageLimitReached({
+        usageCount: user.usageCount,
+        usageLimit: user.usageLimit,
+        usageResetAt: user.usageResetAt,
+      })
+    ) {
+      setUsageLimitModalOpen(true);
+      return;
+    }
+
     updateResult(size, { status: 'generating', errorMessage: undefined });
     const materials: IroncladMaterials = { ...baseMaterials, size };
 
@@ -53,6 +76,13 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
         body: JSON.stringify(materials),
         signal: controller.signal,
       });
+
+      // Phase A.11.3: 429 = 上限到達（API gate）→ Modal 表示
+      if (res.status === 429) {
+        setUsageLimitModalOpen(true);
+        updateResult(size, { status: 'idle' });
+        return;
+      }
 
       // 非 2xx は JSON parse 前に分岐（504 等は body が JSON でない可能性あり）
       if (!res.ok) {
@@ -75,6 +105,11 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
         promptPreview: json.promptPreview,
         metadata: json.metadata,
       });
+
+      // Phase A.11.3: ヘッダーカウンタ即時反映（client-side session merge）
+      if (typeof json.usageCount === 'number') {
+        await updateSession({ usageCount: json.usageCount });
+      }
     } catch (e) {
       const isAbort = e instanceof DOMException && e.name === 'AbortError';
       const errorMessage = isAbort
@@ -259,6 +294,15 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
           ← 素材に戻る
         </button>
       </div>
+
+      {/* Phase A.11.3: 上限到達モーダル */}
+      <UsageLimitModal
+        open={usageLimitModalOpen}
+        onClose={() => setUsageLimitModalOpen(false)}
+        usageCount={user.usageCount}
+        usageLimit={user.usageLimit}
+        plan={user.plan}
+      />
     </div>
   );
 }
