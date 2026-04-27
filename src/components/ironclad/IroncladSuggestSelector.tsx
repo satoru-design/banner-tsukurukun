@@ -64,8 +64,26 @@ export function IroncladSuggestSelector({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...brief, useWinningRef }),
       });
+
+      // 非 2xx は JSON パース前に分岐（504 等は plain text で返るため、
+      // res.json() するとパース失敗してメッセージが暗号化される）
+      if (!res.ok) {
+        let errMsg = `HTTP ${res.status}`;
+        if (res.status === 504) {
+          errMsg = 'サジェスト生成がタイムアウトしました（60秒経過）。「再生成」ボタンでもう一度お試しください';
+        } else {
+          try {
+            const j = await res.json();
+            errMsg = j?.error || errMsg;
+          } catch {
+            // JSON 以外の応答（504 plain text 等）はステータスのみ報告
+            errMsg = `HTTP ${res.status}: サーバ応答が異常です`;
+          }
+        }
+        throw new Error(errMsg);
+      }
+
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
       onChangeSuggestions(json.suggestions as IroncladSuggestions);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
