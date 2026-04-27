@@ -7,18 +7,53 @@
  *
  * 認証: middleware で /account は認証必須なので、ここに到達 = ログイン済み。
  * 念のため userId === null の保険ロジックも入れる。
+ *
+ * Phase A.11.2 hotfix: JWT は usageCount / nameOverride 等を起動時にキャッシュするため、
+ * バナー生成や名前編集後の最新値を反映できない。/account では認証情報のみ session から
+ * 取得し、表示データは DB から fresh に読む（getFreshUser）。
  */
 import { redirect } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
-import { getCurrentUser } from '@/lib/auth/get-current-user';
+import { getCurrentUser, type CurrentUser } from '@/lib/auth/get-current-user';
+import { getPrisma } from '@/lib/prisma';
+import { getUsageLimit } from '@/lib/plans/limits';
 import { ProfileSection } from './ProfileSection';
 import { PlanSection } from './PlanSection';
 import { SecuritySection } from './SecuritySection';
 
-export default async function AccountPage() {
-  const user = await getCurrentUser();
+/**
+ * /account 専用: DB から fresh な User を読み取り CurrentUser 形式で返す。
+ * JWT キャッシュをバイパスするため、生成後の usageCount / 編集後の nameOverride が
+ * 即座に反映される。
+ */
+async function getFreshCurrentUser(userId: string): Promise<CurrentUser | null> {
+  const prisma = getPrisma();
+  const u = await prisma.user.findUnique({ where: { id: userId } });
+  if (!u) return null;
+  return {
+    userId: u.id,
+    email: u.email,
+    plan: u.plan,
+    displayName: u.nameOverride ?? u.name ?? 'ユーザー',
+    image: u.image,
+    planStartedAt: u.planStartedAt,
+    planExpiresAt: u.planExpiresAt,
+    usageCount: u.usageCount,
+    usageLimit: getUsageLimit(u.plan),
+    usageResetAt: u.usageResetAt,
+  };
+}
 
-  if (!user.userId) {
+export default async function AccountPage() {
+  const sessionUser = await getCurrentUser();
+  if (!sessionUser.userId) {
+    redirect('/signin?callbackUrl=/account');
+  }
+
+  // DB から fresh データを取得（JWT のキャッシュをバイパス）
+  const user = await getFreshCurrentUser(sessionUser.userId);
+  if (!user) {
+    // 認証はあるが User row が消えている異常系
     redirect('/signin?callbackUrl=/account');
   }
 
