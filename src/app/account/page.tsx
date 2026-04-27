@@ -19,6 +19,7 @@ import { getPrisma } from '@/lib/prisma';
 import { getUsageLimit } from '@/lib/plans/limits';
 import { ProfileSection } from './ProfileSection';
 import { PlanSection } from './PlanSection';
+import { HistorySection } from './HistorySection';
 import { SecuritySection } from './SecuritySection';
 import { SessionSyncer } from './SessionSyncer';
 
@@ -68,6 +69,7 @@ export default async function AccountPage() {
         <h1 className="text-2xl font-bold">マイアカウント</h1>
         <ProfileSection user={user} />
         <PlanSection user={user} />
+        <HistorySection userId={user.userId!} plan={user.plan} />
         <SecuritySection user={user} />
       </main>
     </div>
