@@ -283,6 +283,10 @@ STRIPE_ENABLED                 # 'true' | 'false' (L1 ロールバック用)
 - `src/components/layout/UsageLimitModal.tsx` — 同上
 - `src/app/history/UpgradeLockModal.tsx` — 同上
 
+#### Downgrade API 追加
+- `src/app/api/billing/downgrade/route.ts` — POST: Pro→Starter の期末切替予約（Subscription Schedule）
+- `src/components/billing/DowngradeButton.tsx` — アプリ内 downgrade UI
+
 #### Layout / Header 統合
 - `src/app/layout.tsx` — `<PaymentFailedBanner />` を `<body>` 直下に常駐
 - `src/components/layout/Header.tsx` — `<UpgradeCTAHeader />` を追加（free/starter のみ表示）
@@ -366,17 +370,25 @@ export async function syncUserPlanFromSubscription(
 4. URL を返却
 ```
 
-### 7.4 Plan downgrade のタイミング処理
+### 7.4 Plan downgrade のタイミング処理（重要な実装判断）
 
-Customer Portal で「Pro → Starter」が選択された場合:
-- Stripe は subscription を「期末で切替」予約状態にする
-- `customer.subscription.updated` が発火（`pending_update` を持つ subscription）
-- 即時の DB plan 更新は **しない**（期末まで Pro のまま）
-- `planExpiresAt` に current_period_end をセット → UI に「YYYY/MM/DD まで Pro」表示
-- 期末到達時に `customer.subscription.updated` が再発火（pending_update が apply 済）
-- そのタイミングで `User.plan = 'starter'` に更新
+**Stripe Customer Portal の制約:**
+Customer Portal の `subscription_update.proration_behavior` は **単一設定**であり、upgrade と downgrade で挙動を分けられない。Portal 既定の `create_prorations` だと downgrade も即時切替＋クレジット返金となり、Q3 で決定したハイブリッド方針（downgrade=期末）と矛盾する。
 
-このロジックは `plan-sync.ts` の中で `subscription.pending_update` の有無を見て分岐。
+**採用方針: Portal で plan 切替 UI を OFF + 自前 UI で切替を受ける**
+
+- Customer Portal の `features.subscription_update.enabled = false` に設定
+- Portal は「解約・支払い方法・請求書・顧客情報編集」のみ提供
+- プラン切替は **アプリ内 UI** で実装：
+  - upgrade（Starter→Pro）: 既存の `CheckoutButton` を再利用 → Stripe が既存 subscription を検知して `proration_behavior='always_invoice'` で即時切替
+  - downgrade（Pro→Starter）: 専用 API `POST /api/billing/downgrade` を作成 → `Subscription Schedule` API で期末切替を予約 → `planExpiresAt` セット
+  - cancel: Portal の解約フローに任せる（`cancel_at_period_end=true`）
+
+**Webhook 側のロジック:**
+- `customer.subscription.updated` で `schedule != null` を検知 → 期末切替予約と判定 → `planExpiresAt` のみ更新、plan は維持
+- 期末到達時に Stripe が schedule を apply → 再度 `customer.subscription.updated` 発火 → 新 plan 反映
+
+**スコープ追加:** `POST /api/billing/downgrade` API + アプリ内 downgrade ボタン UI（CP4 に追加、+0.5 日見積もり）。
 
 ---
 
@@ -428,9 +440,9 @@ stripe trigger customer.subscription.deleted
 - 環境変数定義（test mode）
 - DB マイグレーション（`paymentFailedAt` + `WebhookEvent`）
 - Stripe ダッシュボードで Products + Prices 作成
-  - Starter ¥3,980/月（税込）
-  - Pro base ¥14,800/月（税込）
-  - Pro metered ¥80/回 graduated tier
+  - Starter ¥3,980/月（税込・recurring monthly）
+  - Pro base ¥14,800/月（税込・recurring monthly）
+  - Pro metered ¥80/回（`recurring.usage_type='metered'` / `aggregate_usage='sum'`、A.14 で usage_records 送信開始）
 - Stripe Tax 有効化 + インボイス登録番号 T8010901045333 設定
 - Promotion Code「FRIENDS」発行（Pro 100% off, duration=once, max=100, per_customer=1）
 - `STRIPE_ENABLED` フラグ実装
@@ -456,15 +468,18 @@ stripe trigger customer.subscription.deleted
 
 **完了基準:** Checkout 成功→Webhook 経由で User.plan='pro' 反映、Plan badge 即時更新
 
-### CP4: Customer Portal + 警告バナー（1.5〜2日）
+### CP4: Customer Portal + 警告バナー + Downgrade API（2〜2.5日）
 - `POST /api/billing/portal-session`
 - `PortalButton.tsx`
 - `/account` に PortalButton 統合
 - `PaymentFailedBanner.tsx` を `layout.tsx` に常駐
 - ヘッダー `UpgradeCTAHeader.tsx` 追加
-- Portal でプラン切替・解約予約・支払い方法変更の動作確認
+- Portal 設定: `subscription_update.enabled = false`（プラン切替 UI を Portal から外す）
+- `POST /api/billing/downgrade` 実装（Subscription Schedule で期末切替予約）
+- アプリ内 downgrade ボタン UI（/account に「Starter にダウングレード」ボタン）
+- Portal で解約予約・支払い方法変更・インボイス DL の動作確認
 
-**完了基準:** Portal で全機能（切替/解約/カード変更/インボイス DL/顧客情報編集）動作、警告バナー表示・消失動作
+**完了基準:** Portal で解約/カード変更/インボイス DL/顧客情報編集が動作、アプリ内で upgrade/downgrade が指定タイミングで反映、警告バナー表示・消失動作
 
 ### CP5: 月次サイクル統一 + 既存ロジック調整（1日）
 - `payment_succeeded` 受信時の `usageCount=0` / `usageResetAt=current_period_end` 更新
@@ -484,7 +499,7 @@ stripe trigger customer.subscription.deleted
 **完了基準:** 本番カードで Pro 購入成功、Stripe Invoice にインボイス番号記載
 
 ### 累計工数
-**8〜11.5日（約 1.5〜2 週間）**
+**8.5〜12日（約 1.5〜2 週間）** — CP4 の Downgrade API 追加で +0.5日
 
 ---
 
