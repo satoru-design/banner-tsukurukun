@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { UserCircle, User, CreditCard, LogOut } from 'lucide-react';
+import { UserCircle, User, CreditCard, LogOut, History } from 'lucide-react';
 import { PlanPill } from './PlanPill';
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 
@@ -172,6 +172,15 @@ export function UserMenu({ user }: UserMenuProps) {
           >
             <User className="w-4 h-4" />
             マイアカウント
+          </Link>
+          <Link
+            href="/history"
+            role="menuitem"
+            className="flex items-center gap-2 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 transition"
+            onClick={() => setOpen(false)}
+          >
+            <History className="w-4 h-4" />
+            履歴
           </Link>
           <a
             href="/account#plan"
