@@ -183,49 +183,90 @@ export async function POST(req: Request) {
     // gemini-2.5-pro: 本プロジェクトで実績ある安定モデル（analyze-lp / analyze-banner / generate-copy と同じ）。
     // gemini-3.1-flash-lite-preview / gemini-3.1-pro-preview は現行 Gemini API で JSON レスポンスが
     // 不安定な場合があり、パース失敗の事故があったため 2.5-pro に統一。
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-pro',
-      contents: [systemPrompt + '\n\n' + userPrompt + winningInjection],
-      config: {
-        responseMimeType: 'application/json',
-        temperature: 0.85,
-      },
-    });
+    //
+    // Phase A.11.2 hotfix: Gemini 2.5 Pro の JSON 形式違反（配列長ずれ・フィールド欠落・
+    // 余計なネスト等）が稀に発生するため、最大 3 回までリトライする。
+    // 各リトライは同じプロンプト + 異なる temperature 揺らぎで再生成。
+    const fullPrompt = systemPrompt + '\n\n' + userPrompt + winningInjection;
+    const MAX_ATTEMPTS = 3;
+    let lastError: { error: string; raw?: string } | null = null;
 
-    const outputText = response.text;
-    if (!outputText) {
-      return NextResponse.json({ error: 'Empty Gemini response' }, { status: 500 });
-    }
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: [fullPrompt],
+        config: {
+          responseMimeType: 'application/json',
+          // 試行ごとに微妙に temperature を変えて出力分布をずらす
+          // (同じ温度で連投しても sampling 揺らぎで違う結果になるが、念のため明示的に変化)
+          temperature: 0.85 - (attempt - 1) * 0.1,
+        },
+      });
 
-    try {
-      const cleaned = outputText.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleaned) as IroncladSuggestions;
-
-      // 形式バリデーション（最低限）
-      if (
-        !Array.isArray(parsed.copies) ||
-        parsed.copies.length !== 4 ||
-        !Array.isArray(parsed.designRequirements) ||
-        parsed.designRequirements.length !== 4 ||
-        !Array.isArray(parsed.ctas) ||
-        !Array.isArray(parsed.tones) ||
-        !Array.isArray(parsed.cautions)
-      ) {
-        console.error('Ironclad suggest schema mismatch:', parsed);
-        return NextResponse.json(
-          { error: 'AI出力のスキーマが期待と異なります', raw: outputText },
-          { status: 500 },
+      const outputText = response.text;
+      if (!outputText) {
+        lastError = { error: 'Empty Gemini response' };
+        console.warn(
+          `Ironclad suggest attempt ${attempt}/${MAX_ATTEMPTS}: empty response`,
         );
+        continue;
       }
 
-      return NextResponse.json({ suggestions: parsed });
-    } catch (parseErr) {
-      console.error('Failed to parse Gemini output:', outputText, parseErr);
-      return NextResponse.json(
-        { error: 'AI出力のJSONパースに失敗しました', raw: outputText },
-        { status: 500 },
-      );
+      try {
+        const cleaned = outputText
+          .replace(/```json/g, '')
+          .replace(/```/g, '')
+          .trim();
+        const parsed = JSON.parse(cleaned) as IroncladSuggestions;
+
+        // 形式バリデーション（最低限）
+        if (
+          !Array.isArray(parsed.copies) ||
+          parsed.copies.length !== 4 ||
+          !Array.isArray(parsed.designRequirements) ||
+          parsed.designRequirements.length !== 4 ||
+          !Array.isArray(parsed.ctas) ||
+          !Array.isArray(parsed.tones) ||
+          !Array.isArray(parsed.cautions)
+        ) {
+          console.error(
+            `Ironclad suggest attempt ${attempt}/${MAX_ATTEMPTS}: schema mismatch`,
+            parsed,
+          );
+          lastError = {
+            error: 'AI出力のスキーマが期待と異なります',
+            raw: outputText,
+          };
+          continue;
+        }
+
+        // 成功
+        if (attempt > 1) {
+          console.log(`Ironclad suggest succeeded on attempt ${attempt}`);
+        }
+        return NextResponse.json({ suggestions: parsed });
+      } catch (parseErr) {
+        console.error(
+          `Ironclad suggest attempt ${attempt}/${MAX_ATTEMPTS}: parse failed`,
+          outputText,
+          parseErr,
+        );
+        lastError = {
+          error: 'AI出力のJSONパースに失敗しました',
+          raw: outputText,
+        };
+        continue;
+      }
     }
+
+    // 全試行失敗
+    console.error(
+      `Ironclad suggest: all ${MAX_ATTEMPTS} attempts failed`,
+      lastError,
+    );
+    return NextResponse.json(lastError ?? { error: 'Unknown error' }, {
+      status: 500,
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
     console.error('ironclad-suggest error:', error);

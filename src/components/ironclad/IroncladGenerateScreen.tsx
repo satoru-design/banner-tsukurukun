@@ -40,14 +40,35 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
   const generateOne = async (size: IroncladSize): Promise<void> => {
     updateResult(size, { status: 'generating', errorMessage: undefined });
     const materials: IroncladMaterials = { ...baseMaterials, size };
+
+    // Phase A.11.2 hotfix: クライアント側タイムアウト 320s（サーバ maxDuration=300s + 余裕 20s）。
+    // これがないと Vercel が 504 で関数を落としても fetch が永遠に hang する。
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 320 * 1000);
+
     try {
       const res = await fetch('/api/ironclad-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(materials),
+        signal: controller.signal,
       });
+
+      // 非 2xx は JSON parse 前に分岐（504 等は body が JSON でない可能性あり）
+      if (!res.ok) {
+        let errMsg = `HTTP ${res.status}`;
+        try {
+          const j = await res.json();
+          errMsg = j?.error || errMsg;
+        } catch {
+          if (res.status === 504) {
+            errMsg = '生成がタイムアウトしました（5分超過）。もう一度お試しください';
+          }
+        }
+        throw new Error(errMsg);
+      }
+
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
       updateResult(size, {
         status: 'success',
         imageUrl: json.imageUrl,
@@ -55,10 +76,18 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
         metadata: json.metadata,
       });
     } catch (e) {
+      const isAbort = e instanceof DOMException && e.name === 'AbortError';
+      const errorMessage = isAbort
+        ? '生成がタイムアウトしました（5分20秒経過）。もう一度お試しください'
+        : e instanceof Error
+          ? e.message
+          : String(e);
       updateResult(size, {
         status: 'error',
-        errorMessage: e instanceof Error ? e.message : String(e),
+        errorMessage,
       });
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 
