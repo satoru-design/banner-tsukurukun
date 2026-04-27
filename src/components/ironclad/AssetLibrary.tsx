@@ -141,7 +141,7 @@ export function AssetLibrary({ assetType, selectedId, onSelect, label }: Props) 
       {/* 推奨サイズ案内（Phase A.11.2: 大きすぎる画像で生成が極端に遅くなる事故防止） */}
       <div className="text-[11px] text-amber-300/80 bg-amber-900/15 rounded px-2 py-1 leading-relaxed">
         ※推奨画像サイズ：<span className="font-semibold">2MB 以下</span>（透過 PNG 推奨）。
-        大きい画像は <a href="https://tinypng.com/" target="_blank" rel="noreferrer" className="underline hover:text-amber-200">TinyPNG</a> 等で圧縮してからアップロードしてください。
+        大きい画像は <a href="https://tools.no4-group.com/shrink" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-200">圧縮する君</a> で 2MB 以下に圧縮してください。
       </div>
 
       {uploadingName && (
