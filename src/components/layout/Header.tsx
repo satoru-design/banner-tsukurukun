@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
 import { PlanPill } from './PlanPill';
+import { UsageDisplay } from './UsageDisplay';
 import { UserMenu } from './UserMenu';
 
 interface HeaderProps {
@@ -41,7 +42,10 @@ export function Header({ rightSlot }: HeaderProps) {
         <div className="flex-1 flex justify-center min-w-0">{rightSlot}</div>
 
         <div className="flex items-center gap-3 flex-shrink-0">
-          <PlanPill plan={user.plan} />
+          <div className="flex items-center gap-2">
+            <PlanPill plan={user.plan} />
+            <UsageDisplay />
+          </div>
           <UserMenu user={user} />
         </div>
       </div>
