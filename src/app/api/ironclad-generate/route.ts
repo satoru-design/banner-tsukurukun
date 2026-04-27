@@ -5,6 +5,8 @@ import {
   type IroncladMaterials,
 } from '@/lib/prompts/ironclad-banner';
 import { generateWithFallback } from '@/lib/image-providers';
+import { getCurrentUser } from '@/lib/auth/get-current-user';
+import { incrementUsage } from '@/lib/plans/usage';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -65,6 +67,15 @@ export async function POST(req: Request) {
       referenceMode: 'composite',
       copyBundle,
     });
+
+    // Phase A.11.0: 生成成功時に使用回数カウントアップ（失敗時はカウントしない）
+    const currentUser = await getCurrentUser();
+    if (currentUser.userId) {
+      // ベストエフォート（失敗してもユーザー体験を壊さない）
+      await incrementUsage(currentUser.userId).catch((err) => {
+        console.error('incrementUsage failed:', err);
+      });
+    }
 
     return NextResponse.json({
       imageUrl: result.base64,
