@@ -38,6 +38,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           .filter(Boolean);
         const isAdmin = !!user.email && adminEmails.includes(user.email);
         token.plan = isAdmin ? 'admin' : ((user as { plan?: string }).plan ?? 'free');
+        // Phase A.11.0: 新フィールドも JWT に載せる
+        const u = user as {
+          nameOverride?: string | null;
+          planStartedAt?: Date | null;
+          planExpiresAt?: Date | null;
+          usageCount?: number;
+          usageResetAt?: Date | null;
+        };
+        token.nameOverride = u.nameOverride ?? null;
+        token.planStartedAt = u.planStartedAt ? u.planStartedAt.toISOString() : null;
+        token.planExpiresAt = u.planExpiresAt ? u.planExpiresAt.toISOString() : null;
+        token.usageCount = u.usageCount ?? 0;
+        token.usageResetAt = u.usageResetAt ? u.usageResetAt.toISOString() : null;
       } else if (trigger === 'update' && token.email) {
         // 明示的 update（プラン変更直後など）の時だけ DB から再取得
         const dbUser = await prisma.user.findUnique({
@@ -45,6 +58,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
         if (dbUser) {
           token.plan = dbUser.plan;
+          // Phase A.11.0: 新フィールドも DB から再取得
+          token.nameOverride = dbUser.nameOverride;
+          token.planStartedAt = dbUser.planStartedAt ? dbUser.planStartedAt.toISOString() : null;
+          token.planExpiresAt = dbUser.planExpiresAt ? dbUser.planExpiresAt.toISOString() : null;
+          token.usageCount = dbUser.usageCount;
+          token.usageResetAt = dbUser.usageResetAt ? dbUser.usageResetAt.toISOString() : null;
         }
       }
       return token;
@@ -52,11 +71,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     /**
      * セッション読み取り時に JWT トークンの id/plan を session.user に注入。
      * これにより `getCurrentUser()` から id/plan が見える。
+     * Phase A.11.0: nameOverride / planDates / usage も注入。
      */
     async session({ session, token }) {
       if (session.user && token) {
         session.user.id = (token.id as string) ?? '';
         session.user.plan = (token.plan as string) ?? 'free';
+        // Phase A.11.0: 新フィールドも session.user に注入
+        session.user.nameOverride = (token.nameOverride as string | null) ?? null;
+        session.user.planStartedAt = (token.planStartedAt as string | null) ?? null;
+        session.user.planExpiresAt = (token.planExpiresAt as string | null) ?? null;
+        session.user.usageCount = (token.usageCount as number) ?? 0;
+        session.user.usageResetAt = (token.usageResetAt as string | null) ?? null;
       }
       return session;
     },
