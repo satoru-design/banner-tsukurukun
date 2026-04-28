@@ -1,16 +1,17 @@
 'use client';
 
 /**
- * Phase A.11.3: 上限到達時に表示するモーダル。
+ * Phase A.12 Task 12: 上限到達時に表示するモーダル（Stripe Checkout 版）。
  *
  * - 生成画面の pre-check ヒット時 / API 429 受信時に表示
- * - mailto でアップグレード相談を受け付け（A.12 Stripe 完成までの暫定）
+ * - Starter / Pro の CheckoutButton でそのまま購入できる
  * - body スクロールロック + ESC で閉じる
- *
- * 構造は src/app/account/UpgradeModal.tsx と類似だが、コンテキストが違う
- * （あちらは「準備中」、こちらは「上限到達」）ため別コンポーネント化。
  */
 import { useEffect } from 'react';
+import { CheckoutButton } from '@/components/billing/CheckoutButton';
+
+const STARTER_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER ?? '';
+const PRO_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE ?? '';
 
 interface UsageLimitModalProps {
   open: boolean;
@@ -43,13 +44,6 @@ export function UsageLimitModal({
 
   if (!open) return null;
 
-  const subject = `[勝ちバナー作る君] アップグレード相談（${plan} → 上位プラン）`;
-  const body =
-    `現在のプラン: ${plan}\n` +
-    `今月使用: ${usageCount}/${usageLimit}\n\n` +
-    `アップグレードを希望します。`;
-  const mailtoHref = `mailto:str.kk.co@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
   return (
     <div
       role="dialog"
@@ -60,30 +54,47 @@ export function UsageLimitModal({
     >
       <div className="absolute inset-0 bg-black/60" />
       <div
-        className="relative w-[min(90vw,460px)] bg-neutral-900 border border-slate-700 rounded-lg shadow-2xl p-6 text-white"
+        className="relative w-[min(90vw,480px)] bg-neutral-900 border border-slate-700 rounded-lg shadow-2xl p-6 text-white"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 id="usage-limit-title" className="text-lg font-bold mb-3">
-          今月の生成回数上限に到達しました
+        <h3 id="usage-limit-title" className="text-lg font-bold mb-2">
+          今月の上限に到達しました
         </h3>
-        <p className="text-sm text-slate-300 leading-relaxed mb-5">
-          現在の {plan} プランの月間上限（{usageLimit} 回）を使い切りました。
-          来月 1 日にリセットされます。それまでに追加で生成したい場合は、
-          <a
-            href={mailtoHref}
-            className="text-teal-400 underline mx-1 hover:text-teal-300"
-          >
-            アップグレードのご相談
-          </a>
-          をお送りください（Phase A.12 で Stripe Checkout に切替予定）。
+        <p className="text-sm text-slate-400 mb-4">
+          {plan} プランの月間上限（{usageLimit} 回）を使い切りました。
+          プランをアップグレードして引き続き生成できます。
         </p>
-        <div className="flex justify-end">
+        <div className="space-y-4">
+          <div className="border border-gray-600 rounded p-4">
+            <h4 className="font-bold text-base mb-1">Starter ¥3,980/月</h4>
+            <p className="text-sm text-slate-400 mb-3">
+              30回/月・5サイズ・お気に入り 5 枚保持
+            </p>
+            <CheckoutButton
+              basePriceId={STARTER_PRICE_ID}
+              label="Starter にする"
+              className="w-full bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded font-bold disabled:opacity-50 transition"
+            />
+          </div>
+          <div className="border-2 border-white rounded p-4">
+            <h4 className="font-bold text-base mb-1">Pro ¥14,800/月（推奨）</h4>
+            <p className="text-sm text-slate-400 mb-3">
+              100回/月・全17サイズ・勝ちバナー無制限・履歴無制限・ZIP DL・プロンプト閲覧
+            </p>
+            <CheckoutButton
+              basePriceId={PRO_PRICE_ID}
+              label="Pro にする"
+              className="w-full bg-white text-black px-4 py-3 rounded font-bold disabled:opacity-50 hover:bg-gray-200 transition"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end mt-4">
           <button
             type="button"
             onClick={onClose}
             className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded transition"
           >
-            閉じる
+            今は使わない
           </button>
         </div>
       </div>
