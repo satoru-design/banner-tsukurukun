@@ -19,6 +19,7 @@ import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
 import { PlanPill } from './PlanPill';
 import { UsageDisplay } from './UsageDisplay';
 import { UserMenu } from './UserMenu';
+import { UpgradeCTAHeader } from '@/components/billing/UpgradeCTAHeader';
 
 interface HeaderProps {
   /** ヘッダー中央に差し込むスロット（StepIndicator 等のページ固有 UI） */
@@ -46,6 +47,7 @@ export function Header({ rightSlot }: HeaderProps) {
             <PlanPill plan={user.plan} />
             <UsageDisplay />
           </div>
+          <UpgradeCTAHeader />
           <UserMenu user={user} />
         </div>
       </div>

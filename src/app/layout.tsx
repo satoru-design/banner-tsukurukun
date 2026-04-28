@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/lib/auth/auth";
+import { Suspense } from "react";
+import { PaymentFailedBanner } from "@/components/billing/PaymentFailedBanner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,6 +34,9 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <Suspense fallback={null}>
+          <PaymentFailedBanner />
+        </Suspense>
         <SessionProvider session={session}>{children}</SessionProvider>
       </body>
     </html>

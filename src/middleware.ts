@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   '/lp01',  // Phase A.15 で実装する LP（予約）
   '/lp02',
   '/lp03',
+  '/api/billing/webhook',  // Phase A.12: Stripe からの POST。署名検証で正当性を担保するため auth 不要。
 ];
 
 const PUBLIC_PATH_PREFIXES = [

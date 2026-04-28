@@ -12,6 +12,7 @@
  * バナー生成や名前編集後の最新値を反映できない。/account では認証情報のみ session から
  * 取得し、表示データは DB から fresh に読む（getFreshUser）。
  */
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { getCurrentUser, type CurrentUser } from '@/lib/auth/get-current-user';
@@ -22,6 +23,7 @@ import { PlanSection } from './PlanSection';
 import { HistorySection } from './HistorySection';
 import { SecuritySection } from './SecuritySection';
 import { SessionSyncer } from './SessionSyncer';
+import { AccountStripeToast } from './AccountStripeToast';
 
 /**
  * /account 専用: DB から fresh な User を読み取り CurrentUser 形式で返す。
@@ -62,6 +64,10 @@ export default async function AccountPage() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
+      {/* Phase A.12: Stripe success/cancel return 時のアラート表示 */}
+      <Suspense fallback={null}>
+        <AccountStripeToast />
+      </Suspense>
       {/* Phase A.11.3: session が DB と乖離していれば update() で merge してヘッダーも追従 */}
       <SessionSyncer freshUser={user} />
       <Header />

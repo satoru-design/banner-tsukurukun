@@ -12,6 +12,8 @@
 import { useState } from 'react';
 import { PlanPill } from '@/components/layout/PlanPill';
 import { UpgradeModal } from './UpgradeModal';
+import { PortalButton } from '@/components/billing/PortalButton';
+import { DowngradeButton } from '@/components/billing/DowngradeButton';
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 
 interface PlanSectionProps {
@@ -63,11 +65,18 @@ export function PlanSection({ user }: PlanSectionProps) {
           <span className="text-slate-200">{formatDate(user.planStartedAt)}</span>
         </div>
 
-        {/* 次回更新日（有料時のみ表示） */}
+        {/* プラン終了日（解約予約 / プラン切替予約時のみ表示） */}
+        {/* Phase A.12: planExpiresAt は cancel_at_period_end / schedule 予約時に
+            current_period_end が入る。active normal 時は plan-sync が NULL に維持。 */}
         {user.planExpiresAt && (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-400 w-32">次回更新日</span>
-            <span className="text-slate-200">{formatDate(user.planExpiresAt)}</span>
+          <div className="flex items-start gap-3">
+            <span className="text-sm text-slate-400 w-32">プラン終了予定</span>
+            <div className="text-slate-200">
+              <div>{formatDate(user.planExpiresAt)}</div>
+              <div className="text-xs text-slate-500 mt-0.5">
+                この日まで {user.plan.toUpperCase()} を利用可。以降は Customer Portal の予約内容に従い切替されます。
+              </div>
+            </div>
           </div>
         )}
 
@@ -115,12 +124,27 @@ export function PlanSection({ user }: PlanSectionProps) {
             ダウングレード
           </button>
         </div>
+
+        {/* お支払い情報管理（有料プランのみ） */}
+        {(user.plan === 'starter' || user.plan === 'pro') && (
+          <div className="mt-3">
+            <PortalButton />
+          </div>
+        )}
+
+        {/* ダウングレード（Pro のみ） */}
+        {user.plan === 'pro' && (
+          <div className="mt-2">
+            <DowngradeButton />
+          </div>
+        )}
       </div>
 
       {modalType && (
         <UpgradeModal
           type={modalType}
           onClose={() => setModalType(null)}
+          plan={user.plan}
         />
       )}
     </section>

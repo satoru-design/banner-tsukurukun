@@ -1,12 +1,16 @@
 'use client';
 
 /**
- * Phase A.11.5: ロック対象セッションをクリックした時の Pro 訴求モーダル。
+ * Phase A.12 Task 12: ロック対象セッションをクリックした時のアップグレードモーダル（Stripe 版）。
  *
- * - mailto でアップグレード相談 (A.12 Stripe 完成までの暫定)
+ * - Starter / Pro の CheckoutButton でそのまま購入できる
  * - body スクロールロック + ESC で閉じる
  */
 import { useEffect } from 'react';
+import { CheckoutButton } from '@/components/billing/CheckoutButton';
+
+const STARTER_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER ?? '';
+const PRO_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE ?? '';
 
 interface UpgradeLockModalProps {
   open: boolean;
@@ -37,13 +41,6 @@ export function UpgradeLockModal({
 
   if (!open) return null;
 
-  const subject = `[勝ちバナー作る君] アップグレード相談（${plan} → Pro）`;
-  const body =
-    `現在のプラン: ${plan}\n` +
-    `ロック中履歴: ${lockedCount} 件\n\n` +
-    `Pro プランへのアップグレードを希望します。`;
-  const mailtoHref = `mailto:str.kk.co@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
   return (
     <div
       role="dialog"
@@ -54,18 +51,44 @@ export function UpgradeLockModal({
     >
       <div className="absolute inset-0 bg-black/60" />
       <div
-        className="relative w-[min(90vw,460px)] bg-neutral-900 border border-slate-700 rounded-lg shadow-2xl p-6 text-white"
+        className="relative w-[min(90vw,480px)] bg-neutral-900 border border-slate-700 rounded-lg shadow-2xl p-6 text-white"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 id="lock-modal-title" className="text-lg font-bold mb-3">
-          🔒 このバナーは Pro プランで開放できます
+        <h3 id="lock-modal-title" className="text-lg font-bold mb-2">
+          このバナー履歴はロックされています
         </h3>
-        <p className="text-sm text-slate-300 leading-relaxed mb-5">
+        <p className="text-sm text-slate-400 mb-4">
           {plan === 'free' ? 'Free' : 'Starter'} プランでは
-          {plan === 'free' ? '直近 10' : '直近 30'} セッションのみアクセス可能です。
-          Pro プラン (¥14,800/月) で全履歴・全画像にアクセス・DL できます。
+          直近 {plan === 'free' ? '10' : '30'} セッションのみアクセス可能です（ロック中: {lockedCount} 件）。
+          アップグレードで全履歴・全画像にアクセス・DL できます。
         </p>
-        <div className="flex justify-end gap-2">
+        <div className="space-y-4">
+          {plan === 'free' && (
+            <div className="border border-gray-600 rounded p-4">
+              <h4 className="font-bold text-base mb-1">Starter ¥3,980/月</h4>
+              <p className="text-sm text-slate-400 mb-3">
+                30回/月・5サイズ・お気に入り 5 枚保持
+              </p>
+              <CheckoutButton
+                basePriceId={STARTER_PRICE_ID}
+                label="Starter にする"
+                className="w-full bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded font-bold disabled:opacity-50 transition"
+              />
+            </div>
+          )}
+          <div className="border-2 border-white rounded p-4">
+            <h4 className="font-bold text-base mb-1">Pro ¥14,800/月（推奨）</h4>
+            <p className="text-sm text-slate-400 mb-3">
+              100回/月・全17サイズ・勝ちバナー無制限・履歴無制限・ZIP DL・プロンプト閲覧
+            </p>
+            <CheckoutButton
+              basePriceId={PRO_PRICE_ID}
+              label="Pro にする"
+              className="w-full bg-white text-black px-4 py-3 rounded font-bold disabled:opacity-50 hover:bg-gray-200 transition"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end mt-4">
           <button
             type="button"
             onClick={onClose}
@@ -73,12 +96,6 @@ export function UpgradeLockModal({
           >
             閉じる
           </button>
-          <a
-            href={mailtoHref}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-amber-950 text-sm rounded font-semibold transition"
-          >
-            アップグレードのご相談
-          </a>
         </div>
       </div>
     </div>

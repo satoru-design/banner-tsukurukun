@@ -1,25 +1,26 @@
 'use client';
 
 /**
- * Phase A.11.2: 「準備中」モーダル。
- * Phase A.12（Stripe）完成までの暫定 UI。
+ * Phase A.12 Task 12: アップグレード/プラン変更モーダル（Stripe Checkout 版）。
  *
- * - アップグレード/ダウングレード ボタンクリック時に表示
- * - 「メールでお知らせ希望」mailto リンク提供
- * - Phase A.12 着手時は本コンポーネントを Stripe Checkout 起動コードに差し替え
- *
- * 素朴な div ベース実装（@base-ui/react/dialog の API バージョン依存を避けるため）。
- * ESC / 背景クリック で閉じる。
+ * - Phase A.11.2 の mailto 暫定実装を Stripe Checkout に差し替え
+ * - Starter / Pro の 2 プランを CheckoutButton で提示
+ * - モーダル wrapper（ESC / 背景クリック / スクロールロック）は維持
  */
 import { useEffect } from 'react';
+import { CheckoutButton } from '@/components/billing/CheckoutButton';
+
+const STARTER_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER ?? '';
+const PRO_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE ?? '';
 
 interface UpgradeModalProps {
   type: 'upgrade' | 'downgrade';
   onClose: () => void;
+  plan: string;
 }
 
-export function UpgradeModal({ type, onClose }: UpgradeModalProps) {
-  const title = type === 'upgrade' ? 'アップグレード機能' : 'ダウングレード機能';
+export function UpgradeModal({ type, onClose, plan }: UpgradeModalProps) {
+  const title = type === 'upgrade' ? 'プランをアップグレード' : 'プランを変更';
 
   // ESC キーで閉じる
   useEffect(() => {
@@ -39,11 +40,6 @@ export function UpgradeModal({ type, onClose }: UpgradeModalProps) {
     };
   }, []);
 
-  // 件名・本文の mailto エンコード
-  const subject = '[勝ちバナー作る君] 決済公開のお知らせ希望';
-  const body = `${title}（Phase A.12 Stripe 決済対応）の公開連絡を希望します。\n\n`;
-  const mailtoHref = `mailto:str.kk.co@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
   return (
     <div
       role="dialog"
@@ -54,25 +50,39 @@ export function UpgradeModal({ type, onClose }: UpgradeModalProps) {
     >
       <div className="absolute inset-0 bg-black/60" />
       <div
-        className="relative w-[min(90vw,460px)] bg-neutral-900 border border-slate-700 rounded-lg shadow-2xl p-6 text-white"
+        className="relative w-[min(90vw,480px)] bg-neutral-900 border border-slate-700 rounded-lg shadow-2xl p-6 text-white"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 id="upgrade-modal-title" className="text-lg font-bold mb-3">
-          {title}、まもなく公開予定です
+        <h3 id="upgrade-modal-title" className="text-lg font-bold mb-4">
+          {title}
         </h3>
-        <p className="text-sm text-slate-300 leading-relaxed mb-5">
-          Stripe 決済対応中（Phase A.12）。完成までしばらくお待ちください。
-          <br />
-          メールでお知らせをご希望の方は、
-          <a
-            href={mailtoHref}
-            className="text-teal-400 underline mx-1 hover:text-teal-300"
-          >
-            こちら
-          </a>
-          までご一報ください。
-        </p>
-        <div className="flex justify-end">
+        <div className="space-y-4">
+          {plan === 'free' && (
+            <div className="border border-gray-600 rounded p-4">
+              <h4 className="font-bold text-base mb-1">Starter ¥3,980/月</h4>
+              <p className="text-sm text-slate-400 mb-3">
+                30回/月・5サイズ・お気に入り 5 枚保持
+              </p>
+              <CheckoutButton
+                basePriceId={STARTER_PRICE_ID}
+                label="Starter にする"
+                className="w-full bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded font-bold disabled:opacity-50 transition"
+              />
+            </div>
+          )}
+          <div className="border-2 border-white rounded p-4">
+            <h4 className="font-bold text-base mb-1">Pro ¥14,800/月（推奨）</h4>
+            <p className="text-sm text-slate-400 mb-3">
+              100回/月・全17サイズ・勝ちバナー無制限・履歴無制限・ZIP DL・プロンプト閲覧
+            </p>
+            <CheckoutButton
+              basePriceId={PRO_PRICE_ID}
+              label="Pro にする"
+              className="w-full bg-white text-black px-4 py-3 rounded font-bold disabled:opacity-50 hover:bg-gray-200 transition"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end mt-4">
           <button
             type="button"
             onClick={onClose}
