@@ -204,7 +204,7 @@ export function HistoryDetail({ detail: initialDetail }: HistoryDetailProps) {
             key={img.id}
             className="bg-neutral-900/50 border border-slate-800 rounded-lg overflow-hidden"
           >
-            <div className="relative">
+            <div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={img.blobUrl}
@@ -212,36 +212,48 @@ export function HistoryDetail({ detail: initialDetail }: HistoryDetailProps) {
                 className="w-full h-auto"
                 loading="lazy"
               />
-              <button
-                type="button"
-                onClick={() => handleFavoriteToggle(img.id, img.isFavorite)}
-                disabled={user.plan === 'free'}
-                title={
-                  user.plan === 'free'
-                    ? 'お気に入りは Pro プランで開放'
-                    : img.isFavorite
-                      ? 'お気に入り解除'
-                      : 'お気に入りに追加'
-                }
-                className={`absolute top-2 right-2 p-2 rounded-full transition ${
-                  img.isFavorite
-                    ? 'bg-amber-500 text-amber-950'
-                    : 'bg-black/60 text-white hover:bg-black/80'
-                } ${user.plan === 'free' ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-              >
-                <Star className={`w-4 h-4 ${img.isFavorite ? 'fill-current' : ''}`} />
-              </button>
             </div>
-            <div className="p-3 flex items-center justify-between">
+            <div className="p-3 flex items-center justify-between gap-2">
               <span className="text-xs text-slate-400">{img.size}</span>
-              <button
-                type="button"
-                onClick={() => handleImageDownload(img.blobUrl, img.size)}
-                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded transition"
-              >
-                <Download className="w-3 h-3" />
-                DL
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Phase A.11.5 fix: Instagram 風に下部配置。DL ボタン左横に並べる。
+                    画像右上配置だと画像本体とかぶって視認性が悪かった。 */}
+                <button
+                  type="button"
+                  onClick={() => handleFavoriteToggle(img.id, img.isFavorite)}
+                  disabled={user.plan === 'free'}
+                  aria-label={
+                    user.plan === 'free'
+                      ? 'お気に入りは Pro プランで開放'
+                      : img.isFavorite
+                        ? 'お気に入り解除'
+                        : 'お気に入りに追加'
+                  }
+                  title={
+                    user.plan === 'free'
+                      ? 'お気に入りは Pro プランで開放'
+                      : img.isFavorite
+                        ? 'お気に入り解除'
+                        : 'お気に入りに追加'
+                  }
+                  className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded transition ${
+                    img.isFavorite
+                      ? 'bg-amber-500 text-amber-950 hover:bg-amber-400'
+                      : 'bg-slate-700 hover:bg-slate-600 text-white'
+                  } ${user.plan === 'free' ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <Star className={`w-3 h-3 ${img.isFavorite ? 'fill-current' : ''}`} />
+                  {img.isFavorite ? '解除' : 'お気に入り'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleImageDownload(img.blobUrl, img.size)}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded transition"
+                >
+                  <Download className="w-3 h-3" />
+                  DL
+                </button>
+              </div>
             </div>
           </div>
         ))}
