@@ -16,9 +16,10 @@ const PRO_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE ?? '';
 interface UpgradeModalProps {
   type: 'upgrade' | 'downgrade';
   onClose: () => void;
+  plan: string;
 }
 
-export function UpgradeModal({ type, onClose }: UpgradeModalProps) {
+export function UpgradeModal({ type, onClose, plan }: UpgradeModalProps) {
   const title = type === 'upgrade' ? 'プランをアップグレード' : 'プランを変更';
 
   // ESC キーで閉じる
@@ -56,17 +57,19 @@ export function UpgradeModal({ type, onClose }: UpgradeModalProps) {
           {title}
         </h3>
         <div className="space-y-4">
-          <div className="border border-gray-600 rounded p-4">
-            <h4 className="font-bold text-base mb-1">Starter ¥3,980/月</h4>
-            <p className="text-sm text-slate-400 mb-3">
-              30回/月・5サイズ・お気に入り 5 枚保持
-            </p>
-            <CheckoutButton
-              basePriceId={STARTER_PRICE_ID}
-              label="Starter にする"
-              className="w-full bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded font-bold disabled:opacity-50 transition"
-            />
-          </div>
+          {plan === 'free' && (
+            <div className="border border-gray-600 rounded p-4">
+              <h4 className="font-bold text-base mb-1">Starter ¥3,980/月</h4>
+              <p className="text-sm text-slate-400 mb-3">
+                30回/月・5サイズ・お気に入り 5 枚保持
+              </p>
+              <CheckoutButton
+                basePriceId={STARTER_PRICE_ID}
+                label="Starter にする"
+                className="w-full bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded font-bold disabled:opacity-50 transition"
+              />
+            </div>
+          )}
           <div className="border-2 border-white rounded p-4">
             <h4 className="font-bold text-base mb-1">Pro ¥14,800/月（推奨）</h4>
             <p className="text-sm text-slate-400 mb-3">

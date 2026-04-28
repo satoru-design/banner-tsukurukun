@@ -31,15 +31,17 @@ export const POST = async (req: Request): Promise<Response> => {
   if (!body?.basePriceId) {
     return NextResponse.json({ error: 'basePriceId required' }, { status: 400 });
   }
-  if (!isAllowedBasePriceId(body.basePriceId)) {
-    return NextResponse.json({ error: 'Invalid basePriceId' }, { status: 400 });
-  }
 
-  const promotionCodeId =
-    body.promo === 'FRIENDS' ? process.env.STRIPE_PROMO_FRIENDS : undefined;
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
   try {
+    if (!isAllowedBasePriceId(body.basePriceId)) {
+      return NextResponse.json({ error: 'Invalid basePriceId' }, { status: 400 });
+    }
+
+    const promotionCodeId =
+      body.promo === 'FRIENDS' ? process.env.STRIPE_PROMO_FRIENDS : undefined;
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+
     const url = await createCheckoutSession({
       userId: user.userId,
       basePriceId: body.basePriceId,

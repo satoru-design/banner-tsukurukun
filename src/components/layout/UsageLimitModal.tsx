@@ -60,22 +60,27 @@ export function UsageLimitModal({
         <h3 id="usage-limit-title" className="text-lg font-bold mb-2">
           今月の上限に到達しました
         </h3>
+        <p className="text-sm text-slate-400 mb-1">
+          今月の使用回数: {usageCount} / {usageLimit} 回
+        </p>
         <p className="text-sm text-slate-400 mb-4">
           {plan} プランの月間上限（{usageLimit} 回）を使い切りました。
           プランをアップグレードして引き続き生成できます。
         </p>
         <div className="space-y-4">
-          <div className="border border-gray-600 rounded p-4">
-            <h4 className="font-bold text-base mb-1">Starter ¥3,980/月</h4>
-            <p className="text-sm text-slate-400 mb-3">
-              30回/月・5サイズ・お気に入り 5 枚保持
-            </p>
-            <CheckoutButton
-              basePriceId={STARTER_PRICE_ID}
-              label="Starter にする"
-              className="w-full bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded font-bold disabled:opacity-50 transition"
-            />
-          </div>
+          {plan === 'free' && (
+            <div className="border border-gray-600 rounded p-4">
+              <h4 className="font-bold text-base mb-1">Starter ¥3,980/月</h4>
+              <p className="text-sm text-slate-400 mb-3">
+                30回/月・5サイズ・お気に入り 5 枚保持
+              </p>
+              <CheckoutButton
+                basePriceId={STARTER_PRICE_ID}
+                label="Starter にする"
+                className="w-full bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded font-bold disabled:opacity-50 transition"
+              />
+            </div>
+          )}
           <div className="border-2 border-white rounded p-4">
             <h4 className="font-bold text-base mb-1">Pro ¥14,800/月（推奨）</h4>
             <p className="text-sm text-slate-400 mb-3">

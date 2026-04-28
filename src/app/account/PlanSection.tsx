@@ -121,6 +121,7 @@ export function PlanSection({ user }: PlanSectionProps) {
         <UpgradeModal
           type={modalType}
           onClose={() => setModalType(null)}
+          plan={user.plan}
         />
       )}
     </section>
