@@ -82,6 +82,19 @@ export const POST = async (): Promise<Response> => {
     });
   } catch (e) {
     console.error('[downgrade] error:', e);
+    // Stripe が "already has an active schedule" を返した場合は 409 を返す
+    // （ユーザーがダブルクリックした場合や、既に schedule 予約済みのケース）
+    if (
+      typeof e === 'object' &&
+      e !== null &&
+      'code' in e &&
+      (e as { code: string }).code === 'resource_already_exists'
+    ) {
+      return NextResponse.json(
+        { error: 'ダウングレードはすでに予約済みです' },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 };
