@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { PlanPill } from '@/components/layout/PlanPill';
 import { UpgradeModal } from './UpgradeModal';
 import { PortalButton } from '@/components/billing/PortalButton';
+import { DowngradeButton } from '@/components/billing/DowngradeButton';
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 
 interface PlanSectionProps {
@@ -121,6 +122,13 @@ export function PlanSection({ user }: PlanSectionProps) {
         {(user.plan === 'starter' || user.plan === 'pro') && (
           <div className="mt-3">
             <PortalButton />
+          </div>
+        )}
+
+        {/* ダウングレード（Pro のみ） */}
+        {user.plan === 'pro' && (
+          <div className="mt-2">
+            <DowngradeButton />
           </div>
         )}
       </div>
