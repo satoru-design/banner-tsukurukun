@@ -12,15 +12,20 @@ export interface PlanPriceConfig {
   meteredPriceId?: string;
 }
 
-export const getPlanPrices = (): Record<PlanKey, PlanPriceConfig> => ({
-  starter: {
-    basePriceId: process.env.STRIPE_PRICE_STARTER!,
-  },
-  pro: {
-    basePriceId: process.env.STRIPE_PRICE_PRO_BASE!,
-    meteredPriceId: process.env.STRIPE_PRICE_PRO_METERED!,
-  },
-});
+export const getPlanPrices = (): Record<PlanKey, PlanPriceConfig> => {
+  const starter = process.env.STRIPE_PRICE_STARTER;
+  const proBase = process.env.STRIPE_PRICE_PRO_BASE;
+  const proMetered = process.env.STRIPE_PRICE_PRO_METERED;
+  if (!starter || !proBase || !proMetered) {
+    throw new Error(
+      'Missing Stripe Price ID env vars (STRIPE_PRICE_STARTER / STRIPE_PRICE_PRO_BASE / STRIPE_PRICE_PRO_METERED)'
+    );
+  }
+  return {
+    starter: { basePriceId: starter },
+    pro: { basePriceId: proBase, meteredPriceId: proMetered },
+  };
+};
 
 export const isAllowedBasePriceId = (priceId: string): boolean => {
   const config = getPlanPrices();

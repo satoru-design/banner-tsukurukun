@@ -5,7 +5,6 @@ import { getPrisma } from '@/lib/prisma'; // getPrisma() パターンを使用
 
 interface CreateCheckoutInput {
   userId: string;
-  email: string;
   basePriceId: string;
   promotionCodeId?: string;
   successUrl: string;
@@ -36,7 +35,7 @@ export const createCheckoutSession = async (input: CreateCheckoutInput): Promise
   let customerId = user.stripeCustomerId;
   if (!customerId) {
     const customer = await stripe.customers.create({
-      email: input.email,
+      email: user.email,
       metadata: { userId: input.userId },
     });
     customerId = customer.id;

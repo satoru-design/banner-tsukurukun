@@ -18,9 +18,7 @@ export const getStripeClient = (): Stripe => {
     throw new Error('Stripe is disabled (STRIPE_ENABLED!=true or STRIPE_SECRET_KEY missing)');
   }
   if (!cachedClient) {
-    cachedClient = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      typescript: true,
-    });
+    cachedClient = new Stripe(process.env.STRIPE_SECRET_KEY!);
   }
   return cachedClient;
 };
