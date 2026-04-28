@@ -13,6 +13,9 @@ export const handleSubscriptionDeleted = async (
   const subscription = event.data.object;
   const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id;
   const user = await findUserByStripeCustomerId(customerId);
-  if (!user) return;
+  if (!user) {
+    console.warn('[subscription-deleted] user not found for customer', customerId);
+    return;
+  }
   await syncUserPlanFromSubscription(user.id, subscription);
 };

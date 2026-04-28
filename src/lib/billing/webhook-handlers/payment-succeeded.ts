@@ -27,14 +27,10 @@ export const handlePaymentSucceeded = async (
   const user = await findUserByStripeCustomerId(customerId);
   if (!user) return;
 
-  if (user.paymentFailedAt) {
-    const prisma = getPrisma();
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { paymentFailedAt: null },
-    });
-  }
-
+  // plan-sync を先に実行。失敗時は throw → webhook が 500 を返し
+  // Stripe がリトライ → idempotency で安全に再実行される。
+  // この順序により paymentFailedAt クリアと plan-sync の部分的成功による
+  // 中間状態（バナーなし＋usage 未リセット）を回避する。
   const stripe = getStripeClient();
   const subId =
     typeof subDetails.subscription === 'string'
@@ -42,4 +38,13 @@ export const handlePaymentSucceeded = async (
       : subDetails.subscription.id;
   const subscription = await stripe.subscriptions.retrieve(subId);
   await syncUserPlanFromSubscription(user.id, subscription, { resetUsage: true });
+
+  // plan-sync 成功後に paymentFailedAt をクリア
+  if (user.paymentFailedAt) {
+    const prisma = getPrisma();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { paymentFailedAt: null },
+    });
+  }
 };
