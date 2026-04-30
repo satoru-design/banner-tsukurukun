@@ -1,5 +1,6 @@
 import { LpHeader } from '@/components/lp/LpHeader';
 import { LpHero } from '@/components/lp/LpHero';
+import { LpDemoVideo } from '@/components/lp/LpDemoVideo';
 import { ProblemSection } from '@/components/lp/ProblemSection';
 import { SolutionSection } from '@/components/lp/SolutionSection';
 import { FeaturesSection } from '@/components/lp/FeaturesSection';
@@ -43,6 +44,7 @@ export default function Lp02Page() {
             </div>
           }
         />
+        <LpDemoVideo />
         <ProblemSection />
         <SolutionSection />
         <FeaturesSection />
