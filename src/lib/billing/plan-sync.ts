@@ -62,15 +62,19 @@ export const syncUserPlanFromSubscription = async (
     return;
   }
 
-  // schedule (future plan change) または cancel_at_period_end → plan は維持、planExpiresAt セット
-  const isPendingChange = !!subscription.schedule || subscription.cancel_at_period_end;
+  // schedule (future plan change) / cancel_at_period_end / cancel_at (Stripe 新仕様) → plan は維持、planExpiresAt セット
+  // NOTE: 最新の Customer Portal は「キャンセル」操作時に cancel_at_period_end ではなく
+  // cancel_at (Unix timestamp) をセットする。両方を見ないと NULL 上書きが発生する。
+  const cancelAt = subscription.cancel_at;
+  const isPendingChange = !!subscription.schedule || subscription.cancel_at_period_end || !!cancelAt;
 
   if (isPendingChange) {
+    const expiresAt = cancelAt ? new Date(cancelAt * 1000) : periodEnd;
     await prisma.user.update({
       where: { id: userId },
       data: {
         stripeSubscriptionId: subscription.id,
-        planExpiresAt: periodEnd,
+        planExpiresAt: expiresAt,
         ...(options.resetUsage
           ? { usageCount: 0, usageResetAt: periodEnd }
           : {}),
