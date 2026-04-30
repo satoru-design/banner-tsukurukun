@@ -21,7 +21,6 @@ export default function Lp02Page() {
       <LpHeader />
       <main className="flex-1">
         <LpHero
-          variantBadge="時短訴求"
           h1="テンプレを作る時間、もう要りません"
           h2="ブリーフ → 完成まで 90 秒。1 ブリーフで 17 サイズ一括。あなたは戦略に集中できます。"
           ctaPrimaryLabel="今すぐ無料で試す（3 セッション無料）"

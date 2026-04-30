@@ -21,7 +21,6 @@ export default function Lp01Page() {
       <LpHeader />
       <main className="flex-1">
         <LpHero
-          variantBadge="機能訴求"
           h1="1 ブリーフで、17 サイズ一括生成"
           h2="勝ちバナーを学習する AI が、EC サイトのバナー制作時間を 1/10 に。テンプレ作成・サイズ違い発注・属人ナレッジから解放されます。"
           ctaPrimaryLabel="今すぐ無料で試す（3 セッション無料）"

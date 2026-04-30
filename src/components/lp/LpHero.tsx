@@ -6,7 +6,6 @@ import type { ReactNode } from 'react';
  * - /lp01 / /lp02 で props を切り替えて A/B 訴求
  */
 interface Props {
-  variantBadge: string; // "機能訴求" / "時短訴求" 等の小さなバッジ
   h1: string;
   h2: string;
   ctaPrimaryLabel: string;
@@ -17,7 +16,6 @@ interface Props {
 }
 
 export const LpHero = ({
-  variantBadge,
   h1,
   h2,
   ctaPrimaryLabel,
@@ -35,9 +33,6 @@ export const LpHero = ({
       />
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
         <div>
-          <span className="inline-block text-xs font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-3 py-1 mb-4">
-            {variantBadge}
-          </span>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-50 leading-tight">
             {h1}
           </h1>
