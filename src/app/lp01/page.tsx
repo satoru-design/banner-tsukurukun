@@ -1,5 +1,6 @@
 import { LpHeader } from '@/components/lp/LpHeader';
 import { LpHero } from '@/components/lp/LpHero';
+import { LpBannerShowcase } from '@/components/lp/LpBannerShowcase';
 import { LpDemoVideo } from '@/components/lp/LpDemoVideo';
 import { ProblemSection } from '@/components/lp/ProblemSection';
 import { SolutionSection } from '@/components/lp/SolutionSection';
@@ -28,18 +29,7 @@ export default function Lp01Page() {
           ctaSecondaryLabel="料金プランを見る"
           ctaPrimaryHref="/signin"
           ctaSecondaryHref="#pricing"
-          visualSlot={
-            <div className="grid grid-cols-3 gap-3">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div
-                  key={i}
-                  className="aspect-square rounded-lg bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 border border-slate-700 flex items-center justify-center text-slate-600 text-xs"
-                >
-                  Banner {i}
-                </div>
-              ))}
-            </div>
-          }
+          visualSlot={<LpBannerShowcase />}
         />
         <LpDemoVideo />
         <ProblemSection />

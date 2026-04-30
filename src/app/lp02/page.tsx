@@ -1,5 +1,6 @@
 import { LpHeader } from '@/components/lp/LpHeader';
 import { LpHero } from '@/components/lp/LpHero';
+import { LpBannerShowcase } from '@/components/lp/LpBannerShowcase';
 import { LpDemoVideo } from '@/components/lp/LpDemoVideo';
 import { ProblemSection } from '@/components/lp/ProblemSection';
 import { SolutionSection } from '@/components/lp/SolutionSection';
@@ -28,21 +29,7 @@ export default function Lp02Page() {
           ctaSecondaryLabel="料金プランを見る"
           ctaPrimaryHref="/signin"
           ctaSecondaryHref="#pricing"
-          visualSlot={
-            <div className="space-y-3">
-              <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-5">
-                <div className="text-xs text-slate-500 mb-1">Before（手作業）</div>
-                <div className="text-3xl font-black text-slate-300">6 時間</div>
-                <div className="text-xs text-slate-500 mt-1">テンプレ + コピー + サイズ違い</div>
-              </div>
-              <div className="text-center text-slate-500">↓</div>
-              <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-5">
-                <div className="text-xs text-emerald-300 mb-1">After（勝ちバナー作る君）</div>
-                <div className="text-3xl font-black text-emerald-300">90 秒</div>
-                <div className="text-xs text-emerald-200/70 mt-1">17 サイズ一括 + 勝ちパターン学習</div>
-              </div>
-            </div>
-          }
+          visualSlot={<LpBannerShowcase />}
         />
         <LpDemoVideo />
         <ProblemSection />
