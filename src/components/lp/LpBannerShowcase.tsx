@@ -1,11 +1,13 @@
 /**
  * Phase A.15: LP Hero 右側に配置するバナーショーケース
  *
- * 5 サイズ（Instagram / YDA / Display 336×280 / PC 728×90 / SP 320×100）を
- * Bento 風レイアウトで配置し、「17 サイズ一括」の価値訴求を視覚化。
+ * 5 サイズを native aspect ratio のまま表示（クロップなし）。
+ * Bento 風レイアウト:
+ * - 左大: Instagram 1:1（LCP 候補、fetchPriority high）
+ * - 右側スタック（垂直中央寄せ）: YDA 1.5:1 / Display 336x280 1.185:1
+ * - 全幅ストリップ: PC 728x90 (3:1) / SP 320x100 (3:1)
  *
- * 各画像は native aspect ratio を保持しつつ、グリッドセル内では object-cover で
- * 整形。Featured (Instagram square) は LCP 候補なので fetchpriority high。
+ * 各画像は w-full h-auto で natural fit するので「端の見切れ」は発生しない。
  */
 const BANNER_BASE = '/lp/banners';
 
@@ -25,13 +27,13 @@ export const LpBannerShowcase = () => {
             decoding="async"
           />
         </div>
-        <div className="col-span-1 grid grid-rows-2 gap-3">
+        <div className="col-span-1 flex flex-col gap-3 justify-center">
           <div className="rounded-xl overflow-hidden border border-slate-700/60 shadow-xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`${BANNER_BASE}/yda-600x314.png`}
-              alt="YDA 600×314 サンプルバナー"
-              className="w-full h-full object-cover"
+              alt="YDA サンプルバナー"
+              className="w-full h-auto block"
               loading="lazy"
               decoding="async"
             />
@@ -41,7 +43,7 @@ export const LpBannerShowcase = () => {
             <img
               src={`${BANNER_BASE}/display-336x280.png`}
               alt="Display 336×280 サンプルバナー"
-              className="w-full h-full object-cover"
+              className="w-full h-auto block"
               loading="lazy"
               decoding="async"
             />
