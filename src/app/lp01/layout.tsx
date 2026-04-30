@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { LpAnalytics } from '@/components/lp/LpAnalytics';
 
 export const metadata: Metadata = {
   title: '勝ちバナー作る君 — 1 ブリーフで 17 サイズ一括生成 | autobanner.jp',
@@ -22,10 +21,5 @@ export const metadata: Metadata = {
 };
 
 export default function Lp01Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      {children}
-      <LpAnalytics />
-    </>
-  );
+  return <>{children}</>;
 }

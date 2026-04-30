@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { LpAnalytics } from '@/components/lp/LpAnalytics';
 
 export const metadata: Metadata = {
   title: 'お問合せ・大規模利用相談 | 勝ちバナー作る君',
@@ -12,10 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function ContactLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      {children}
-      <LpAnalytics />
-    </>
-  );
+  return <>{children}</>;
 }
