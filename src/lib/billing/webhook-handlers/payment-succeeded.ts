@@ -39,12 +39,16 @@ export const handlePaymentSucceeded = async (
   const subscription = await stripe.subscriptions.retrieve(subId);
   await syncUserPlanFromSubscription(user.id, subscription, { resetUsage: true });
 
-  // plan-sync 成功後に paymentFailedAt をクリア
-  if (user.paymentFailedAt) {
+  // plan-sync 成功後に paymentFailedAt / proOverageNoticeShownAt をクリア
+  // Phase A.14: 新月次サイクル開始時に Pro 超過アラート再表示を許可するためリセット
+  if (user.paymentFailedAt || user.proOverageNoticeShownAt) {
     const prisma = getPrisma();
     await prisma.user.update({
       where: { id: user.id },
-      data: { paymentFailedAt: null },
+      data: {
+        paymentFailedAt: null,
+        proOverageNoticeShownAt: null,
+      },
     });
   }
 };
