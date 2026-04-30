@@ -124,6 +124,9 @@ model User {
   /// Phase A.12: 直近の支払い失敗時刻（NULL なら正常）
   /// invoice.payment_failed で now() / payment_succeeded で NULL
   paymentFailedAt       DateTime?
+  /// Phase A.14: Pro 上限到達アラート（101 回目で 1 度のみ表示）の last shown
+  /// payment_succeeded webhook で NULL リセット
+  proOverageNoticeShownAt   DateTime?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -183,6 +186,10 @@ model Generation {
 
   /// IroncladBrief + IroncladSelections + 使用 asset の id 群を JSON でスナップショット保存
   briefSnapshot   Json
+
+  /// Phase A.14: Free 上限超過時の「透かし入りプレビュー」フラグ
+  /// true なら PREVIEW 透かし入りで保存、UI でアップグレード訴求バナー表示
+  isPreview       Boolean   @default(false)
 
   createdAt       DateTime  @default(now())
 

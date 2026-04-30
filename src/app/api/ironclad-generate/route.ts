@@ -8,6 +8,7 @@ import { generateWithFallback } from '@/lib/image-providers';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { incrementUsage } from '@/lib/plans/usage';
 import { isUsageLimitReached, effectiveUsageCount } from '@/lib/plans/usage-check';
+import { USAGE_LIMIT_FREE, USAGE_LIMIT_PRO } from '@/lib/plans/limits';
 import { getPrisma } from '@/lib/prisma';
 import {
   buildBriefSnapshot,
@@ -15,6 +16,8 @@ import {
   type BriefSnapshot,
 } from '@/lib/generations/snapshot';
 import { uploadGenerationImage } from '@/lib/generations/blob-client';
+import { applyPreviewWatermark } from '@/lib/image-providers/watermark';
+import { sendMeteredUsage } from '@/lib/billing/usage-records';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -48,13 +51,14 @@ export async function POST(req: Request) {
     const apiSizeOverride = sizeMeta.apiSize;
 
     // Phase A.11.3: 上限チェック（fail-fast でコスト保護）
+    // Phase A.14: free は preview, pro は metered で通す。starter のみ block。
     // DB から fresh な count を取得（JWT は古い可能性あり）
     const currentUser = await getCurrentUser();
     if (currentUser.userId && Number.isFinite(currentUser.usageLimit)) {
       const prisma = getPrisma();
       const dbUser = await prisma.user.findUnique({
         where: { id: currentUser.userId },
-        select: { usageCount: true, usageResetAt: true },
+        select: { plan: true, usageCount: true, usageResetAt: true },
       });
       if (dbUser) {
         const checkInput = {
@@ -62,7 +66,7 @@ export async function POST(req: Request) {
           usageLimit: currentUser.usageLimit,
           usageResetAt: dbUser.usageResetAt,
         };
-        if (isUsageLimitReached(checkInput)) {
+        if (isUsageLimitReached(checkInput) && dbUser.plan === 'starter') {
           const effective = effectiveUsageCount(checkInput);
           return NextResponse.json(
             {
@@ -108,18 +112,41 @@ export async function POST(req: Request) {
 
     // Phase A.11.0: 生成成功時に使用回数カウントアップ（失敗時はカウントしない）
     // Phase A.11.3: 新 usageCount をレスポンスに含めてクライアント update() に渡す
+    // Phase A.14: 増分後の plan/usageCount/stripeCustomerId を取得して preview/metered 判定に使う
     let newUsageCount: number | undefined;
+    let updatedPlan = 'free';
+    let updatedStripeCustomerId: string | null = null;
     if (currentUser.userId) {
       try {
         await incrementUsage(currentUser.userId);
         const prisma = getPrisma();
         const updated = await prisma.user.findUnique({
           where: { id: currentUser.userId },
-          select: { usageCount: true },
+          select: { plan: true, usageCount: true, stripeCustomerId: true },
         });
         newUsageCount = updated?.usageCount;
+        updatedPlan = updated?.plan ?? 'free';
+        updatedStripeCustomerId = updated?.stripeCustomerId ?? null;
       } catch (err) {
         console.error('incrementUsage failed:', err);
+      }
+    }
+
+    // Phase A.14: Free プラン 4 回目以降は PREVIEW 透かしを焼き込む
+    const isPreview =
+      updatedPlan === 'free' &&
+      typeof newUsageCount === 'number' &&
+      newUsageCount > USAGE_LIMIT_FREE;
+
+    let finalBase64 = result.base64;
+    if (isPreview) {
+      try {
+        const base64Body = finalBase64.replace(/^data:image\/[^;]+;base64,/, '');
+        const buffer = Buffer.from(base64Body, 'base64');
+        const watermarked = await applyPreviewWatermark(buffer);
+        finalBase64 = watermarked.toString('base64');
+      } catch (err) {
+        console.error('preview watermark failed, using original:', err);
       }
     }
 
@@ -148,22 +175,30 @@ export async function POST(req: Request) {
         let generation;
         if (matched) {
           generation = matched;
+          // Phase A.14: matched が non-preview だが今回 preview なら latch して true に上げる
+          if (isPreview && !matched.isPreview) {
+            generation = await prisma.generation.update({
+              where: { id: matched.id },
+              data: { isPreview: true },
+            });
+          }
         } else {
           generation = await prisma.generation.create({
             data: {
               userId: currentUser.userId,
               briefSnapshot: snapshot as unknown as object,
+              isPreview,
             },
           });
         }
         generationId = generation.id;
 
-        // 画像を Blob にアップロード
+        // 画像を Blob にアップロード（preview なら透かし入りバッファを base64 化したもの）
         const blobUrl = await uploadGenerationImage(
           currentUser.userId,
           generation.id,
           materials.size,
-          result.base64,
+          finalBase64,
         );
 
         await prisma.generationImage.create({
@@ -175,6 +210,16 @@ export async function POST(req: Request) {
             providerMetadata: result.providerMetadata as unknown as object,
           },
         });
+
+        // Phase A.14: Pro 上限超過なら meterEvents 送信（identifier=generation.id で idempotent）
+        if (
+          updatedPlan === 'pro' &&
+          updatedStripeCustomerId &&
+          typeof newUsageCount === 'number' &&
+          newUsageCount > USAGE_LIMIT_PRO
+        ) {
+          await sendMeteredUsage(updatedStripeCustomerId, generation.id);
+        }
       } catch (err) {
         // 履歴保存失敗はベストエフォート（生成自体は成功扱いを維持）
         console.error('Phase A.11.5 generation save failed:', err);
@@ -182,13 +227,14 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({
-      imageUrl: result.base64,
+      imageUrl: finalBase64,
       provider: result.providerId,
       fallback: result.providerMetadata.fallback === true,
       metadata: result.providerMetadata,
       promptPreview: finalPrompt,
       usageCount: newUsageCount,
       generationId,
+      isPreview,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
