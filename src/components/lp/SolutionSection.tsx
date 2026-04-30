@@ -29,7 +29,17 @@ export const SolutionSection = () => {
     <section className="bg-slate-950">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
         <h2 className="text-3xl sm:text-4xl font-black text-slate-50 text-center">
-          ブリーフから完成まで <span className="text-emerald-400">90 秒</span>
+          ブリーフから完成まで{' '}
+          <span className="inline-flex items-center gap-1 align-middle text-emerald-400">
+            <span
+              aria-hidden
+              className="[writing-mode:vertical-rl] text-[0.45em] leading-[0.95] tracking-[-0.05em]"
+            >
+              最短
+            </span>
+            <span>90 秒</span>
+          </span>
+          <span className="sr-only">最短90秒</span>
         </h2>
         <p className="text-slate-400 text-center mt-3">
           4 ステップで「テンプレ作成 0 時間」を実現
