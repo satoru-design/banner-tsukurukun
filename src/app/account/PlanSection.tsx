@@ -14,6 +14,7 @@ import { PlanPill } from '@/components/layout/PlanPill';
 import { UpgradeModal } from './UpgradeModal';
 import { PortalButton } from '@/components/billing/PortalButton';
 import { DowngradeButton } from '@/components/billing/DowngradeButton';
+import { ProOverageDisplay } from '@/components/account/ProOverageDisplay';
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 
 interface PlanSectionProps {
@@ -103,6 +104,8 @@ export function PlanSection({ user }: PlanSectionProps) {
                   リセット日: {formatDate(user.usageResetAt)}
                 </div>
               )}
+              {/* Phase A.14: Pro 上限超過分の追加課金額を表示 */}
+              <ProOverageDisplay plan={user.plan} usageCount={user.usageCount} />
             </>
           )}
         </div>
