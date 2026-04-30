@@ -37,6 +37,21 @@ export const LpFooter = () => {
                 </Link>
               </li>
               <li>
+                <Link href="/legal/tokutei" className="hover:text-emerald-300 transition-colors">
+                  特定商取引法に基づく表記
+                </Link>
+              </li>
+              <li>
+                <Link href="/legal/terms" className="hover:text-emerald-300 transition-colors">
+                  利用規約
+                </Link>
+              </li>
+              <li>
+                <Link href="/legal/privacy" className="hover:text-emerald-300 transition-colors">
+                  プライバシーポリシー
+                </Link>
+              </li>
+              <li>
                 <a
                   href="https://twitter.com/strkk_co"
                   target="_blank"

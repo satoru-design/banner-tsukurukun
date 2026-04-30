@@ -15,6 +15,7 @@ const PUBLIC_PATHS = [
 const PUBLIC_PATH_PREFIXES = [
   '/api/auth',  // NextAuth エンドポイント
   '/_next',
+  '/legal',  // Phase A.15: 特商法 / 利用規約 / プライバシーポリシー
 ];
 
 /**
