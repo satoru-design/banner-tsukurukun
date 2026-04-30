@@ -16,14 +16,14 @@ export const getPlanPrices = (): Record<PlanKey, PlanPriceConfig> => {
   const starter = process.env.STRIPE_PRICE_STARTER;
   const proBase = process.env.STRIPE_PRICE_PRO_BASE;
   const proMetered = process.env.STRIPE_PRICE_PRO_METERED;
-  if (!starter || !proBase || !proMetered) {
+  if (!starter || !proBase) {
     throw new Error(
-      'Missing Stripe Price ID env vars (STRIPE_PRICE_STARTER / STRIPE_PRICE_PRO_BASE / STRIPE_PRICE_PRO_METERED)'
+      'Missing Stripe Price ID env vars (STRIPE_PRICE_STARTER / STRIPE_PRICE_PRO_BASE)'
     );
   }
   return {
     starter: { basePriceId: starter },
-    pro: { basePriceId: proBase, meteredPriceId: proMetered },
+    pro: { basePriceId: proBase, meteredPriceId: proMetered || undefined },
   };
 };
 
