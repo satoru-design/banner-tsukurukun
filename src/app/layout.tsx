@@ -1,10 +1,30 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/lib/auth/auth";
 import { Suspense } from "react";
 import { PaymentFailedBanner } from "@/components/billing/PaymentFailedBanner";
 import "./globals.css";
+
+const STRUCTURED_DATA = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: '勝ちバナー作る君',
+  description: 'AI バナー一括生成ツール。1 ブリーフで 17 サイズ一括生成。',
+  applicationCategory: 'DesignApplication',
+  operatingSystem: 'Web',
+  url: 'https://autobanner.jp/',
+  offers: [
+    { '@type': 'Offer', name: 'Free', price: '0', priceCurrency: 'JPY' },
+    { '@type': 'Offer', name: 'Starter', price: '3980', priceCurrency: 'JPY' },
+    { '@type': 'Offer', name: 'Pro', price: '14800', priceCurrency: 'JPY' },
+  ],
+  publisher: {
+    '@type': 'Organization',
+    name: '株式会社 4th Avenue Lab',
+  },
+} as const;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,8 +37,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "勝ちバナー作る君",
-  description: "勝ちパターンを学習して、勝てるバナーを量産するAIツール",
+  metadataBase: new URL('https://autobanner.jp'),
+  title: {
+    default: '勝ちバナー作る君 — 1 ブリーフで 17 サイズ一括生成',
+    template: '%s | 勝ちバナー作る君',
+  },
+  description:
+    'EC サイトのバナー制作時間を 1/10 に。AI が勝ちバナーを学習し、17 サイズを 90 秒で一括生成します。3 セッション無料体験。',
+  openGraph: {
+    title: '勝ちバナー作る君 — テンプレを作る時間、もう要りません',
+    description:
+      'ブリーフ → 17 サイズ一括生成。1/10 の時間で勝ちバナーを作れる AI ツール。',
+    url: 'https://autobanner.jp/',
+    siteName: '勝ちバナー作る君',
+    images: ['/og-image.png'],
+    locale: 'ja_JP',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '勝ちバナー作る君',
+    description: 'AI バナー一括生成ツール。3 セッション無料体験。',
+    images: ['/og-image.png'],
+  },
 };
 
 export default async function RootLayout({
@@ -34,6 +75,13 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <Script
+          id="structured-data"
+          type="application/ld+json"
+          strategy="afterInteractive"
+        >
+          {JSON.stringify(STRUCTURED_DATA)}
+        </Script>
         <Suspense fallback={null}>
           <PaymentFailedBanner />
         </Suspense>
