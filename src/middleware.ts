@@ -5,9 +5,10 @@ const { auth } = NextAuth(authConfig);
 
 const PUBLIC_PATHS = [
   '/signin',
-  '/lp01',  // Phase A.15 で実装する LP（予約）
-  '/lp02',
+  '/lp01',  // Phase A.15: 機能訴求 LP（公開）
+  '/lp02',  // Phase A.15: 時短訴求 LP（公開）
   '/lp03',
+  '/contact',  // Phase A.15: Plan C 個別商談 問合せページ
   '/api/billing/webhook',  // Phase A.12: Stripe からの POST。署名検証で正当性を担保するため auth 不要。
 ];
 
