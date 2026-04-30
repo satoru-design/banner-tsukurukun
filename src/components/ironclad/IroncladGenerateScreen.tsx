@@ -13,6 +13,7 @@ import { Toast } from '@/components/ui/Toast';
 import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
 import { isUsageLimitReached } from '@/lib/plans/usage-check';
 import { UsageLimitModal } from '@/components/layout/UsageLimitModal';
+import { PreviewBanner } from '@/components/ironclad/PreviewBanner';
 
 type Props = {
   baseMaterials: IroncladBaseMaterials;
@@ -27,6 +28,8 @@ type SizeResult = {
   promptPreview?: string;
   errorMessage?: string;
   metadata?: Record<string, unknown>;
+  // Phase A.14: Free 上限超過で透かし入りの場合 true
+  isPreview?: boolean;
 };
 
 export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) {
@@ -52,8 +55,10 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
 
   const generateOne = async (size: IroncladSize): Promise<void> => {
     // Phase A.11.3: 生成前 pre-check（API 呼出前に上限到達なら即 Modal）
+    // Phase A.14: starter のみ block。free は preview, pro は metered で通す。
     if (
       user.userId &&
+      user.plan === 'starter' &&
       isUsageLimitReached({
         usageCount: user.usageCount,
         usageLimit: user.usageLimit,
@@ -107,6 +112,7 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
         imageUrl: json.imageUrl,
         promptPreview: json.promptPreview,
         metadata: json.metadata,
+        isPreview: json.isPreview === true,
       });
 
       // Phase A.11.3: ヘッダーカウンタ即時反映（client-side session merge）
@@ -160,6 +166,8 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
 
   const completedCount = results.filter((r) => r.status === 'success').length;
   const anyPromptPreview = results.find((r) => r.promptPreview)?.promptPreview;
+  // Phase A.14: いずれかの結果が透かし入りなら訴求バナーを表示
+  const anyPreview = results.some((r) => r.isPreview === true);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -181,6 +189,9 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
           </button>
         )}
       </div>
+
+      {/* Phase A.14: Free プラン 4 回目以降の生成完了時に訴求バナー表示 */}
+      {anyPreview && <PreviewBanner plan={user.plan} />}
 
       <MaterialsSummary baseMaterials={baseMaterials} sizes={sizes} />
 
