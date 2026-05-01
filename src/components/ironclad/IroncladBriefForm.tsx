@@ -9,6 +9,9 @@ import {
   IroncladSize,
   IRONCLAD_SIZE_CATEGORIES,
   SIZE_TO_API_IRONCLAD,
+  CUSTOM_SIZE_MAX,
+  getIroncladSizeMeta,
+  parseCustomSize,
 } from '@/lib/prompts/ironclad-banner';
 import { AssetLibrary, Asset } from './AssetLibrary';
 import { WinningBannerLibrary } from './WinningBannerLibrary';
@@ -58,6 +61,36 @@ export function IroncladBriefForm({
 
   const [lpUrl, setLpUrl] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
+
+  // Phase A.15: カスタムサイズ入力 state
+  const [customWidth, setCustomWidth] = useState<string>('');
+  const [customHeight, setCustomHeight] = useState<string>('');
+  const [customError, setCustomError] = useState<string | null>(null);
+
+  const addCustomSize = () => {
+    setCustomError(null);
+    const w = parseInt(customWidth, 10);
+    const h = parseInt(customHeight, 10);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 1 || h < 1) {
+      setCustomError('幅と高さに 1 以上の整数を入力してください');
+      return;
+    }
+    if (w > CUSTOM_SIZE_MAX || h > CUSTOM_SIZE_MAX) {
+      setCustomError(`生成できるサイズは最大 ${CUSTOM_SIZE_MAX}px × ${CUSTOM_SIZE_MAX}px です`);
+      return;
+    }
+    const sizeKey: IroncladSize = `カスタム ${w}x${h}` as IroncladSize;
+    if (brief.sizes.includes(sizeKey)) {
+      setCustomError('同じサイズが既に追加されています');
+      return;
+    }
+    onChangeBrief({ ...brief, sizes: [...brief.sizes, sizeKey] });
+    setCustomWidth('');
+    setCustomHeight('');
+  };
+
+  // brief.sizes 内のカスタムサイズだけ取り出して表示用に
+  const selectedCustomSizes = brief.sizes.filter((s) => parseCustomSize(s) !== null);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
 
   const handleAnalyzeLp = async () => {
@@ -269,10 +302,82 @@ export function IroncladBriefForm({
           );
         })}
 
+        {/* Phase A.15: カスタムサイズ入力 */}
+        <div className="border border-slate-700 rounded-lg p-3 bg-slate-900/40 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold text-slate-300">📐 カスタムサイズ（任意）</div>
+            <span className="text-[10px] text-slate-500">最大 {CUSTOM_SIZE_MAX} × {CUSTOM_SIZE_MAX} px</span>
+          </div>
+          <p className="text-[11px] text-slate-400">
+            既存フォーマットにないサイズを使いたい場合、ここに 幅 × 高さ を入力して「追加」を押してください。
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="number"
+              min={1}
+              max={CUSTOM_SIZE_MAX}
+              value={customWidth}
+              onChange={(e) => {
+                setCustomError(null);
+                setCustomWidth(e.target.value);
+              }}
+              placeholder="幅"
+              className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm text-white"
+            />
+            <span className="text-slate-400 text-sm">×</span>
+            <input
+              type="number"
+              min={1}
+              max={CUSTOM_SIZE_MAX}
+              value={customHeight}
+              onChange={(e) => {
+                setCustomError(null);
+                setCustomHeight(e.target.value);
+              }}
+              placeholder="高さ"
+              className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm text-white"
+            />
+            <span className="text-slate-400 text-sm">px</span>
+            <button
+              type="button"
+              onClick={addCustomSize}
+              disabled={!customWidth || !customHeight}
+              className="px-3 py-1.5 rounded text-xs bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-white transition"
+            >
+              追加
+            </button>
+          </div>
+          {customError && (
+            <p className="text-xs text-red-400 bg-red-950/30 rounded px-2 py-1 border border-red-900">
+              ⚠ {customError}
+            </p>
+          )}
+          {selectedCustomSizes.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+              {selectedCustomSizes.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => toggleSize(s)}
+                  className="px-2 py-2 rounded text-[11px] bg-teal-500 text-white shadow border border-teal-400 text-left flex items-center justify-between"
+                >
+                  <span>
+                    <span className="mr-1">✓</span>
+                    {s}
+                  </span>
+                  <span className="text-[10px] text-teal-100/80 hover:text-white" title="削除">
+                    ✕
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {brief.sizes.length === 0 && (
           <p className="text-xs text-amber-400">少なくとも1つ選択してください</p>
         )}
-        {brief.sizes.some((s) => SIZE_TO_API_IRONCLAD[s].needsCrop) && (
+        {brief.sizes.some((s) => getIroncladSizeMeta(s).needsCrop) && (
           <p className="text-xs text-amber-300 bg-amber-950/30 rounded px-2 py-1 border border-amber-900">
             ✂ マーク付きサイズはアスペクト比制限により 3:1 で生成されます。
             最終サイズに合わせた手動クロップが必要です。

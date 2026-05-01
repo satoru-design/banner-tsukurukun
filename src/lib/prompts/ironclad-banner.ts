@@ -46,9 +46,71 @@ export type IroncladSize =
   | 'Display PC 970x90'
   // Display SP
   | 'Display SP 320x50'
-  | 'Display SP 320x100';
+  | 'Display SP 320x100'
+  // Phase A.15: カスタムサイズ（最大 2000×2000）
+  | `カスタム ${number}x${number}`;
 
-export type IroncladSizeCategory = 'SNS' | 'Display共通' | 'DisplayPC' | 'DisplaySP';
+export type IroncladSizeCategory = 'SNS' | 'Display共通' | 'DisplayPC' | 'DisplaySP' | 'Custom';
+
+/** Phase A.15: カスタムサイズ最大値 */
+export const CUSTOM_SIZE_MAX = 2000;
+
+/**
+ * Phase A.15: カスタムサイズの apiSize（gpt-image-2 への投入サイズ）解決。
+ * gpt-image-2 制約: 16px倍数 / 総ピクセル 655,360〜8,294,400 / アスペクト比 ≤3:1
+ * 任意の W×H を最も近い valid apiSize に丸める（生成後に sharp で本来サイズへリサイズも可能）。
+ */
+function pickApiSizeForAspect(width: number, height: number): string {
+  const aspect = width / height;
+  if (aspect >= 2.5) return '1536x512'; // ~3:1
+  if (aspect >= 1.7) return '1536x1024'; // ~1.5:1
+  if (aspect >= 1.15) return '1280x1024'; // ~1.25:1
+  if (aspect >= 0.85) return '1024x1024'; // 1:1
+  if (aspect >= 0.59) return '1024x1280'; // ~0.8:1 (4:5)
+  if (aspect >= 0.4) return '1024x1536'; // ~0.67:1 (2:3)
+  return '512x1536'; // ~0.33:1 (~1:3)
+}
+
+/**
+ * Phase A.15: 「カスタム W×H」形式の文字列をパース。失敗時 null。
+ */
+export function parseCustomSize(s: string): { width: number; height: number } | null {
+  const m = s.match(/^カスタム (\d+)x(\d+)$/);
+  if (!m) return null;
+  const width = parseInt(m[1], 10);
+  const height = parseInt(m[2], 10);
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return null;
+  return { width, height };
+}
+
+/**
+ * Phase A.15: サイズ → メタデータ。
+ * 静的サイズは SIZE_TO_API_IRONCLAD から、カスタムサイズは on-the-fly で計算する。
+ * UI / API 両方からこれを使うことで「カスタム W×H」を完全に first-class に扱える。
+ */
+export function getIroncladSizeMeta(s: IroncladSize): {
+  apiSize: string;
+  layoutHint: string;
+  aspectRatio: '1:1' | '16:9' | '9:16';
+  category: IroncladSizeCategory;
+  needsCrop?: boolean;
+} {
+  const custom = parseCustomSize(s);
+  if (custom) {
+    const { width, height } = custom;
+    const apiSize = pickApiSizeForAspect(width, height);
+    const aspect = width / height;
+    const aspectRatio: '1:1' | '16:9' | '9:16' =
+      Math.abs(aspect - 1) < 0.05 ? '1:1' : aspect > 1 ? '16:9' : '9:16';
+    return {
+      apiSize,
+      layoutHint: `カスタム ${width}×${height}px。アスペクト比 ${aspect.toFixed(2)}:1。${apiSize} で生成。`,
+      aspectRatio,
+      category: 'Custom',
+    };
+  }
+  return SIZE_TO_API_IRONCLAD[s as keyof typeof SIZE_TO_API_IRONCLAD];
+}
 
 /**
  * Screen 1 で入力される基礎ブリーフ。
@@ -211,8 +273,11 @@ export const GPT2_PREFIX = `## 最重要ルール
  * - category: UI グルーピング用
  * - needsCrop: true のサイズは最終比率が 3:1 を超えるため gpt-image-2 では 3:1 で生成して手動クロップが必要
  */
+/** 静的に定義されたサイズ（カスタムを除く）。SIZE_TO_API_IRONCLAD の key に使う */
+export type StaticIroncladSize = Exclude<IroncladSize, `カスタム ${number}x${number}`>;
+
 export const SIZE_TO_API_IRONCLAD: Record<
-  IroncladSize,
+  StaticIroncladSize,
   {
     apiSize: string;
     layoutHint: string;
@@ -342,7 +407,7 @@ export const IRONCLAD_SIZE_CATEGORIES: Array<{
   key: IroncladSizeCategory;
   label: string;
   emoji: string;
-  sizes: IroncladSize[];
+  sizes: StaticIroncladSize[];
 }> = [
   {
     key: 'SNS',
@@ -391,7 +456,7 @@ export const IRONCLAD_SIZE_CATEGORIES: Array<{
  * 生成結果は GPT2_PREFIX + この関数の出力 を画像 API に投げる想定。
  */
 export function buildFinalImagePrompt(m: IroncladMaterials): string {
-  const sizeCfg = SIZE_TO_API_IRONCLAD[m.size];
+  const sizeCfg = getIroncladSizeMeta(m.size);
   const hasProduct = Boolean(m.productImageUrl);
   const hasBadge1 = Boolean(m.badgeImageUrl1);
   const hasBadge2 = Boolean(m.badgeImageUrl2);

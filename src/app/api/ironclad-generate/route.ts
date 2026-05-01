@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   buildIroncladImagePromptWithPrefix,
-  SIZE_TO_API_IRONCLAD,
+  getIroncladSizeMeta,
   type IroncladMaterials,
 } from '@/lib/prompts/ironclad-banner';
 import { generateWithFallback } from '@/lib/image-providers';
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const sizeMeta = SIZE_TO_API_IRONCLAD[materials.size];
+    const sizeMeta = getIroncladSizeMeta(materials.size);
     if (!sizeMeta) {
       return NextResponse.json({ error: `Unknown size: ${materials.size}` }, { status: 400 });
     }
