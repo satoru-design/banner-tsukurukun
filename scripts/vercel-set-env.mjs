@@ -18,10 +18,21 @@ const VERCEL_API = 'https://api.vercel.com';
 
 const args = process.argv.slice(2);
 const sensitive = args.includes('--sensitive');
-const positional = args.filter((a) => a !== '--sensitive');
-const [key, value, ...rest] = positional;
-if (!key || value === undefined) {
-  console.error('Usage: node scripts/vercel-set-env.mjs <KEY> <VALUE> [target...] [--sensitive]');
+const empty = args.includes('--empty');
+const positional = args.filter((a) => a !== '--sensitive' && a !== '--empty');
+
+let key, value, rest;
+if (empty) {
+  // --empty 指定時は VALUE 引数を省略可能（PowerShell の空文字問題回避用）
+  [key, ...rest] = positional;
+  value = '';
+} else {
+  [key, value, ...rest] = positional;
+}
+
+if (!key || (value === undefined && !empty)) {
+  console.error('Usage: node scripts/vercel-set-env.mjs <KEY> <VALUE> [target...] [--sensitive] [--empty]');
+  console.error('  --empty: VALUE を空文字にする（VALUE 引数省略可、PowerShell の空文字問題回避用）');
   process.exit(1);
 }
 
