@@ -53,7 +53,39 @@ export default function PrivacyPage() {
         </ul>
       </Article>
 
-      <Article num="4" title="外部サービスの利用">
+      <Article num="4" title="外国にある第三者への個人情報の提供（越境移転）">
+        <p className="mb-3">
+          本サービスの提供にあたり、当社は以下の事業者に対し、個人情報の取扱いを委託する場合があります。これらの委託先は日本国外（主に米国）に所在し、現地法令に基づき個人情報を取り扱います。利用者は本ポリシーに同意することにより、これらの外国にある第三者への個人情報の提供に同意するものとします。
+        </p>
+        <table className="w-full text-xs border-collapse mb-3">
+          <thead>
+            <tr className="border-b border-slate-800">
+              <th className="text-left py-2 px-2 text-slate-400 font-medium">事業者</th>
+              <th className="text-left py-2 px-2 text-slate-400 font-medium">所在国</th>
+              <th className="text-left py-2 px-2 text-slate-400 font-medium">委託内容</th>
+            </tr>
+          </thead>
+          <tbody className="text-slate-300">
+            <tr className="border-b border-slate-800/50"><td className="py-2 px-2">Vercel, Inc.</td><td className="py-2 px-2">米国</td><td className="py-2 px-2">ホスティング・ファイル保存</td></tr>
+            <tr className="border-b border-slate-800/50"><td className="py-2 px-2">Stripe, Inc.</td><td className="py-2 px-2">米国</td><td className="py-2 px-2">決済処理</td></tr>
+            <tr className="border-b border-slate-800/50"><td className="py-2 px-2">Google LLC</td><td className="py-2 px-2">米国</td><td className="py-2 px-2">認証・分析・タグ管理</td></tr>
+            <tr className="border-b border-slate-800/50"><td className="py-2 px-2">Microsoft Corporation</td><td className="py-2 px-2">米国</td><td className="py-2 px-2">UX 分析（Clarity）</td></tr>
+            <tr className="border-b border-slate-800/50"><td className="py-2 px-2">Meta Platforms, Inc.</td><td className="py-2 px-2">米国</td><td className="py-2 px-2">広告効果測定</td></tr>
+            <tr className="border-b border-slate-800/50"><td className="py-2 px-2">OpenAI, L.L.C.</td><td className="py-2 px-2">米国</td><td className="py-2 px-2">画像生成 AI 処理</td></tr>
+            <tr className="border-b border-slate-800/50"><td className="py-2 px-2">Replicate, Inc.</td><td className="py-2 px-2">米国</td><td className="py-2 px-2">画像生成 AI 処理</td></tr>
+            <tr><td className="py-2 px-2">Neon Inc.</td><td className="py-2 px-2">米国</td><td className="py-2 px-2">データベースホスティング</td></tr>
+          </tbody>
+        </table>
+        <p className="text-xs text-slate-400">
+          各国の個人情報保護に関する制度については、個人情報保護委員会のウェブサイト（
+          <a href="https://www.ppc.go.jp/personalinfo/legal/kaiseihogohou/" className="text-emerald-300 hover:text-emerald-200 underline" target="_blank" rel="noreferrer">
+            https://www.ppc.go.jp/
+          </a>
+          ）をご参照ください。各事業者は SCC（標準契約条項）または当該国における同等の保護措置を講じています。
+        </p>
+      </Article>
+
+      <Article num="5" title="外部サービスの利用">
         <p className="mb-3">
           本サービスでは、利用状況の分析、広告効果測定、決済処理等のため、以下の外部サービスを利用しています。これらのサービスでは Cookie や類似技術を使用してデータが収集される場合があります。
         </p>
@@ -85,13 +117,13 @@ export default function PrivacyPage() {
         </p>
       </Article>
 
-      <Article num="5" title="Cookie の利用">
+      <Article num="6" title="Cookie の利用">
         <p>
           本サービスは、利便性向上および利用状況分析のため Cookie を使用します。Cookie の受け入れを拒否したい場合は、ブラウザの設定で無効化することができますが、その場合一部機能が利用できなくなる可能性があります。
         </p>
       </Article>
 
-      <Article num="6" title="個人情報の開示・訂正・削除">
+      <Article num="7" title="個人情報の開示・訂正・削除">
         <p>
           利用者は、当社が保有する自己の個人情報について、開示・訂正・追加・削除・利用停止を請求することができます。請求にあたっては、お問合せフォーム（
           <a href="/contact" className="text-emerald-300 hover:text-emerald-200 underline">
@@ -101,19 +133,19 @@ export default function PrivacyPage() {
         </p>
       </Article>
 
-      <Article num="7" title="個人情報の保管期間">
+      <Article num="8" title="個人情報の保管期間">
         <p>
           個人情報は、利用目的の達成に必要な期間、または法令で定められた期間保管した後、適切に削除いたします。サービス解約後の保管期間については、契約終了後5年間を目安としますが、法令上の保存義務がある情報についてはその期間に従います。
         </p>
       </Article>
 
-      <Article num="8" title="プライバシーポリシーの変更">
+      <Article num="9" title="プライバシーポリシーの変更">
         <p>
           当社は、必要に応じて本ポリシーを変更することがあります。変更後のポリシーは autobanner.jp 上に掲示した時点から効力を生じるものとします。重要な変更については、利用者に対し相当な方法で通知します。
         </p>
       </Article>
 
-      <Article num="9" title="お問合せ窓口">
+      <Article num="10" title="お問合せ窓口">
         <p className="mb-3">本ポリシーに関するお問合せは、以下の窓口までお願いいたします。</p>
         <table className="w-full text-sm border-collapse">
           <tbody>

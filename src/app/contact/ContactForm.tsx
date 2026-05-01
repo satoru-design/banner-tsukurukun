@@ -42,7 +42,7 @@ export const ContactForm = () => {
         <div className="text-4xl mb-3">✓</div>
         <h2 className="text-xl font-bold text-emerald-200">送信完了しました</h2>
         <p className="text-sm text-slate-300 mt-2 leading-relaxed">
-          24 時間以内に <span className="text-emerald-300">satoru@4thavenuelab.net</span> から返信いたします。<br />
+          2 営業日以内（祝祭日を除く平日 10:00〜17:00 受付）を目安に <span className="text-emerald-300">satoru@4thavenuelab.net</span> から返信いたします。<br />
           少々お待ちください。
         </p>
       </div>

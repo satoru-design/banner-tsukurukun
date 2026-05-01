@@ -97,7 +97,7 @@ export default function TokuteiPage() {
       </Section>
 
       <Section title="カスタマーサポート対応時間">
-        <p>祝祭日を除く平日 10:00〜17:00（営業日基準で 24 時間以内にご返信いたします）</p>
+        <p>祝祭日を除く平日 10:00〜17:00（2 営業日以内のご返信を目安としています）</p>
       </Section>
     </>
   );

@@ -30,18 +30,22 @@ export const handleCheckoutCompleted = async (
   await syncUserPlanFromSubscription(user.id, subscription, { resetUsage: true });
 
   // Phase A.15: Meta Conversion API に Purchase 送信
-  // session.amount_total は最小通貨単位（JPY は無小数なのでそのまま）。
   // event_id に session.id を使い、Pixel 側 fbq('track','Purchase',...,{eventID})
   // と合わせれば dedup される（クライアント側実装は後追い OK）。
+  //
+  // **Fire-and-forget**: Meta API の障害時も Stripe webhook が 500 を返さないよう
+  // 同期 await ではなく Promise を投げっぱなしにする。失敗ログは meta-capi 内部で出る。
   const email = session.customer_details?.email ?? user.email;
   if (email && session.amount_total != null && session.currency) {
-    await sendMetaPurchaseEvent({
+    void sendMetaPurchaseEvent({
       email,
       externalId: user.id,
       value: session.amount_total,
       currency: session.currency.toUpperCase(),
       eventId: session.id,
       eventSourceUrl: session.success_url ?? 'https://autobanner.jp/account',
+    }).catch((e) => {
+      console.error('[checkout-completed] meta-capi promise rejected:', e);
     });
   }
 };

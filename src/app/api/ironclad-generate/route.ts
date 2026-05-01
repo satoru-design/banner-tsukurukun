@@ -8,7 +8,7 @@ import { generateWithFallback } from '@/lib/image-providers';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { incrementUsage } from '@/lib/plans/usage';
 import { isUsageLimitReached, effectiveUsageCount } from '@/lib/plans/usage-check';
-import { USAGE_LIMIT_FREE, USAGE_LIMIT_PRO } from '@/lib/plans/limits';
+import { USAGE_LIMIT_FREE, USAGE_LIMIT_PRO, getHardcap } from '@/lib/plans/limits';
 import { getPrisma } from '@/lib/prisma';
 import {
   buildBriefSnapshot,
@@ -51,7 +51,8 @@ export async function POST(req: Request) {
     const apiSizeOverride = sizeMeta.apiSize;
 
     // Phase A.11.3: 上限チェック（fail-fast でコスト保護）
-    // Phase A.14: free は preview, pro は metered で通す。starter のみ block。
+    // Phase A.14: free は preview, pro は metered で通す。starter のみ「ソフト上限」block。
+    // Phase A.15: 全プランに「ハードキャップ」追加（コスト暴走 / チャージバック爆弾の防止線）
     // DB から fresh な count を取得（JWT は古い可能性あり）
     const currentUser = await getCurrentUser();
     if (currentUser.userId && Number.isFinite(currentUser.usageLimit)) {
@@ -66,12 +67,30 @@ export async function POST(req: Request) {
           usageLimit: currentUser.usageLimit,
           usageResetAt: dbUser.usageResetAt,
         };
+        // Phase A.15: ハードキャップ（プラン別の絶対上限）。Free/Pro/Starter 共通で適用
+        const hardcap = getHardcap(dbUser.plan);
+        const effectiveCount = effectiveUsageCount(checkInput);
+        if (Number.isFinite(hardcap) && effectiveCount >= hardcap) {
+          return NextResponse.json(
+            {
+              error:
+                dbUser.plan === 'pro'
+                  ? `Pro プランの月間生成上限（${hardcap} 回）に到達しました。さらにご利用の場合は Plan C（個別商談）よりお問合せください。`
+                  : '今月の生成回数上限に到達しました',
+              usageCount: effectiveCount,
+              usageLimit: hardcap,
+              limitReached: true,
+              hardcapReached: true,
+            },
+            { status: 429 },
+          );
+        }
+        // 既存: starter のソフト上限 block（hardcap = limit なので上の hardcap で既に block されるが残しておく）
         if (isUsageLimitReached(checkInput) && dbUser.plan === 'starter') {
-          const effective = effectiveUsageCount(checkInput);
           return NextResponse.json(
             {
               error: '今月の生成回数上限に到達しました',
-              usageCount: effective,
+              usageCount: effectiveCount,
               usageLimit: currentUser.usageLimit,
               limitReached: true,
             },
