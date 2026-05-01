@@ -51,16 +51,6 @@ export const LpFooter = () => {
                   プライバシーポリシー
                 </Link>
               </li>
-              <li>
-                <a
-                  href="https://twitter.com/strkk_co"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-emerald-300 transition-colors"
-                >
-                  X (Twitter)
-                </a>
-              </li>
             </ul>
           </div>
         </div>

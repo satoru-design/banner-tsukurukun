@@ -54,5 +54,10 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // 静的アセット（画像・動画・フォント等）は middleware を通さない。
+  // 通すと public/ 内のファイル（OGP 画像 / バナー）が認証必須になり、
+  // SNS シェアの crawler や未ログインの新規訪問者から見えなくなる。
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|webp|gif|ico|avif|mp4|webm|ogg|m4a|woff2?|ttf|otf|css|js|map|txt|xml|json)).*)',
+  ],
 };
