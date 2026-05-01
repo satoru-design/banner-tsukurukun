@@ -42,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Stripe live mode IDs (contains webhook signing secret)
+scripts/stripe-live-ids.json
