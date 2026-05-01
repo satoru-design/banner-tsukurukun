@@ -6,6 +6,7 @@ import { ProblemSection } from '@/components/lp/ProblemSection';
 import { SolutionSection } from '@/components/lp/SolutionSection';
 import { FeaturesSection } from '@/components/lp/FeaturesSection';
 import { ComparisonSection } from '@/components/lp/ComparisonSection';
+import { CustomerVoiceSection } from '@/components/lp/CustomerVoiceSection';
 import { PricingSection } from '@/components/lp/PricingSection';
 import { FaqSection } from '@/components/lp/FaqSection';
 import { FinalCta } from '@/components/lp/FinalCta';
@@ -36,6 +37,7 @@ export default function Lp01Page() {
         <SolutionSection />
         <FeaturesSection />
         <ComparisonSection />
+        <CustomerVoiceSection />
         <PricingSection />
         <FaqSection />
         <FinalCta />
