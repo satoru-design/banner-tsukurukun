@@ -13,7 +13,8 @@
 const VOICES = [
   {
     initials: 'Y.K',
-    avatarGradient: 'from-pink-400 to-rose-500',
+    avatarSrc: '/lp/avatars/yk-marketer.png',
+    avatarRing: 'ring-rose-400/40',
     role: 'Web マーケター',
     demographic: '20代女性',
     catchphrase:
@@ -25,7 +26,8 @@ const VOICES = [
   },
   {
     initials: 'T.S',
-    avatarGradient: 'from-sky-400 to-indigo-500',
+    avatarSrc: '/lp/avatars/ts-designer.png',
+    avatarRing: 'ring-sky-400/40',
     role: 'デザイナー',
     demographic: '30代男性',
     catchphrase:
@@ -37,7 +39,8 @@ const VOICES = [
   },
   {
     initials: 'M.O',
-    avatarGradient: 'from-amber-400 to-orange-500',
+    avatarSrc: '/lp/avatars/mo-owner.png',
+    avatarRing: 'ring-amber-400/40',
     role: '物販事業経営者',
     demographic: '30代女性',
     catchphrase:
@@ -74,7 +77,8 @@ export const CustomerVoiceSection = () => {
 
 function VoiceCard({
   initials,
-  avatarGradient,
+  avatarSrc,
+  avatarRing,
   role,
   demographic,
   catchphrase,
@@ -85,12 +89,16 @@ function VoiceCard({
     <article className="bg-slate-950 border border-slate-800 rounded-xl p-6 flex flex-col gap-4">
       {/* Header: avatar + role */}
       <header className="flex items-center gap-3">
-        <div
-          className={`w-12 h-12 rounded-full bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white font-bold text-sm shadow-lg`}
-          aria-hidden
-        >
-          {initials}
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatarSrc}
+          alt={`${role} ${initials} さんのアバター`}
+          className={`w-14 h-14 rounded-full object-cover shadow-lg ring-2 ${avatarRing}`}
+          loading="lazy"
+          decoding="async"
+          width={56}
+          height={56}
+        />
         <div className="leading-tight">
           <div className="text-sm font-bold text-slate-100">{role}</div>
           <div className="text-xs text-slate-400 mt-0.5">
