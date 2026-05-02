@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { uploadAssetImage } from '@/lib/assets/blob-client';
+import { auth } from '@/lib/auth/auth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -14,16 +15,31 @@ function isValidType(t: string): t is AssetType {
 
 /**
  * GET /api/assets?type=product|badge|logo|other
- * type 未指定時は全件返す。updatedAt desc でソート。
+ * 自分の Asset のみ返す。admin は userId=NULL の seed も合流。
  */
 export async function GET(req: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const typeParam = searchParams.get('type');
+    const isAdmin = session.user.plan === 'admin';
+
+    const userScope = isAdmin
+      ? { OR: [{ userId: session.user.id }, { userId: null }] }
+      : { userId: session.user.id };
+
+    const where = {
+      ...(typeParam && isValidType(typeParam) ? { type: typeParam } : {}),
+      ...userScope,
+    };
 
     const prisma = getPrisma();
     const assets = await prisma.asset.findMany({
-      where: typeParam && isValidType(typeParam) ? { type: typeParam } : undefined,
+      where,
       orderBy: [{ isPinned: 'desc' }, { updatedAt: 'desc' }],
     });
 
@@ -38,10 +54,15 @@ export async function GET(req: Request) {
 /**
  * POST /api/assets
  * multipart/form-data: file, type, name
- * → Vercel Blob にアップロード → Asset レコード作成
+ * → Vercel Blob にアップロード → Asset レコード作成（userId は session から強制セット）
  */
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get('file');
     const type = String(formData.get('type') ?? '');
@@ -71,6 +92,7 @@ export async function POST(req: Request) {
         name,
         blobUrl,
         mimeType: mime,
+        userId: session.user.id,
       },
     });
 
