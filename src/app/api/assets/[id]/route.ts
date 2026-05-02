@@ -1,23 +1,45 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { deleteAssetBlob } from '@/lib/assets/blob-client';
+import { auth } from '@/lib/auth/auth';
 
 export const runtime = 'nodejs';
 
 /**
+ * Asset への書き込み権を判定する。
+ * - 所有者本人は常に OK
+ * - admin は userId=NULL の seed もバイパスで OK
+ */
+function canMutate(asset: { userId: string | null }, sessionUserId: string, isAdmin: boolean): boolean {
+  if (asset.userId === sessionUserId) return true;
+  if (isAdmin && asset.userId === null) return true;
+  return false;
+}
+
+/**
  * DELETE /api/assets/[id]
- * Vercel Blob 実体と DB レコードを一緒に削除。
+ * 自分の Asset のみ削除可能。admin は seed (userId=NULL) も削除可能。
  */
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
     const prisma = getPrisma();
     const asset = await prisma.asset.findUnique({ where: { id } });
     if (!asset) {
       return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
+    }
+
+    const isAdmin = session.user.plan === 'admin';
+    if (!canMutate(asset, session.user.id, isAdmin)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     try {
@@ -38,13 +60,18 @@ export async function DELETE(
 /**
  * PATCH /api/assets/[id]
  * body: { name?, isPinned? }
- * 名前変更とピン留め切り替え。
+ * 自分の Asset のみ更新可能。admin は seed (userId=NULL) も更新可能。
  */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = (await req.json()) as { name?: string; isPinned?: boolean };
 
@@ -56,6 +83,16 @@ export async function PATCH(
     }
 
     const prisma = getPrisma();
+    const asset = await prisma.asset.findUnique({ where: { id } });
+    if (!asset) {
+      return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
+    }
+
+    const isAdmin = session.user.plan === 'admin';
+    if (!canMutate(asset, session.user.id, isAdmin)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const updated = await prisma.asset.update({ where: { id }, data });
     return NextResponse.json({ asset: updated });
   } catch (error: unknown) {
