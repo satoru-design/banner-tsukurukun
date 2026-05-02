@@ -396,14 +396,14 @@ export function IroncladBriefForm({
         assetType="badge"
         selectedId={badge1Asset?.id ?? null}
         onSelect={onChangeBadge1Asset}
-        label="🏅 認証バッジ 1（任意）"
+        label="🏅 認証・権威バッジ 1（任意）"
       />
 
       <AssetLibrary
         assetType="badge"
         selectedId={badge2Asset?.id ?? null}
         onSelect={onChangeBadge2Asset}
-        label="🏆 認証バッジ 2（任意）"
+        label="🏆 認証・権威バッジ 2（任意）"
       />
 
       <div className="flex justify-end pt-4">
