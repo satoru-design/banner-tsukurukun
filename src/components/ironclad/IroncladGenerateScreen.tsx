@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { UpgradeToBusinessBanner } from './UpgradeToBusinessBanner';
+import { USAGE_LIMIT_PRO } from '@/lib/plans/limits';
 import { Download, Sparkles, AlertTriangle, Eye, EyeOff, Archive, Check } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import JSZip from 'jszip';
@@ -88,6 +90,9 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
   const [overallGenerating, setOverallGenerating] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
 
+  // Phase A.17.0 Y: Pro 上限到達検知（一度 true になったらセッション内維持）
+  const [proLimitReachedInSession, setProLimitReachedInSession] = useState(false);
+
   const updateResult = (
     pattern: IroncladPattern,
     size: IroncladSize,
@@ -164,6 +169,10 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
       // Phase A.11.3: ヘッダーカウンタ即時反映（client-side session merge）
       if (typeof json.usageCount === 'number') {
         await updateSession({ usageCount: json.usageCount });
+        // Phase A.17.0 Y: Pro が上限到達したら inline banner を出す
+        if (user.plan === 'pro' && json.usageCount > USAGE_LIMIT_PRO) {
+          setProLimitReachedInSession(true);
+        }
       }
 
       // Phase A.11.5: 履歴保存通知トースト
@@ -300,6 +309,14 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
 
       {/* Phase A.14: Free プラン 4 回目以降の生成完了時に訴求バナー表示 */}
       {anyPreview && <PreviewBanner plan={user.plan} />}
+
+      {/* Phase A.17.0 Y: Pro が 100 枠到達したら Business 訴求 inline banner */}
+      <UpgradeToBusinessBanner
+        isPro={user.plan === 'pro'}
+        proLimitReachedInSession={proLimitReachedInSession}
+        totalUsageCount={user.usageCount}
+      />
+
 
       <MaterialsSummary baseMaterials={baseMaterials} patterns={patterns} sizes={sizes} />
 
