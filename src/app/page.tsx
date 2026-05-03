@@ -226,6 +226,7 @@ export default function IroncladPage() {
         {step === 3 && baseMaterials && (
           <IroncladGenerateScreen
             baseMaterials={baseMaterials}
+            patterns={[brief.pattern, ...(brief.additionalPatterns ?? [])]}
             sizes={brief.sizes}
             onBack={() => setStep(2)}
           />

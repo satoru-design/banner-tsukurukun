@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import type {
   IroncladBaseMaterials,
   IroncladMaterials,
+  IroncladPattern,
   IroncladSize,
 } from '@/lib/prompts/ironclad-banner';
 import { GenerationProgress } from '@/components/ui/GenerationProgress';
@@ -17,11 +18,14 @@ import { PreviewBanner } from '@/components/ironclad/PreviewBanner';
 
 type Props = {
   baseMaterials: IroncladBaseMaterials;
+  /** Phase A.16: [代表 pattern, ...additionalPatterns] の順 */
+  patterns: IroncladPattern[];
   sizes: IroncladSize[];
   onBack: () => void;
 };
 
-type SizeResult = {
+type PatternSizeResult = {
+  pattern: IroncladPattern;
   size: IroncladSize;
   status: 'idle' | 'generating' | 'success' | 'error';
   imageUrl?: string;
@@ -32,7 +36,7 @@ type SizeResult = {
   isPreview?: boolean;
 };
 
-export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) {
+export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack }: Props) {
   // Phase A.11.3: useSession で current user を取得し、生成前の上限 pre-check と
   // 成功時の usageCount session 反映に使用
   const { data: session, update: updateSession } = useSession();
@@ -41,19 +45,26 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
   // Phase A.11.5: 履歴保存通知トースト
   const [toastInfo, setToastInfo] = useState<{ generationId: string } | null>(null);
 
-  const [results, setResults] = useState<SizeResult[]>(
-    sizes.map((size) => ({ size, status: 'idle' })),
+  // Phase A.16: pattern × size のマトリクス。pattern 順 × size 順で flat に保持。
+  const [results, setResults] = useState<PatternSizeResult[]>(() =>
+    patterns.flatMap((pattern) =>
+      sizes.map((size) => ({ pattern, size, status: 'idle' as const })),
+    ),
   );
   const [overallGenerating, setOverallGenerating] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
 
-  const updateResult = (size: IroncladSize, patch: Partial<SizeResult>) => {
+  const updateResult = (
+    pattern: IroncladPattern,
+    size: IroncladSize,
+    patch: Partial<PatternSizeResult>,
+  ) => {
     setResults((prev) =>
-      prev.map((r) => (r.size === size ? { ...r, ...patch } : r)),
+      prev.map((r) => (r.pattern === pattern && r.size === size ? { ...r, ...patch } : r)),
     );
   };
 
-  const generateOne = async (size: IroncladSize): Promise<void> => {
+  const generateOne = async (pattern: IroncladPattern, size: IroncladSize): Promise<void> => {
     // Phase A.11.3: 生成前 pre-check（API 呼出前に上限到達なら即 Modal）
     // Phase A.14: starter のみ block。free は preview, pro は metered で通す。
     if (
@@ -69,11 +80,11 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
       return;
     }
 
-    updateResult(size, { status: 'generating', errorMessage: undefined });
-    const materials: IroncladMaterials = { ...baseMaterials, size };
+    updateResult(pattern, size, { status: 'generating', errorMessage: undefined });
+    // Phase A.16: ループごとに pattern を差し替えて API に渡す
+    const materials: IroncladMaterials = { ...baseMaterials, pattern, size };
 
     // Phase A.11.2 hotfix: クライアント側タイムアウト 320s（サーバ maxDuration=300s + 余裕 20s）。
-    // これがないと Vercel が 504 で関数を落としても fetch が永遠に hang する。
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 320 * 1000);
 
@@ -88,7 +99,7 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
       // Phase A.11.3: 429 = 上限到達（API gate）→ Modal 表示
       if (res.status === 429) {
         setUsageLimitModalOpen(true);
-        updateResult(size, { status: 'idle' });
+        updateResult(pattern, size, { status: 'idle' });
         return;
       }
 
@@ -107,7 +118,7 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
       }
 
       const json = await res.json();
-      updateResult(size, {
+      updateResult(pattern, size, {
         status: 'success',
         imageUrl: json.imageUrl,
         promptPreview: json.promptPreview,
@@ -131,7 +142,7 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
         : e instanceof Error
           ? e.message
           : String(e);
-      updateResult(size, {
+      updateResult(pattern, size, {
         status: 'error',
         errorMessage,
       });
@@ -142,29 +153,42 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
 
   const generateAll = async () => {
     setOverallGenerating(true);
-    // 直列生成（APIレート制限/コスト管理のため）
-    for (const size of sizes) {
-      await generateOne(size);
+    // Phase A.16: 直列 pattern 順 × size 順（API レート制限/コスト管理 + ユーザーが進捗を見やすい順）
+    for (const pattern of patterns) {
+      for (const size of sizes) {
+        await generateOne(pattern, size);
+      }
     }
     setOverallGenerating(false);
   };
 
-  const handleDownload = (imageUrl: string, size: IroncladSize) => {
+  const handleDownload = (
+    imageUrl: string,
+    pattern: IroncladPattern,
+    size: IroncladSize,
+    isPreview: boolean,
+  ) => {
+    // Phase A.16: Free は preview 透かし入りを DL ロック
+    if (isPreview && user.plan === 'free') {
+      setUsageLimitModalOpen(true);
+      return;
+    }
     const link = document.createElement('a');
     link.href = imageUrl;
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
-    const safeName = (baseMaterials.product || 'banner').replace(
-      /[^a-zA-Z0-9ぁ-んァ-ヶ一-龥]/g,
-      '_',
-    ).slice(0, 30);
+    const safeName = (baseMaterials.product || 'banner')
+      .replace(/[^a-zA-Z0-9ぁ-んァ-ヶ一-龥]/g, '_')
+      .slice(0, 30);
     const sizeTag = size.replace(/[^a-zA-Z0-9]/g, '_');
-    link.download = `ironclad_${safeName}_${sizeTag}_${ts}.png`;
+    const patternTag = pattern.replace(/[^a-zA-Z0-9ぁ-んァ-ヶ一-龥]/g, '_');
+    link.download = `ironclad_${safeName}_${patternTag}_${sizeTag}_${ts}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const completedCount = results.filter((r) => r.status === 'success').length;
+  const totalCount = results.length;
   const anyPromptPreview = results.find((r) => r.promptPreview)?.promptPreview;
   // Phase A.14: いずれかの結果が透かし入りなら訴求バナーを表示
   const anyPreview = results.some((r) => r.isPreview === true);
@@ -175,7 +199,7 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
         <div>
           <h2 className="text-2xl font-bold text-white">STEP 3. 完成</h2>
           <p className="text-sm text-slate-400 mt-1">
-            選択した {sizes.length} サイズ全てを同じ材料で生成します。統一感を担保するため直列処理。
+            選択した {patterns.length} スタイル × {sizes.length} サイズ = {totalCount} 枚を直列生成します。
           </p>
         </div>
         {anyPromptPreview && (
@@ -193,13 +217,13 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
       {/* Phase A.14: Free プラン 4 回目以降の生成完了時に訴求バナー表示 */}
       {anyPreview && <PreviewBanner plan={user.plan} />}
 
-      <MaterialsSummary baseMaterials={baseMaterials} sizes={sizes} />
+      <MaterialsSummary baseMaterials={baseMaterials} patterns={patterns} sizes={sizes} />
 
       {showPrompt && anyPromptPreview && (
         <div className="border border-slate-700 rounded-lg p-4 bg-slate-950/50">
-          <h3 className="text-xs font-bold text-teal-300 mb-2">鉄板プロンプト（1枚目のもの、サイズ以外同じ）</h3>
+          <h3 className="text-xs font-bold text-teal-300 mb-2">鉄板プロンプト（生成済 1 枚目のもの）</h3>
           <pre className="text-[11px] text-slate-300 whitespace-pre-wrap break-words max-h-96 overflow-y-auto">
-{anyPromptPreview}
+            {anyPromptPreview}
           </pre>
         </div>
       )}
@@ -213,96 +237,25 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
         >
           <Sparkles className={`w-5 h-5 ${overallGenerating ? 'animate-pulse' : ''}`} />
           {overallGenerating
-            ? `生成中… ${completedCount + 1}/${sizes.length}`
+            ? `生成中… ${completedCount + 1}/${totalCount}`
             : completedCount > 0
-              ? `すべて再生成（${sizes.length}サイズ）`
-              : `バナー生成開始（${sizes.length}サイズ）`}
+              ? `すべて再生成（${totalCount}枚）`
+              : `バナー生成開始（${totalCount}枚）`}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {results.map((r) => (
-          <div
-            key={r.size}
-            className="border border-slate-700 rounded-lg p-3 bg-slate-900/50 space-y-2"
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-bold text-slate-200">{r.size}</div>
-              <div className="flex items-center gap-1">
-                {r.status === 'success' && r.metadata && typeof r.metadata.referenceCount === 'number' && (
-                  <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                      r.metadata.referenceCount > 0
-                        ? 'bg-teal-900/50 text-teal-300 border-teal-700'
-                        : 'bg-amber-900/50 text-amber-300 border-amber-700'
-                    }`}
-                    title={`素材 ${r.metadata.referenceCount} 枚使用 / mode: ${r.metadata.mode ?? 'unknown'}`}
-                  >
-                    素材: {r.metadata.referenceCount as number}枚
-                  </span>
-                )}
-                <StatusBadge status={r.status} />
-              </div>
-            </div>
-            <div className="min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
-              {r.status === 'generating' && (
-                <div className="w-full">
-                  <GenerationProgress compact estimatedSeconds={45} />
-                </div>
-              )}
-              {r.status === 'error' && (
-                <div className="text-red-400 text-xs p-3 flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 mt-0.5" />
-                  {r.errorMessage}
-                </div>
-              )}
-              {r.status === 'success' && r.imageUrl && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={r.imageUrl}
-                  alt={`Banner ${r.size}`}
-                  className="w-full h-auto"
-                />
-              )}
-              {r.status === 'idle' && (
-                <div className="text-slate-500 text-xs">
-                  {overallGenerating ? '待機中…' : '生成ボタンを押してください'}
-                </div>
-              )}
-            </div>
-            {r.status === 'success' && r.imageUrl && (
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => generateOne(r.size)}
-                  className="text-[11px] px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-white"
-                >
-                  このサイズだけ再生成
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDownload(r.imageUrl!, r.size)}
-                  className="text-[11px] px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1"
-                >
-                  <Download className="w-3 h-3" />
-                  DL
-                </button>
-              </div>
-            )}
-            {r.status === 'error' && (
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => generateOne(r.size)}
-                  className="text-[11px] px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-white"
-                >
-                  再試行
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {/* Phase A.16: スタイル別セクション */}
+      {patterns.map((pattern) => (
+        <PatternSection
+          key={pattern}
+          pattern={pattern}
+          results={results.filter((r) => r.pattern === pattern)}
+          overallGenerating={overallGenerating}
+          plan={user.plan}
+          onRegenerate={(size) => generateOne(pattern, size)}
+          onDownload={(url, size, isPreview) => handleDownload(url, pattern, size, isPreview)}
+        />
+      ))}
 
       <div className="flex justify-start pt-4 border-t border-slate-800">
         <button
@@ -336,7 +289,110 @@ export function IroncladGenerateScreen({ baseMaterials, sizes, onBack }: Props) 
   );
 }
 
-function StatusBadge({ status }: { status: SizeResult['status'] }) {
+function PatternSection({
+  pattern,
+  results,
+  overallGenerating,
+  plan,
+  onRegenerate,
+  onDownload,
+}: {
+  pattern: IroncladPattern;
+  results: PatternSizeResult[];
+  overallGenerating: boolean;
+  plan: string;
+  onRegenerate: (size: IroncladSize) => void;
+  onDownload: (url: string, size: IroncladSize, isPreview: boolean) => void;
+}) {
+  const successCount = results.filter((r) => r.status === 'success').length;
+  return (
+    <section className="border border-slate-700 rounded-lg p-4 bg-slate-900/30">
+      <h3 className="text-base font-bold text-teal-300 mb-3 flex items-center gap-2">
+        <span className="text-xl">🎨</span>
+        <span>{pattern}</span>
+        <span className="text-xs text-slate-500 ml-2">
+          {successCount}/{results.length}
+        </span>
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {results.map((r) => (
+          <div
+            key={r.size}
+            className="border border-slate-700 rounded-lg p-3 bg-slate-900/50 space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-bold text-slate-200">{r.size}</div>
+              <StatusBadge status={r.status} />
+            </div>
+            <div className="min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
+              {r.status === 'generating' && (
+                <div className="w-full">
+                  <GenerationProgress compact estimatedSeconds={45} />
+                </div>
+              )}
+              {r.status === 'error' && (
+                <div className="text-red-400 text-xs p-3 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 mt-0.5" />
+                  {r.errorMessage}
+                </div>
+              )}
+              {r.status === 'success' && r.imageUrl && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={r.imageUrl}
+                  alt={`Banner ${pattern} ${r.size}`}
+                  className="w-full h-auto"
+                />
+              )}
+              {r.status === 'idle' && (
+                <div className="text-slate-500 text-xs">
+                  {overallGenerating ? '待機中…' : '生成ボタンを押してください'}
+                </div>
+              )}
+            </div>
+            {r.status === 'success' && r.imageUrl && (
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => onRegenerate(r.size)}
+                  className="text-[11px] px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-white"
+                >
+                  このサイズだけ再生成
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDownload(r.imageUrl!, r.size, r.isPreview === true)}
+                  className={`text-[11px] px-2 py-1 rounded text-white font-bold flex items-center gap-1 ${
+                    r.isPreview && plan === 'free'
+                      ? 'bg-slate-600 hover:bg-slate-500'
+                      : 'bg-emerald-600 hover:bg-emerald-500'
+                  }`}
+                  title={r.isPreview && plan === 'free' ? 'Pro でロック解除' : 'ダウンロード'}
+                >
+                  <Download className="w-3 h-3" />
+                  {r.isPreview && plan === 'free' ? 'Pro で DL' : 'DL'}
+                </button>
+              </div>
+            )}
+            {r.status === 'error' && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => onRegenerate(r.size)}
+                  className="text-[11px] px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-white"
+                >
+                  再試行
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function StatusBadge({ status }: { status: PatternSizeResult['status'] }) {
   const cls =
     status === 'success'
       ? 'bg-emerald-900/50 text-emerald-300 border-emerald-700'
@@ -353,23 +409,23 @@ function StatusBadge({ status }: { status: SizeResult['status'] }) {
         : status === 'error'
           ? 'エラー'
           : '待機中';
-  return (
-    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${cls}`}>{label}</span>
-  );
+  return <span className={`text-[10px] px-2 py-0.5 rounded-full border ${cls}`}>{label}</span>;
 }
 
 function MaterialsSummary({
   baseMaterials,
+  patterns,
   sizes,
 }: {
   baseMaterials: IroncladBaseMaterials;
+  patterns: IroncladPattern[];
   sizes: IroncladSize[];
 }) {
   return (
     <div className="border border-slate-700 rounded-lg p-4 bg-slate-900/50 space-y-2 text-xs">
       <h3 className="text-sm font-bold text-teal-300 mb-3">選択した材料</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
-        <KV label="パターン" value={baseMaterials.pattern} />
+        <KV label="スタイル" value={patterns.join(' / ')} />
         <KV label="サイズ" value={sizes.join(', ')} />
         <KV label="商材" value={baseMaterials.product} />
         <KV label="ターゲット" value={baseMaterials.target} />
