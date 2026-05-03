@@ -15,6 +15,7 @@ import { UpgradeModal } from './UpgradeModal';
 import { PortalButton } from '@/components/billing/PortalButton';
 import { DowngradeButton } from '@/components/billing/DowngradeButton';
 import { ProOverageDisplay } from '@/components/account/ProOverageDisplay';
+import { BusinessPlanCard } from '@/components/billing/BusinessPlanCard';
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 
 interface PlanSectionProps {
@@ -141,6 +142,11 @@ export function PlanSection({ user }: PlanSectionProps) {
             <DowngradeButton />
           </div>
         )}
+
+        {/* Phase A.17.0 W: Business プラン切替カード（常設） */}
+        <div className="pt-4">
+          <BusinessPlanCard user={user} />
+        </div>
       </div>
 
       {modalType && (
