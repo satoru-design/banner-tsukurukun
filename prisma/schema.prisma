@@ -127,6 +127,9 @@ model User {
   /// Phase A.14: Pro 上限到達アラート（101 回目で 1 度のみ表示）の last shown
   /// payment_succeeded webhook で NULL リセット
   proOverageNoticeShownAt   DateTime?
+  /// Phase A.17.0: Business アップグレード推奨バナーの最終表示時刻
+  /// /account の BusinessUpgradeAccountBanner の再表示制御に使用
+  upgradeNoticeShownAt  DateTime?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -135,8 +138,27 @@ model User {
   sessions      Session[]
   assets        Asset[]
   generations   Generation[]
+  upgradeNotices UpgradeNotice[]
 
   @@index([stripeCustomerId])
+}
+
+/// Phase A.17.0: アップグレード推奨履歴
+/// 月次 Cron がメータード超過 Pro ユーザーを抽出して insert する
+model UpgradeNotice {
+  id              String    @id @default(cuid())
+  userId          String
+  type            String    // 'business_upgrade_recommendation'
+  recommendedPlan String    // 'business'
+  metricSnapshot  Json      // { avgOveragePerMonth: 12000, last3MonthsAvgUsage: 380, ... }
+  createdAt       DateTime  @default(now())
+  shownAt         DateTime?
+  dismissedAt     DateTime?
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([type])
 }
 
 /// NextAuth.js v5 Account テーブル（Provider別の OAuth トークン保存）
