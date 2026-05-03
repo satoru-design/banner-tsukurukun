@@ -88,7 +88,7 @@ export const ContactForm = () => {
       </div>
       <div>
         <label htmlFor="volume" className="block text-sm font-medium text-slate-200 mb-1">
-          月の生成想定回数 <span className="text-red-400">*</span>
+          月の生成想定枚数 <span className="text-red-400">*</span>
         </label>
         <select
           id="volume"
@@ -100,10 +100,10 @@ export const ContactForm = () => {
           <option value="" disabled>
             選択してください
           </option>
-          <option value="〜100 回">〜100 回</option>
-          <option value="100-500 回">100-500 回</option>
-          <option value="500-1000 回">500-1000 回</option>
-          <option value="1000+ 回">1000+ 回</option>
+          <option value="〜100 枚">〜100 枚</option>
+          <option value="100-500 枚">100-500 枚</option>
+          <option value="500-1000 枚">500-1000 枚</option>
+          <option value="1000+ 枚">1000+ 枚</option>
         </select>
       </div>
       <div>

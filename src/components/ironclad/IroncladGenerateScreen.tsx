@@ -310,7 +310,7 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
       {/* Phase A.14: Free プラン 4 回目以降の生成完了時に訴求バナー表示 */}
       {anyPreview && <PreviewBanner plan={user.plan} />}
 
-      {/* Phase A.17.0 Y: Pro が 100 枠到達したら Business 訴求 inline banner */}
+      {/* Phase A.17.0 Y: Pro が 100 枚到達したら Business 訴求 inline banner */}
       <UpgradeToBusinessBanner
         isPro={user.plan === 'pro'}
         proLimitReachedInSession={proLimitReachedInSession}

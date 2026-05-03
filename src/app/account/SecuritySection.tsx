@@ -1,8 +1,9 @@
 'use client';
 
 /**
- * Phase A.11.2: セキュリティセクション。
+ * Phase A.11.2 / A.17.0: セキュリティセクション。
  * - サインアウト（NextAuth signOut 経由）
+ * - 退会（subscription cancel at period end / Phase A.17.0 追加）
  * - アカウント削除依頼（mailto で運営に送信）
  *
  * 削除依頼は API + Formspree ではなく mailto 採用（spec §5.7）。
@@ -10,6 +11,7 @@
  */
 import { signOut } from 'next-auth/react';
 import { LogOut, Mail } from 'lucide-react';
+import { UnsubscribeButton } from '@/components/billing/UnsubscribeButton';
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 
 interface SecuritySectionProps {
@@ -17,6 +19,8 @@ interface SecuritySectionProps {
 }
 
 export function SecuritySection({ user }: SecuritySectionProps) {
+  const hasSubscription =
+    user.plan === 'starter' || user.plan === 'pro' || user.plan === 'business';
   // mailto link 構築
   const subject = `[勝ちバナー作る君] アカウント削除依頼: ${user.email ?? '不明'}`;
   const body =
@@ -48,6 +52,19 @@ export function SecuritySection({ user }: SecuritySectionProps) {
             サインアウト
           </button>
         </div>
+
+        {/* 退会（subscription cancel at period end）*/}
+        {hasSubscription && (
+          <div>
+            <div className="text-sm text-slate-300 mb-2">退会</div>
+            <ul className="text-xs text-slate-500 mb-3 space-y-1 list-disc list-inside">
+              <li>本サービスの退会とプランの解除を行います</li>
+              <li>翌月からの課金は発生しません</li>
+              <li>今月末まで現プランをご利用いただけます</li>
+            </ul>
+            <UnsubscribeButton hasSubscription={hasSubscription} />
+          </div>
+        )}
 
         {/* アカウント削除依頼 */}
         <div>

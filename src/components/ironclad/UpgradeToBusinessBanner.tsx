@@ -7,7 +7,7 @@ import { getOverageRate } from '@/lib/plans/overage-rates';
 interface Props {
   /** 現在 Pro plan か（free/starter/admin/business では出さない） */
   isPro: boolean;
-  /** このセッションで Pro 100 枠を使い切ったか */
+  /** このセッションで Pro 100 枚を使い切ったか */
   proLimitReachedInSession: boolean;
   /** 月初からの累計生成数（usageCount + sessionGenerated） */
   totalUsageCount?: number;
@@ -16,7 +16,7 @@ interface Props {
 const DISMISS_KEY = 'businessUpgradeBannerDismissedAt';
 
 /**
- * Phase A.17.0 Y: 1 セッション内で Pro 100 枠を使い切った時に出る inline 通知
+ * Phase A.17.0 Y: 1 セッション内で Pro 100 枚を使い切った時に出る inline 通知
  *
  * - localStorage で同月内 dismissed なら非表示
  * - クリックで /account#plan へ遷移（BusinessPlanCard へ）
@@ -60,14 +60,14 @@ export function UpgradeToBusinessBanner({ isPro, proLimitReachedInSession, total
         <span className="text-2xl">🚀</span>
         <div className="flex-1">
           <h4 className="font-semibold text-emerald-300 mb-1">
-            このセッションで Pro {USAGE_LIMIT_PRO} 枠を使い切りました
+            このセッションで Pro {USAGE_LIMIT_PRO} 枚を使い切りました
           </h4>
           <p className="text-sm text-slate-300">
-            この調子で運用すると、Business プラン（月 ¥39,800 / 1,000 枠 / 超過 ¥{businessRate}）の方が
+            この調子で運用すると、Business プラン（月 ¥39,800 / 1,000 枚 / 超過 ¥{businessRate}）の方が
             {monthlyDiff > 0 ? (
               <> 今月 <strong className="text-emerald-300">¥{monthlyDiff.toLocaleString()} お得</strong>になる試算です。</>
             ) : (
-              <> 1,000 枠まで上限が大幅に拡張されます。</>
+              <> 1,000 枚まで上限が大幅に拡張されます。</>
             )}
           </p>
           <div className="mt-3 flex gap-2">

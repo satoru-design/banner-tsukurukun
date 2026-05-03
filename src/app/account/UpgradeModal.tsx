@@ -61,7 +61,7 @@ export function UpgradeModal({ type, onClose, plan }: UpgradeModalProps) {
             <div className="border border-gray-600 rounded p-4">
               <h4 className="font-bold text-base mb-1">Starter ¥3,980/月</h4>
               <p className="text-sm text-slate-400 mb-3">
-                30回/月・5サイズ・お気に入り 5 枚保持
+                30 枚/月・5サイズ・お気に入り 5 枚保持
               </p>
               <CheckoutButton
                 basePriceId={STARTER_PRICE_ID}
@@ -73,7 +73,7 @@ export function UpgradeModal({ type, onClose, plan }: UpgradeModalProps) {
           <div className="border-2 border-white rounded p-4">
             <h4 className="font-bold text-base mb-1">Pro ¥14,800/月（推奨）</h4>
             <p className="text-sm text-slate-400 mb-3">
-              100回/月・全17サイズ・勝ちバナー無制限・履歴無制限・ZIP DL・プロンプト閲覧
+              100 枚/月・全17サイズ・勝ちバナー無制限・履歴無制限・ZIP DL・プロンプト閲覧
             </p>
             <CheckoutButton
               basePriceId={PRO_PRICE_ID}

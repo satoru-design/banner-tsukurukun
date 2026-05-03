@@ -93,7 +93,7 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
           <div className="text-sm text-slate-400 mb-2">今月の使用状況</div>
           {isUnlimited ? (
             <div className="text-slate-200">
-              <span className="font-semibold">{user.usageCount}</span> 回（無制限プラン）
+              <span className="font-semibold">{user.usageCount}</span> 枚（無制限プラン）
             </div>
           ) : (
             <>
@@ -104,7 +104,7 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
                 />
               </div>
               <div className="text-sm text-slate-300 mt-2">
-                {user.usageCount} / {user.usageLimit} 回
+                {user.usageCount} / {user.usageLimit} 枚
               </div>
               {user.usageResetAt && (
                 <div className="text-xs text-slate-500 mt-1">

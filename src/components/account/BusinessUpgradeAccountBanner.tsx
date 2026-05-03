@@ -44,7 +44,7 @@ export function BusinessUpgradeAccountBanner({ notice, upgradeNoticeShownAt }: P
   const avgOverage = notice.metricSnapshot.avgOveragePerMonth ?? 0;
   const invoiceCount = notice.metricSnapshot.invoiceCount ?? 0;
   const businessRate = getOverageRate('business');
-  // Business なら ¥40/枠（Pro の半額）
+  // Business なら ¥40/枚（Pro の半額）
   const overageQuantity = avgOverage > 0 ? Math.round(avgOverage / 80) : 0; // Pro 単価 ¥80 で逆算
   const businessExtra = overageQuantity * businessRate;
   // Pro maxed (base ¥14,800 + 平均超過 avgOverage) vs Business (base ¥39,800 + overageQuantity × ¥40)
@@ -66,7 +66,7 @@ export function BusinessUpgradeAccountBanner({ notice, upgradeNoticeShownAt }: P
           <p className="text-sm text-slate-300 mb-2">
             過去 {invoiceCount} ヶ月の Pro メータード超過: 平均
             <strong className="text-amber-300 mx-1">¥{avgOverage.toLocaleString()}/月</strong>
-            。Business（{USAGE_LIMIT_BUSINESS.toLocaleString()} 枠 + ¥{businessRate}/枠）に変更すると
+            。Business（{USAGE_LIMIT_BUSINESS.toLocaleString()} 枚 + ¥{businessRate}/枚）に変更すると
             {monthlyDiff > 0 ? (
               <span> 月 <strong className="text-emerald-400">¥{monthlyDiff.toLocaleString()} お得</strong> になる試算です。</span>
             ) : (

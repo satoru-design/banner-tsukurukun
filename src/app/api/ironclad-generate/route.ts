@@ -75,8 +75,8 @@ export async function POST(req: Request) {
             {
               error:
                 dbUser.plan === 'pro'
-                  ? `Pro プランの月間生成上限（${hardcap} 回）に到達しました。さらにご利用の場合は Plan C（個別商談）よりお問合せください。`
-                  : '今月の生成回数上限に到達しました',
+                  ? `Pro プランの月間生成上限（${hardcap} 枚）に到達しました。さらにご利用の場合は Plan C（個別商談）よりお問合せください。`
+                  : '今月の生成上限に到達しました',
               usageCount: effectiveCount,
               usageLimit: hardcap,
               limitReached: true,
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
         if (isUsageLimitReached(checkInput) && dbUser.plan === 'starter') {
           return NextResponse.json(
             {
-              error: '今月の生成回数上限に到達しました',
+              error: '今月の生成上限に到達しました',
               usageCount: effectiveCount,
               usageLimit: currentUser.usageLimit,
               limitReached: true,

@@ -68,11 +68,11 @@ interface Row {
 const ROWS: Row[] = [
   // 料金
   { category: '料金', label: '月額（税込）', values: ['¥3,980', '¥14,800', '¥39,800'] },
-  { label: '超過課金', values: ['なし', '¥80 / 枠', '¥40 / 枠'] },
-  { label: '利用上限', values: ['30 枠', '500 枠', '3,000 枠'] },
+  { label: '超過課金', values: ['なし', '¥80 / 枚', '¥40 / 枚'] },
+  { label: '利用上限', values: ['30 枚', '500 枚', '3,000 枚'] },
 
   // 生成
-  { category: '生成', label: '月の枠数', values: ['30', '100', '1,000'] },
+  { category: '生成', label: '月の枚数', values: ['30', '100', '1,000'] },
   { label: '対応サイズ', values: ['5（主要 SNS）', '全 17 サイズ', '全 17 サイズ'] },
   { label: '複数スタイル並列', values: ['—', '✓', '✓ 最大 6'] },
   { label: '透かしなし', values: ['✓', '✓', '✓'] },
@@ -289,7 +289,7 @@ export function PlanComparisonTable({ user }: Props) {
 
       {/* Plan C 動線 */}
       <p className="mt-6 text-xs text-slate-500 text-center">
-        💡 月 3,000 枠を超える運用・年契約・SLA・専任サポートをご希望なら{' '}
+        💡 月 3,000 枚を超える運用・年契約・SLA・専任サポートをご希望なら{' '}
         <a href="/lp01#contact" className="underline hover:text-slate-300">
           Plan C のお問い合わせへ
         </a>
