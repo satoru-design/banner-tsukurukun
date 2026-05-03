@@ -56,7 +56,12 @@ export async function detectBusinessUpgradeCandidates(
     for await (const inv of invoices) {
       invoiceCount++;
       for (const line of inv.lines?.data ?? []) {
-        if (line.price?.id === proMeteredPriceId) {
+        // Stripe SDK v22+: line.pricing.price_details.price で priceId を取得
+        const priceId =
+          typeof line.pricing?.price_details?.price === 'string'
+            ? line.pricing.price_details.price
+            : line.pricing?.price_details?.price?.id;
+        if (priceId === proMeteredPriceId) {
           // JPY は最小単位 = 1円
           totalMeteredJpy += line.amount;
         }
