@@ -57,6 +57,10 @@ export const createCheckoutSession = async (input: CreateCheckoutInput): Promise
     lineItems.push({ price: prices.pro.meteredPriceId });
     // metered は quantity 指定不可（usage_records で送る）
   }
+  // Phase A.17.0: Business も base + metered の 2-item subscription
+  if (plan === 'business' && prices.business.meteredPriceId) {
+    lineItems.push({ price: prices.business.meteredPriceId });
+  }
 
   // 3. Checkout Session 作成
   const params: Stripe.Checkout.SessionCreateParams = {
