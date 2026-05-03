@@ -62,6 +62,19 @@ export default async function AccountPage() {
     redirect('/signin?callbackUrl=/account');
   }
 
+  // Phase A.17.0 X: Business アップグレード推奨 notice + dismiss flag を fetch
+  const prisma = getPrisma();
+  const [latestNotice, freshUser] = await Promise.all([
+    prisma.upgradeNotice.findFirst({
+      where: { userId: user.userId!, type: 'business_upgrade_recommendation' },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.user.findUnique({
+      where: { id: user.userId! },
+      select: { upgradeNoticeShownAt: true },
+    }),
+  ]);
+
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
       {/* Phase A.12: Stripe success/cancel return 時のアラート表示 */}
@@ -74,7 +87,19 @@ export default async function AccountPage() {
       <main className="max-w-3xl mx-auto px-6 py-12 space-y-12">
         <h1 className="text-2xl font-bold">マイアカウント</h1>
         <ProfileSection user={user} />
-        <PlanSection user={user} />
+        <PlanSection
+          user={user}
+          upgradeNotice={
+            latestNotice
+              ? {
+                  id: latestNotice.id,
+                  metricSnapshot: latestNotice.metricSnapshot as Record<string, unknown>,
+                  createdAt: latestNotice.createdAt,
+                }
+              : null
+          }
+          upgradeNoticeShownAt={freshUser?.upgradeNoticeShownAt ?? null}
+        />
         <HistorySection userId={user.userId!} plan={user.plan} />
         <SecuritySection user={user} />
       </main>

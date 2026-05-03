@@ -16,10 +16,17 @@ import { PortalButton } from '@/components/billing/PortalButton';
 import { DowngradeButton } from '@/components/billing/DowngradeButton';
 import { ProOverageDisplay } from '@/components/account/ProOverageDisplay';
 import { BusinessPlanCard } from '@/components/billing/BusinessPlanCard';
+import { BusinessUpgradeAccountBanner } from '@/components/account/BusinessUpgradeAccountBanner';
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 
 interface PlanSectionProps {
   user: CurrentUser;
+  upgradeNotice?: {
+    id: string;
+    metricSnapshot: Record<string, unknown>;
+    createdAt: Date;
+  } | null;
+  upgradeNoticeShownAt?: Date | null;
 }
 
 function formatDate(d: Date | null): string {
@@ -31,7 +38,7 @@ function formatDate(d: Date | null): string {
   });
 }
 
-export function PlanSection({ user }: PlanSectionProps) {
+export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanSectionProps) {
   const [modalType, setModalType] = useState<'upgrade' | 'downgrade' | null>(null);
 
   const isUnlimited = !Number.isFinite(user.usageLimit);
@@ -141,6 +148,22 @@ export function PlanSection({ user }: PlanSectionProps) {
           <div className="mt-2">
             <DowngradeButton />
           </div>
+        )}
+
+        {/* Phase A.17.0 X: 月次 Cron 検知のバナー（Pro のみ） */}
+        {user.plan === 'pro' && (
+          <BusinessUpgradeAccountBanner
+            notice={
+              upgradeNotice
+                ? {
+                    id: upgradeNotice.id,
+                    metricSnapshot: upgradeNotice.metricSnapshot,
+                    createdAt: upgradeNotice.createdAt,
+                  }
+                : null
+            }
+            upgradeNoticeShownAt={upgradeNoticeShownAt ?? null}
+          />
         )}
 
         {/* Phase A.17.0 W: Business プラン切替カード（常設） */}
