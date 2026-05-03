@@ -24,8 +24,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Pro+ のみ
-    if (user.plan !== 'pro' && user.plan !== 'admin') {
+    // Phase A.17.0: Pro / Business / admin で利用可（一括 ZIP DL は両有料プランの標準機能）
+    if (user.plan !== 'pro' && user.plan !== 'business' && user.plan !== 'admin') {
       return NextResponse.json(
         { error: 'ZIP DL は Pro プラン以上で利用可能です' },
         { status: 403 },

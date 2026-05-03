@@ -20,7 +20,6 @@ interface PlanCol {
   key: PlanKey;
   name: string;
   emoji: string;
-  desc: string;
   price: string;
   priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_STARTER' | 'NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE' | 'NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_BASE';
   rank: number;
@@ -33,7 +32,6 @@ const PLANS: PlanCol[] = [
     key: 'starter',
     name: 'Starter',
     emoji: '🌱',
-    desc: '個人マーケター・お試し',
     price: '¥3,980',
     priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_STARTER',
     rank: 1,
@@ -43,7 +41,6 @@ const PLANS: PlanCol[] = [
     key: 'pro',
     name: 'Pro',
     emoji: '💼',
-    desc: '本格運用・代理店マネージャー',
     price: '¥14,800',
     priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE',
     rank: 2,
@@ -54,7 +51,6 @@ const PLANS: PlanCol[] = [
     key: 'business',
     name: 'Business',
     emoji: '🚀',
-    desc: '大型代理店・運用部隊',
     price: '¥39,800',
     priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_BASE',
     rank: 3,
@@ -73,7 +69,7 @@ const ROWS: Row[] = [
   // 料金
   { category: '料金', label: '月額（税込）', values: ['¥3,980', '¥14,800', '¥39,800'] },
   { label: '超過課金', values: ['なし', '¥80 / 枠', '¥40 / 枠'] },
-  { label: 'ハードキャップ', values: ['30 枠', '500 枠', '3,000 枠'] },
+  { label: '利用上限', values: ['30 枠', '500 枠', '3,000 枠'] },
 
   // 生成
   { category: '生成', label: '月の枠数', values: ['30', '100', '1,000'] },
@@ -85,11 +81,11 @@ const ROWS: Row[] = [
   { category: '機能', label: '勝ちバナー添付', values: ['—', '無制限', '無制限'] },
   { label: 'プロンプト閲覧', values: ['—', '✓', '✓'] },
   { label: 'お気に入り保持', values: ['5 枚', '50 枚', '無制限'] },
+  { label: '一括 ZIP DL', values: ['—', '✓', '✓'] },
 
   // Business 限定（順次提供）
   { category: 'Business 限定（順次提供）', label: 'クライアント別フォルダ', values: ['—', '—', '🔜'] },
   { label: '拡張 Brand Kit', values: ['—', '—', '🔜'] },
-  { label: '一括 ZIP DL', values: ['—', '—', '🔜'] },
 ];
 
 const COLOR = {
@@ -182,8 +178,8 @@ export function PlanComparisonTable({ user }: Props) {
   };
 
   return (
-    <div className="overflow-x-auto -mx-2 px-2 pt-3">
-      <table className="w-full min-w-[680px] border-collapse">
+    <div className="pt-3">
+      <table className="w-full border-collapse table-fixed">
         {/* ============ ヘッダー（プラン名・価格・badge） ============ */}
         <thead>
           <tr>
@@ -214,7 +210,6 @@ export function PlanComparisonTable({ user }: Props) {
                   <div className={`text-sm font-bold ${colors.text}`}>
                     {p.emoji} {p.name}
                   </div>
-                  <div className="text-xs text-slate-400 mt-1 leading-tight">{p.desc}</div>
                   <div className="mt-2 text-lg font-black text-white">{p.price}</div>
                   <div className="text-[10px] text-slate-500">/月 税込</div>
                 </th>
@@ -231,12 +226,17 @@ export function PlanComparisonTable({ user }: Props) {
               <Fragment key={`row-${i}`}>
                 {showCategory && (
                   <tr>
-                    <td colSpan={4} className="pt-5 pb-1 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      {row.category}
+                    <td colSpan={4} className="pt-7 pb-2 px-2">
+                      <div className="flex items-center gap-2 border-b-2 border-slate-700 pb-2">
+                        <span className="inline-block w-1 h-5 bg-emerald-500 rounded-sm"></span>
+                        <span className="text-base font-bold text-white">
+                          {row.category}
+                        </span>
+                      </div>
                     </td>
                   </tr>
                 )}
-                <tr className="border-t border-slate-800/60">
+                <tr className={showCategory ? '' : 'border-t border-slate-800/40'}>
                   <th className="text-left px-2 py-3 text-sm text-slate-300 font-normal">
                     {row.label}
                   </th>
@@ -267,7 +267,7 @@ export function PlanComparisonTable({ user }: Props) {
           })}
 
           {/* ============ CTA 行（高さ統一） ============ */}
-          <tr className="border-t border-slate-800/60">
+          <tr className="border-t border-slate-800/40">
             <th></th>
             {PLANS.map((p) => {
               const isCurrent = user.plan === p.key;

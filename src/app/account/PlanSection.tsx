@@ -12,6 +12,7 @@ import { PlanPill } from '@/components/layout/PlanPill';
 import { PortalButton } from '@/components/billing/PortalButton';
 import { ProOverageDisplay } from '@/components/account/ProOverageDisplay';
 import { PlanComparisonTable } from '@/components/billing/PlanComparisonTable';
+import { DowngradeProposalButton } from '@/components/billing/DowngradeProposalButton';
 import { BusinessUpgradeAccountBanner } from '@/components/account/BusinessUpgradeAccountBanner';
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 
@@ -60,9 +61,12 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
 
       <div className="space-y-4">
         {/* 現在のプラン */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm text-slate-400 w-32">現在のプラン</span>
           <PlanPill plan={user.plan} size="sm" />
+          <DowngradeProposalButton
+            currentPlan={user.plan as 'free' | 'starter' | 'pro' | 'business' | 'admin'}
+          />
         </div>
 
         {/* 利用開始日 */}

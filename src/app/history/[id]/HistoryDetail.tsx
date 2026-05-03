@@ -55,7 +55,8 @@ export function HistoryDetail({ detail: initialDetail }: HistoryDetailProps) {
   const [zipLoading, setZipLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const isPro = user.plan === 'pro' || user.plan === 'admin';
+  // Phase A.17.0: ZIP DL は Pro / Business / admin で利用可
+  const isPro = user.plan === 'pro' || user.plan === 'business' || user.plan === 'admin';
 
   const handleFavoriteToggle = async (imageId: string, current: boolean) => {
     setFavError(null);
