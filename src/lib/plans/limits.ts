@@ -19,6 +19,14 @@ export const USAGE_LIMIT_FREE = 3;
 export const USAGE_LIMIT_PRO = 100;
 
 /**
+ * Phase A.17.0: Business plan 上限
+ * - Business: 1,000 回/月（1,001 回目以降は ¥40/枠 でメータード課金）
+ * - Hardcap: 3,000 回（コスト爆発防止 / 超過は Plan C 案内）
+ */
+export const USAGE_LIMIT_BUSINESS = 1000;
+export const USAGE_HARDCAP_BUSINESS = 3000;
+
+/**
  * Phase A.15 リスク監査対応: ハードキャップ（コスト暴走防止）
  * - Free: 3 回までは PREVIEW 透かし生成可能、それ以上はブロック（スパム防御）
  * - Pro:  500 回でハードブロック（チャージバック爆弾回避、超過は Plan C 案内）
@@ -34,6 +42,7 @@ export const PLAN_USAGE_LIMITS: Record<string, number> = {
   free: USAGE_LIMIT_FREE,
   starter: 30,
   pro: USAGE_LIMIT_PRO,
+  business: USAGE_LIMIT_BUSINESS,
   admin: Number.POSITIVE_INFINITY,
 };
 
@@ -46,6 +55,7 @@ export const PLAN_HARDCAP: Record<string, number> = {
   free: USAGE_HARDCAP_FREE,
   starter: 30,
   pro: USAGE_HARDCAP_PRO,
+  business: USAGE_HARDCAP_BUSINESS,
   admin: Number.POSITIVE_INFINITY,
 };
 
