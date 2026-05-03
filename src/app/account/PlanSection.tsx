@@ -11,9 +11,7 @@
 import { PlanPill } from '@/components/layout/PlanPill';
 import { PortalButton } from '@/components/billing/PortalButton';
 import { ProOverageDisplay } from '@/components/account/ProOverageDisplay';
-import { StarterPlanCard } from '@/components/billing/StarterPlanCard';
-import { ProPlanCard } from '@/components/billing/ProPlanCard';
-import { BusinessPlanCard } from '@/components/billing/BusinessPlanCard';
+import { PlanComparisonTable } from '@/components/billing/PlanComparisonTable';
 import { BusinessUpgradeAccountBanner } from '@/components/account/BusinessUpgradeAccountBanner';
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 
@@ -138,11 +136,9 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
           />
         )}
 
-        {/* Phase A.17.0 W: Starter / Pro / Business プラン切替カード（常設・3 列横並び） */}
-        <div className="pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <StarterPlanCard user={user} />
-          <ProPlanCard user={user} />
-          <BusinessPlanCard user={user} />
+        {/* Phase A.17.0: 3 プラン比較テーブル（freee 会計式・現プラン列ハイライト） */}
+        <div className="pt-4">
+          <PlanComparisonTable user={user} />
         </div>
       </div>
     </section>
