@@ -16,6 +16,7 @@ import { PortalButton } from '@/components/billing/PortalButton';
 import { DowngradeButton } from '@/components/billing/DowngradeButton';
 import { ProOverageDisplay } from '@/components/account/ProOverageDisplay';
 import { BusinessPlanCard } from '@/components/billing/BusinessPlanCard';
+import { ProPlanCard } from '@/components/billing/ProPlanCard';
 import { BusinessUpgradeAccountBanner } from '@/components/account/BusinessUpgradeAccountBanner';
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 
@@ -166,8 +167,9 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
           />
         )}
 
-        {/* Phase A.17.0 W: Business プラン切替カード（常設） */}
-        <div className="pt-4">
+        {/* Phase A.17.0 W: Pro / Business プラン切替カード（常設・横並び） */}
+        <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <ProPlanCard user={user} />
           <BusinessPlanCard user={user} />
         </div>
       </div>

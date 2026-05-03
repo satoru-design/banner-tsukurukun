@@ -2,7 +2,6 @@
 
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 import { CheckoutButton } from './CheckoutButton';
-import { DowngradeButton } from './DowngradeButton';
 import { USAGE_LIMIT_BUSINESS, USAGE_HARDCAP_BUSINESS } from '@/lib/plans/limits';
 import { getOverageRate } from '@/lib/plans/overage-rates';
 
@@ -15,7 +14,7 @@ interface Props {
  *
  * - free / starter / pro / admin: Business アップグレード CTA を表示
  *   （admin は事業計画 v2 §5.1 に従い顧客と同じ目線で確認可能にする）
- * - business: 「現在のプラン」表示 + Pro へのダウングレードボタン
+ * - business: 「現在のプラン」表示（CTA なし、ダウングレードは隣の ProPlanCard で行う）
  */
 export function BusinessPlanCard({ user }: Props) {
   const businessBasePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_BASE;
@@ -61,16 +60,12 @@ export function BusinessPlanCard({ user }: Props) {
         </li>
       </ul>
 
-      {isBusiness ? (
-        <DowngradeButton targetPlan="pro" label="Pro にダウングレード（期末切替）" />
-      ) : (
-        ctaLabel && (
-          <CheckoutButton
-            basePriceId={businessBasePriceId}
-            label={ctaLabel}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded font-bold disabled:opacity-50"
-          />
-        )
+      {!isBusiness && ctaLabel && (
+        <CheckoutButton
+          basePriceId={businessBasePriceId}
+          label={ctaLabel}
+          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded font-bold disabled:opacity-50"
+        />
       )}
 
       <p className="text-xs text-slate-500 mt-3">
