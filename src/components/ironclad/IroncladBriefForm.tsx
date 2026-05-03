@@ -67,7 +67,9 @@ export function IroncladBriefForm({
   const additionalPatterns = brief.additionalPatterns ?? [];
   // 全選択中パターン（代表 + 追加）。UI ではこの配列の有無で表示状態を判定する。
   const allSelectedPatterns: IroncladPattern[] = [brief.pattern, ...additionalPatterns];
-  const MAX_TOTAL_PATTERNS = 3; // 代表 1 + 追加最大 2
+  // Phase A.16.1: 全 6 pattern まで選択可能に拡張（小池さん判断、2026-05-03）。
+  // メータード課金が Pro 上限に当たる場面は上位プランで吸収する方針（別 Phase で対応）。
+  const MAX_TOTAL_PATTERNS = IRONCLAD_PATTERNS.length;
 
   /**
    * Phase A.16: パターンボタンクリック時の挙動。
