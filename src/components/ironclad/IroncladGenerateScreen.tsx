@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Download, Sparkles, AlertTriangle, Eye, EyeOff, Archive } from 'lucide-react';
+import { Download, Sparkles, AlertTriangle, Eye, EyeOff, Archive, Check } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import JSZip from 'jszip';
 import type {
@@ -423,22 +423,10 @@ function PatternSection({
             className="border border-slate-700 rounded-lg p-3 bg-slate-900/50 space-y-2"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {/* Phase A.17: 一括 DL チェックボックス（生成成功時のみ表示） */}
-                {r.status === 'success' && r.imageUrl && (
-                  <input
-                    type="checkbox"
-                    checked={r.selected !== false}
-                    onChange={() => onToggleSelected(r.size)}
-                    className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
-                    title="一括DLに含める"
-                  />
-                )}
-                <div className="text-xs font-bold text-slate-200">{r.size}</div>
-              </div>
+              <div className="text-xs font-bold text-slate-200">{r.size}</div>
               <StatusBadge status={r.status} />
             </div>
-            <div className="min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
+            <div className="relative min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
               {r.status === 'generating' && (
                 <div className="w-full">
                   <GenerationProgress compact estimatedSeconds={45} />
@@ -451,12 +439,29 @@ function PatternSection({
                 </div>
               )}
               {r.status === 'success' && r.imageUrl && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={r.imageUrl}
-                  alt={`Banner ${pattern} ${r.size}`}
-                  className="w-full h-auto"
-                />
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={r.imageUrl}
+                    alt={`Banner ${pattern} ${r.size}`}
+                    className="w-full h-auto"
+                  />
+                  {/* Phase A.17: 画像右上に大きめチェックマークをオーバーレイ。
+                      クリックで一括 DL 対象を toggle。 */}
+                  <button
+                    type="button"
+                    onClick={() => onToggleSelected(r.size)}
+                    aria-label={r.selected !== false ? '一括DLから除外' : '一括DLに含める'}
+                    title={r.selected !== false ? '一括DLから除外' : '一括DLに含める'}
+                    className={`absolute top-3 right-3 w-9 h-9 rounded-full border-2 shadow-lg transition flex items-center justify-center backdrop-blur-sm ${
+                      r.selected !== false
+                        ? 'bg-emerald-500 border-white text-white hover:bg-emerald-600'
+                        : 'bg-black/40 border-white/80 text-transparent hover:bg-black/60'
+                    }`}
+                  >
+                    <Check className="w-5 h-5" strokeWidth={3} />
+                  </button>
+                </>
               )}
               {r.status === 'idle' && (
                 <div className="text-slate-500 text-xs">
