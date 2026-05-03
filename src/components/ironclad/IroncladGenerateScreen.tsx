@@ -422,11 +422,29 @@ function PatternSection({
             key={r.size}
             className="border border-slate-700 rounded-lg p-3 bg-slate-900/50 space-y-2"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div className="text-xs font-bold text-slate-200">{r.size}</div>
-              <StatusBadge status={r.status} />
+              <div className="flex items-center gap-2">
+                <StatusBadge status={r.status} />
+                {/* Phase A.17: 完了バッジの右に一括DLチェックマーク（生成成功時のみ表示） */}
+                {r.status === 'success' && r.imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleSelected(r.size)}
+                    aria-label={r.selected !== false ? '一括DLから除外' : '一括DLに含める'}
+                    title={r.selected !== false ? '一括DLから除外' : '一括DLに含める'}
+                    className={`w-7 h-7 rounded-md border-2 transition flex items-center justify-center shrink-0 ${
+                      r.selected !== false
+                        ? 'bg-emerald-500 border-emerald-400 text-white hover:bg-emerald-600'
+                        : 'bg-slate-700 border-slate-500 text-transparent hover:border-slate-400'
+                    }`}
+                  >
+                    <Check className="w-4 h-4" strokeWidth={3} />
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="relative min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
+            <div className="min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
               {r.status === 'generating' && (
                 <div className="w-full">
                   <GenerationProgress compact estimatedSeconds={45} />
@@ -439,29 +457,12 @@ function PatternSection({
                 </div>
               )}
               {r.status === 'success' && r.imageUrl && (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={r.imageUrl}
-                    alt={`Banner ${pattern} ${r.size}`}
-                    className="w-full h-auto"
-                  />
-                  {/* Phase A.17: 画像右上に大きめチェックマークをオーバーレイ。
-                      クリックで一括 DL 対象を toggle。 */}
-                  <button
-                    type="button"
-                    onClick={() => onToggleSelected(r.size)}
-                    aria-label={r.selected !== false ? '一括DLから除外' : '一括DLに含める'}
-                    title={r.selected !== false ? '一括DLから除外' : '一括DLに含める'}
-                    className={`absolute top-3 right-3 w-9 h-9 rounded-full border-2 shadow-lg transition flex items-center justify-center backdrop-blur-sm ${
-                      r.selected !== false
-                        ? 'bg-emerald-500 border-white text-white hover:bg-emerald-600'
-                        : 'bg-black/40 border-white/80 text-transparent hover:bg-black/60'
-                    }`}
-                  >
-                    <Check className="w-5 h-5" strokeWidth={3} />
-                  </button>
-                </>
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={r.imageUrl}
+                  alt={`Banner ${pattern} ${r.size}`}
+                  className="w-full h-auto"
+                />
               )}
               {r.status === 'idle' && (
                 <div className="text-slate-500 text-xs">
