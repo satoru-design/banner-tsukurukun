@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Link2, Loader2, Wand2, AlertTriangle } from 'lucide-react';
+import { Link2, Loader2, Wand2, AlertTriangle, Sparkles } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import {
   IRONCLAD_PATTERNS,
   IroncladBrief,
@@ -13,8 +14,13 @@ import {
   getIroncladSizeMeta,
   parseCustomSize,
 } from '@/lib/prompts/ironclad-banner';
+import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
+import { CheckoutButton } from '@/components/billing/CheckoutButton';
 import { AssetLibrary, Asset } from './AssetLibrary';
 import { WinningBannerLibrary } from './WinningBannerLibrary';
+
+const PRO_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE ?? '';
+const MAX_ADDITIONAL_PATTERNS = 2;
 
 type Props = {
   brief: IroncladBrief;
@@ -52,6 +58,29 @@ export function IroncladBriefForm({
       brief.purpose.trim() &&
       brief.sizes.length > 0,
   );
+
+  // Phase A.16: 複数スタイル選択（Pro/Starter/admin のみ操作可能）
+  const { data: session } = useSession();
+  const user = sessionToCurrentUser(session);
+  const isPaid = user.plan === 'pro' || user.plan === 'starter' || user.plan === 'admin';
+  const [proLockOpen, setProLockOpen] = useState(false);
+  const [showAdditional, setShowAdditional] = useState(false);
+
+  const additionalPatterns = brief.additionalPatterns ?? [];
+
+  const toggleAdditionalPattern = (p: IroncladPattern) => {
+    if (additionalPatterns.includes(p)) {
+      onChangeBrief({
+        ...brief,
+        additionalPatterns: additionalPatterns.filter((x) => x !== p),
+      });
+    } else if (additionalPatterns.length < MAX_ADDITIONAL_PATTERNS) {
+      onChangeBrief({
+        ...brief,
+        additionalPatterns: [...additionalPatterns, p],
+      });
+    }
+  };
 
   const toggleSize = (s: IroncladSize) => {
     const has = brief.sizes.includes(s);
@@ -199,7 +228,15 @@ export function IroncladBriefForm({
               <button
                 key={p}
                 type="button"
-                onClick={() => onChangeBrief({ ...brief, pattern: p as IroncladPattern })}
+                onClick={() => {
+                  const next = p as IroncladPattern;
+                  // 代表 pattern 変更時、追加 pattern に重複があれば自動除外
+                  onChangeBrief({
+                    ...brief,
+                    pattern: next,
+                    additionalPatterns: additionalPatterns.filter((x) => x !== next),
+                  });
+                }}
                 className={`px-2 py-2 rounded text-xs transition ${
                   active
                     ? 'bg-teal-500 text-white shadow'
@@ -211,7 +248,88 @@ export function IroncladBriefForm({
             );
           })}
         </div>
+
+        {/* Phase A.16: 追加スタイル（最大2個） */}
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => {
+              if (!isPaid) {
+                setProLockOpen(true);
+                return;
+              }
+              setShowAdditional((v) => !v);
+            }}
+            className="flex items-center gap-2 text-sm text-slate-300 hover:text-white"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300" />
+            <span>追加スタイルでも生成する（最大{MAX_ADDITIONAL_PATTERNS}個）</span>
+            {!isPaid && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-900/50 text-amber-300 border border-amber-700 text-[10px]">
+                Pro
+              </span>
+            )}
+            <span className="text-slate-500 text-xs">
+              {showAdditional ? '▲' : '▼'}
+              {additionalPatterns.length > 0 && (
+                <span className="ml-1 text-teal-300">
+                  選択中 {additionalPatterns.length}/{MAX_ADDITIONAL_PATTERNS}
+                </span>
+              )}
+            </span>
+          </button>
+
+          {showAdditional && isPaid && (
+            <div className="mt-3 p-4 border border-slate-700 rounded-lg bg-slate-900/50">
+              <p className="text-xs text-slate-400 mb-3">
+                同じコピー・素材で、選んだスタイル分だけ追加生成します。
+                <span className="ml-2 text-teal-300">
+                  選択中: {additionalPatterns.length}/{MAX_ADDITIONAL_PATTERNS}
+                </span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {IRONCLAD_PATTERNS.filter((p) => p !== brief.pattern).map((p) => {
+                  const checked = additionalPatterns.includes(p);
+                  const disabled =
+                    !checked && additionalPatterns.length >= MAX_ADDITIONAL_PATTERNS;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => toggleAdditionalPattern(p)}
+                      disabled={disabled}
+                      className={`px-3 py-1.5 rounded text-xs border transition ${
+                        checked
+                          ? 'bg-teal-600 text-white border-teal-500'
+                          : disabled
+                            ? 'bg-slate-800/40 text-slate-600 border-slate-800 cursor-not-allowed'
+                            : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                      }`}
+                    >
+                      {checked ? '✓ ' : ''}
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+              {additionalPatterns.length > 0 && (
+                <p className="text-[11px] text-amber-300 mt-3">
+                  ⚠️ 追加スタイルごとに使用回数を消費します（{1 + additionalPatterns.length}{' '}
+                  スタイル × {brief.sizes.length} サイズ ={' '}
+                  {(1 + additionalPatterns.length) * brief.sizes.length} 回消費）
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Phase A.16: Pro 機能ロックモーダル */}
+      <ProFeatureLockModal
+        open={proLockOpen}
+        onClose={() => setProLockOpen(false)}
+        plan={user.plan}
+      />
 
       <div>
         <label className="block text-sm font-bold text-slate-200 mb-2">
@@ -415,6 +533,81 @@ export function IroncladBriefForm({
         >
           次へ（AIサジェスト生成）→
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Phase A.16: 「複数スタイル生成」を Free がクリックしたときの Pro 訴求モーダル。
+ * UsageLimitModal は使用回数前提で文言が合わないため、本機能専用に inline 定義。
+ */
+function ProFeatureLockModal({
+  open,
+  onClose,
+  plan,
+}: {
+  open: boolean;
+  onClose: () => void;
+  plan: string;
+}) {
+  React.useEffect(() => {
+    if (!open) return;
+    const handle = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handle);
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handle);
+      document.body.style.overflow = original;
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/60" />
+      <div
+        className="relative w-[min(90vw,480px)] bg-neutral-900 border border-slate-700 rounded-lg shadow-2xl p-6 text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-amber-300" />
+          複数スタイル生成は Pro 限定
+        </h3>
+        <p className="text-sm text-slate-400 mb-4">
+          同じコピー・素材で「王道」「ラグジュアリー」など複数のスタイルを並列生成し、
+          ベストな1枚を見つける機能です。Pro プランでは最大 3 スタイル × 17 サイズまでまとめて生成できます。
+        </p>
+        <ul className="text-xs text-slate-300 space-y-1 mb-5 pl-4 list-disc">
+          <li>1 ブリーフから最大 3 スタイル並列生成</li>
+          <li>スタイル別にまとめて表示・ダウンロード</li>
+          <li>月 100 回まで定額、超過分は ¥80/回</li>
+        </ul>
+        <div className="flex flex-col gap-2">
+          {PRO_PRICE_ID && plan !== 'pro' && plan !== 'admin' ? (
+            <CheckoutButton
+              basePriceId={PRO_PRICE_ID}
+              label="Pro にアップグレード（¥14,800/月）"
+              className="w-full px-4 py-3 rounded bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 text-white font-bold transition"
+            />
+          ) : null}
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded text-xs text-slate-400 hover:text-white"
+          >
+            あとで
+          </button>
+        </div>
       </div>
     </div>
   );
