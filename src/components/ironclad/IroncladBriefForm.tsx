@@ -20,7 +20,6 @@ import { AssetLibrary, Asset } from './AssetLibrary';
 import { WinningBannerLibrary } from './WinningBannerLibrary';
 
 const PRO_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE ?? '';
-const MAX_ADDITIONAL_PATTERNS = 2;
 
 type Props = {
   brief: IroncladBrief;
@@ -59,37 +58,61 @@ export function IroncladBriefForm({
       brief.sizes.length > 0,
   );
 
-  // Phase A.16: 複数スタイル選択（Pro/Starter/admin のみ操作可能）
+  // Phase A.16: パターン選択 UI（Free=単一 / Pro=最大3個まで複数選択）
   const { data: session } = useSession();
   const user = sessionToCurrentUser(session);
   const isPaid = user.plan === 'pro' || user.plan === 'starter' || user.plan === 'admin';
   const [proLockOpen, setProLockOpen] = useState(false);
-  const [showAdditional, setShowAdditional] = useState(false);
 
   const additionalPatterns = brief.additionalPatterns ?? [];
+  // 全選択中パターン（代表 + 追加）。UI ではこの配列の有無で表示状態を判定する。
+  const allSelectedPatterns: IroncladPattern[] = [brief.pattern, ...additionalPatterns];
+  const MAX_TOTAL_PATTERNS = 3; // 代表 1 + 追加最大 2
 
-  const toggleAdditionalPattern = (p: IroncladPattern) => {
-    // eslint-disable-next-line no-console
-    console.log('[multi-style] toggle clicked:', {
-      target: p,
-      current: additionalPatterns,
-      length: additionalPatterns.length,
-      max: MAX_ADDITIONAL_PATTERNS,
-      isPaid,
-      plan: user.plan,
-    });
-    if (additionalPatterns.includes(p)) {
-      onChangeBrief({
-        ...brief,
-        additionalPatterns: additionalPatterns.filter((x) => x !== p),
-      });
-    } else if (additionalPatterns.length < MAX_ADDITIONAL_PATTERNS) {
+  /**
+   * Phase A.16: パターンボタンクリック時の挙動。
+   * - Free: 単一選択（クリック=代表 pattern 切替、追加は常に空）
+   * - Pro: 複数選択トグル（最大 3 個。代表を外そうとしたら additionalPatterns[0] に格上げ）
+   */
+  const handlePatternClick = (p: IroncladPattern) => {
+    const isSelected = allSelectedPatterns.includes(p);
+
+    // Free: 単一選択モード → クリックされた pattern を代表に、追加は空に
+    if (!isPaid) {
+      // 既選択 (= 代表) ならそのまま（最低 1 個必須）。違う pattern なら切替。
+      if (p !== brief.pattern) {
+        onChangeBrief({ ...brief, pattern: p, additionalPatterns: [] });
+      }
+      // 2 個目を選ぼうとしたら Pro 訴求
+      // ただし Free は表示上常に additionalPatterns=[] なのでこの分岐は通常入らない
+      return;
+    }
+
+    // Pro/Starter/admin: 複数選択モード
+    if (isSelected) {
+      // 解除
+      if (p === brief.pattern) {
+        // 代表を外す → additionalPatterns の先頭を代表に格上げ。空なら最低 1 個必須なので何もしない。
+        if (additionalPatterns.length === 0) return;
+        const [newPrimary, ...rest] = additionalPatterns;
+        onChangeBrief({ ...brief, pattern: newPrimary, additionalPatterns: rest });
+      } else {
+        onChangeBrief({
+          ...brief,
+          additionalPatterns: additionalPatterns.filter((x) => x !== p),
+        });
+      }
+    } else {
+      // 追加。最大 3 個まで。
+      if (allSelectedPatterns.length >= MAX_TOTAL_PATTERNS) return;
       onChangeBrief({
         ...brief,
         additionalPatterns: [...additionalPatterns, p],
       });
     }
   };
+
+  const handleProLockClick = () => setProLockOpen(true);
 
   const toggleSize = (s: IroncladSize) => {
     const has = brief.sizes.includes(s);
@@ -229,108 +252,55 @@ export function IroncladBriefForm({
       />
 
       <div>
-        <label className="block text-sm font-bold text-slate-200 mb-2">パターン *</label>
+        <label className="block text-sm font-bold text-slate-200 mb-2 flex items-center gap-2 flex-wrap">
+          <span>パターン *</span>
+          {isPaid ? (
+            <span className="text-[11px] font-normal text-teal-300 inline-flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              最大{MAX_TOTAL_PATTERNS}個まで複数選択可（同じコピー・素材で別スタイル一括生成）
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleProLockClick}
+              className="text-[11px] font-normal text-amber-300 hover:text-amber-200 underline decoration-dotted inline-flex items-center gap-1"
+            >
+              <Sparkles className="w-3 h-3" />
+              Pro なら最大{MAX_TOTAL_PATTERNS}個まで複数選択可
+            </button>
+          )}
+        </label>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
           {IRONCLAD_PATTERNS.map((p) => {
-            const active = brief.pattern === p;
+            const selected = allSelectedPatterns.includes(p);
+            const disabledByMax =
+              isPaid && !selected && allSelectedPatterns.length >= MAX_TOTAL_PATTERNS;
             return (
               <button
                 key={p}
                 type="button"
-                onClick={() => {
-                  const next = p as IroncladPattern;
-                  // 代表 pattern 変更時、追加 pattern に重複があれば自動除外
-                  onChangeBrief({
-                    ...brief,
-                    pattern: next,
-                    additionalPatterns: additionalPatterns.filter((x) => x !== next),
-                  });
-                }}
+                onClick={() => handlePatternClick(p)}
+                disabled={disabledByMax}
                 className={`px-2 py-2 rounded text-xs transition ${
-                  active
+                  selected
                     ? 'bg-teal-500 text-white shadow'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    : disabledByMax
+                      ? 'bg-slate-800/40 text-slate-600 cursor-not-allowed'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               >
+                {selected && isPaid && allSelectedPatterns.length > 1 ? '✓ ' : ''}
                 {p}
               </button>
             );
           })}
         </div>
-
-        {/* Phase A.16: 追加スタイル（最大2個） */}
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={() => {
-              if (!isPaid) {
-                setProLockOpen(true);
-                return;
-              }
-              setShowAdditional((v) => !v);
-            }}
-            className="flex items-center gap-2 text-sm text-slate-300 hover:text-white"
-          >
-            <Sparkles className="w-4 h-4 text-amber-300" />
-            <span>追加スタイルでも生成する（最大{MAX_ADDITIONAL_PATTERNS}個）</span>
-            {!isPaid && (
-              <span className="px-2 py-0.5 rounded-full bg-amber-900/50 text-amber-300 border border-amber-700 text-[10px]">
-                Pro
-              </span>
-            )}
-            <span className="text-slate-500 text-xs">
-              {showAdditional ? '▲' : '▼'}
-              {additionalPatterns.length > 0 && (
-                <span className="ml-1 text-teal-300">
-                  選択中 {additionalPatterns.length}/{MAX_ADDITIONAL_PATTERNS}
-                </span>
-              )}
-            </span>
-          </button>
-
-          {showAdditional && isPaid && (
-            <div className="mt-3 p-4 border border-slate-700 rounded-lg bg-slate-900/50">
-              <p className="text-xs text-slate-400 mb-3">
-                同じコピー・素材で、選んだスタイル分だけ追加生成します。
-                <span className="ml-2 text-teal-300">
-                  選択中: {additionalPatterns.length}/{MAX_ADDITIONAL_PATTERNS}
-                </span>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {IRONCLAD_PATTERNS.filter((p) => p !== brief.pattern).map((p) => {
-                  const checked = additionalPatterns.includes(p);
-                  const disabled =
-                    !checked && additionalPatterns.length >= MAX_ADDITIONAL_PATTERNS;
-                  return (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => toggleAdditionalPattern(p)}
-                      disabled={disabled}
-                      className={`px-3 py-1.5 rounded text-xs border transition ${
-                        checked
-                          ? 'bg-teal-600 text-white border-teal-500'
-                          : disabled
-                            ? 'bg-slate-800/40 text-slate-600 border-slate-800 cursor-not-allowed'
-                            : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-                      }`}
-                    >
-                      {checked ? '✓ ' : ''}
-                      {p}
-                    </button>
-                  );
-                })}
-              </div>
-              {additionalPatterns.length > 0 && (
-                <p className="text-[11px] text-amber-300 mt-3">
-                  ⚠️ 追加スタイルごとに使用回数を消費します（{1 + additionalPatterns.length}{' '}
-                  スタイル × {brief.sizes.length} サイズ ={' '}
-                  {(1 + additionalPatterns.length) * brief.sizes.length} 回消費）
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+        {isPaid && allSelectedPatterns.length > 1 && (
+          <p className="text-[11px] text-amber-300 mt-2">
+            ⚠️ {allSelectedPatterns.length} スタイル × {brief.sizes.length} サイズ ={' '}
+            {allSelectedPatterns.length * brief.sizes.length} 回消費します
+          </p>
+        )}
       </div>
 
       {/* Phase A.16: Pro 機能ロックモーダル */}
