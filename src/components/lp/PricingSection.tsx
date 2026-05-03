@@ -5,6 +5,7 @@ import { CheckoutButton } from '@/components/billing/CheckoutButton';
 
 const STARTER_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER ?? '';
 const PRO_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE ?? '';
+const BUSINESS_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_BASE ?? '';
 
 const PLANS = [
   {
@@ -51,6 +52,22 @@ const PLANS = [
     cta: { type: 'paid' as const, priceId: PRO_PRICE_ID, label: 'Pro にする' },
     popular: true,
   },
+  {
+    key: 'business',
+    name: 'Business',
+    price: '¥39,800',
+    period: '/月',
+    desc: '広告代理店・中堅 EC 運用部隊向け',
+    features: [
+      '月 1,000 セッション + 超過 ¥40/回（Pro の半額）',
+      '全 17 サイズ対応',
+      '複数スタイル並列生成',
+      '上限 3,000 セッション',
+      '🔜 クライアント別フォルダ・拡張 Brand Kit・一括 ZIP DL（順次提供）',
+    ],
+    cta: { type: 'paid' as const, priceId: BUSINESS_PRICE_ID, label: 'Business にする' },
+    isNew: true,
+  },
 ];
 
 export const PricingSection = () => {
@@ -63,19 +80,26 @@ export const PricingSection = () => {
         <p className="text-slate-400 text-center mt-3">
           まずは無料で試してから。すべてのプランで透かしなしの本生成が可能（Free 除く）
         </p>
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {PLANS.map((p) => (
             <div
               key={p.key}
               className={`relative rounded-xl p-6 border ${
                 p.popular
                   ? 'bg-emerald-500/5 border-emerald-500/40 shadow-xl shadow-emerald-500/10'
-                  : 'bg-slate-950 border-slate-800'
+                  : p.isNew
+                    ? 'bg-amber-500/5 border-amber-500/40 shadow-xl shadow-amber-500/10'
+                    : 'bg-slate-950 border-slate-800'
               }`}
             >
               {p.popular && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-slate-950 text-xs font-bold px-3 py-1 rounded-full">
                   人気
+                </span>
+              )}
+              {p.isNew && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 text-xs font-bold px-3 py-1 rounded-full">
+                  NEW
                 </span>
               )}
               <div className="text-center">
@@ -125,7 +149,7 @@ export const PricingSection = () => {
           ))}
         </div>
         <div className="mt-10 text-center text-sm text-slate-400">
-          月 100 回以上のご利用や代理店契約は{' '}
+          年契約・SLA・専任サポートをご希望の方は{' '}
           <Link href="/contact" className="text-emerald-300 hover:text-emerald-200 underline">
             個別商談（Plan C）
           </Link>{' '}
