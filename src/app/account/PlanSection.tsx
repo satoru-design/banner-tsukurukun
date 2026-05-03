@@ -1,22 +1,19 @@
 'use client';
 
 /**
- * Phase A.11.2: プラン情報セクション。
- * - 現在のプラン Pill
- * - 利用開始日 / 次回更新日（有料時のみ）
- * - 今月の使用状況プログレスバー
- * - アップグレード/ダウングレードボタン → UpgradeModal
+ * Phase A.11.2 / A.17.0: プラン情報セクション。
+ * - 現在のプラン Pill / 利用開始日 / 終了予定日 / 当月使用状況
+ * - Phase A.17.0: 汎用「アップグレード / ダウングレード」ボタンと UpgradeModal を撤去。
+ *   各プランカード（Starter / Pro / Business）が自分の遷移操作を所有する責任分離設計に変更。
  *
  * id="plan" のアンカー対応（ヘッダードロップダウンの「プラン変更」リンクから来る）。
  */
-import { useState } from 'react';
 import { PlanPill } from '@/components/layout/PlanPill';
-import { UpgradeModal } from './UpgradeModal';
 import { PortalButton } from '@/components/billing/PortalButton';
-import { DowngradeButton } from '@/components/billing/DowngradeButton';
 import { ProOverageDisplay } from '@/components/account/ProOverageDisplay';
-import { BusinessPlanCard } from '@/components/billing/BusinessPlanCard';
+import { StarterPlanCard } from '@/components/billing/StarterPlanCard';
 import { ProPlanCard } from '@/components/billing/ProPlanCard';
+import { BusinessPlanCard } from '@/components/billing/BusinessPlanCard';
 import { BusinessUpgradeAccountBanner } from '@/components/account/BusinessUpgradeAccountBanner';
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 
@@ -40,8 +37,6 @@ function formatDate(d: Date | null): string {
 }
 
 export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanSectionProps) {
-  const [modalType, setModalType] = useState<'upgrade' | 'downgrade' | null>(null);
-
   const isUnlimited = !Number.isFinite(user.usageLimit);
   const ratio = isUnlimited
     ? 0
@@ -55,6 +50,9 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
       : ratio >= 0.8
         ? 'bg-amber-500'
         : 'bg-teal-500';
+
+  const hasSubscription =
+    user.plan === 'starter' || user.plan === 'pro' || user.plan === 'business';
 
   return (
     <section id="plan" className="scroll-mt-20">
@@ -76,15 +74,13 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
         </div>
 
         {/* プラン終了日（解約予約 / プラン切替予約時のみ表示） */}
-        {/* Phase A.12: planExpiresAt は cancel_at_period_end / schedule 予約時に
-            current_period_end が入る。active normal 時は plan-sync が NULL に維持。 */}
         {user.planExpiresAt && (
           <div className="flex items-start gap-3">
             <span className="text-sm text-slate-400 w-32">プラン終了予定</span>
             <div className="text-slate-200">
               <div>{formatDate(user.planExpiresAt)}</div>
               <div className="text-xs text-slate-500 mt-0.5">
-                この日まで {user.plan.toUpperCase()} を利用可。以降は Customer Portal の予約内容に従い切替されます。
+                この日まで {user.plan.toUpperCase()} を利用可。以降は予約内容に従い切替されます。
               </div>
             </div>
           </div>
@@ -119,35 +115,10 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
           )}
         </div>
 
-        {/* アップグレード/ダウングレードボタン */}
-        <div className="flex gap-3 pt-2">
-          <button
-            type="button"
-            onClick={() => setModalType('upgrade')}
-            className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-sm rounded transition"
-          >
-            アップグレード
-          </button>
-          <button
-            type="button"
-            onClick={() => setModalType('downgrade')}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm rounded transition"
-          >
-            ダウングレード
-          </button>
-        </div>
-
         {/* お支払い情報管理（有料プランのみ） */}
-        {(user.plan === 'starter' || user.plan === 'pro') && (
-          <div className="mt-3">
+        {hasSubscription && (
+          <div className="pt-1">
             <PortalButton />
-          </div>
-        )}
-
-        {/* ダウングレード（Pro のみ） */}
-        {user.plan === 'pro' && (
-          <div className="mt-2">
-            <DowngradeButton />
           </div>
         )}
 
@@ -167,20 +138,13 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
           />
         )}
 
-        {/* Phase A.17.0 W: Pro / Business プラン切替カード（常設・横並び） */}
-        <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Phase A.17.0 W: Starter / Pro / Business プラン切替カード（常設・3 列横並び） */}
+        <div className="pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <StarterPlanCard user={user} />
           <ProPlanCard user={user} />
           <BusinessPlanCard user={user} />
         </div>
       </div>
-
-      {modalType && (
-        <UpgradeModal
-          type={modalType}
-          onClose={() => setModalType(null)}
-          plan={user.plan}
-        />
-      )}
     </section>
   );
 }
