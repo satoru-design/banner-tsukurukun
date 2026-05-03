@@ -79,14 +79,14 @@ export function IroncladBriefForm({
   const handlePatternClick = (p: IroncladPattern) => {
     const isSelected = allSelectedPatterns.includes(p);
 
-    // Free: 単一選択モード → クリックされた pattern を代表に、追加は空に
+    // Free: 単一選択モード（複数選択を試みたら Pro 訴求モーダル）
     if (!isPaid) {
-      // 既選択 (= 代表) ならそのまま（最低 1 個必須）。違う pattern なら切替。
       if (p !== brief.pattern) {
+        // 「2 つ目を選ぼうとした」シグナルとして Pro 訴求モーダルを起動。
+        // 同時に代表 pattern も切替えておく（モーダル「あとで」でも操作が無駄にならないように）。
         onChangeBrief({ ...brief, pattern: p, additionalPatterns: [] });
+        setProLockOpen(true);
       }
-      // 2 個目を選ぼうとしたら Pro 訴求
-      // ただし Free は表示上常に additionalPatterns=[] なのでこの分岐は通常入らない
       return;
     }
 
@@ -268,7 +268,7 @@ export function IroncladBriefForm({
               className="text-[11px] font-normal text-amber-300 hover:text-amber-200 underline decoration-dotted inline-flex items-center gap-1"
             >
               <Sparkles className="w-3 h-3" />
-              Pro なら最大{MAX_TOTAL_PATTERNS}個まで複数選択可
+              Pro なら最大{MAX_TOTAL_PATTERNS}個まで同時に複数選択可
             </button>
           )}
         </label>
@@ -310,6 +310,7 @@ export function IroncladBriefForm({
         open={proLockOpen}
         onClose={() => setProLockOpen(false)}
         plan={user.plan}
+        maxPatterns={MAX_TOTAL_PATTERNS}
       />
 
       <div>
@@ -527,10 +528,12 @@ function ProFeatureLockModal({
   open,
   onClose,
   plan,
+  maxPatterns,
 }: {
   open: boolean;
   onClose: () => void;
   plan: string;
+  maxPatterns: number;
 }) {
   React.useEffect(() => {
     if (!open) return;
@@ -566,10 +569,10 @@ function ProFeatureLockModal({
         </h3>
         <p className="text-sm text-slate-400 mb-4">
           同じコピー・素材で「王道」「ラグジュアリー」など複数のスタイルを並列生成し、
-          ベストな1枚を見つける機能です。Pro プランでは最大 3 スタイル × 17 サイズまでまとめて生成できます。
+          ベストな1枚を見つける機能です。Pro プランでは最大 {maxPatterns} スタイル × 17 サイズまでまとめて生成できます。
         </p>
         <ul className="text-xs text-slate-300 space-y-1 mb-5 pl-4 list-disc">
-          <li>1 ブリーフから最大 3 スタイル並列生成</li>
+          <li>1 ブリーフから最大 {maxPatterns} スタイル並列生成</li>
           <li>スタイル別にまとめて表示・ダウンロード</li>
           <li>月 100 回まで定額、超過分は ¥80/回</li>
         </ul>
