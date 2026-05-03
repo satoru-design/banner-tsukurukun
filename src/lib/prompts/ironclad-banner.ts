@@ -6,7 +6,11 @@
  * - GPT2_PREFIX: 画像生成モデルに渡す直前の最重要ルール + 禁止事項
  * - buildFinalImagePrompt: 選択済み材料から 1 ショットで鉄板プロンプトを構築
  *   （オーケストレーターを介さずテキスト描画忠実度を最大化するパスも用意）
+ *
+ * Phase A.16: pattern 別の VISUAL_STYLE_HINTS を画像プロンプトに注入し、
+ * 同コピー・同素材で複数 pattern のスタイル違いを描き分けられるようにした。
  */
+import { VISUAL_STYLE_HINTS } from './visual-style-hints';
 
 export type IroncladPattern =
   | '王道'
@@ -506,6 +510,16 @@ export function buildFinalImagePrompt(m: IroncladMaterials): string {
   }
 
   lines.push(
+    '',
+    '## 🎨 ビジュアルスタイル指示（必ず厳守）',
+    `この広告は「${m.pattern}」スタイル。下記の視覚指示に従って描画すること。`,
+    '',
+    VISUAL_STYLE_HINTS[m.pattern],
+    '',
+    '## ⚠️ コピー固定の絶対ルール',
+    '上記「## コピー」セクションに記載されたコピー以外の文言を絶対に追加しないこと。',
+    '禁止される追加要素の例: 「実感の声、多数」「90 Capsules」「monitor satisfaction」「自社調べ」など',
+    'コピー文言は一字一句、上記指定の通りに描画する。',
     '',
     '## 出力',
     `${sizeCfg.aspectRatio} の広告バナー画像を1枚生成`,
