@@ -17,6 +17,7 @@ type IroncladStep = 1 | 2 | 3;
 
 const INITIAL_BRIEF: IroncladBrief = {
   pattern: '王道',
+  additionalPatterns: [],
   product: '',
   target: '',
   purpose: '',
@@ -45,10 +46,12 @@ export default function IroncladPage() {
   const [suggestionsSignature, setSuggestionsSignature] = useState<string>('');
   const [baseMaterials, setBaseMaterials] = useState<IroncladBaseMaterials | null>(null);
 
-  // ブリーフの中核項目（パターン・商材・ターゲット・目的）が変わったら、
+  // ブリーフの中核項目（商材・ターゲット・目的）が変わったら、
   // 前回のサジェストは文脈外になるため破棄して再生成させる。
   // 逆に STEP 3 ↔ STEP 2 の往復ではブリーフが変わらないので保持される。
-  const currentSignature = `${brief.pattern}|${brief.product}|${brief.target}|${brief.purpose}`;
+  // Phase A.16: pattern は visual-only に再定義したため signature から除外。
+  // 代表 pattern を変更しても STEP2 の suggestions は破棄されない。
+  const currentSignature = `${brief.product}|${brief.target}|${brief.purpose}`;
   useEffect(() => {
     if (suggestions && currentSignature !== suggestionsSignature) {
       setSuggestions(null);
@@ -93,6 +96,7 @@ export default function IroncladPage() {
         // brief を復元
         setBrief({
           pattern: briefSnapshot.pattern,
+          additionalPatterns: [], // 履歴復元では常に代表 pattern 1 個のみ（追加は再選択させる）
           product: briefSnapshot.product,
           target: briefSnapshot.target,
           purpose: briefSnapshot.purpose,
@@ -107,7 +111,7 @@ export default function IroncladPage() {
           caution: briefSnapshot.caution,
         });
         setSuggestionsSignature(
-          `${briefSnapshot.pattern}|${briefSnapshot.product}|${briefSnapshot.target}|${briefSnapshot.purpose}`,
+          `${briefSnapshot.product}|${briefSnapshot.target}|${briefSnapshot.purpose}`,
         );
         // useWinningRef も復元（snapshot に含まれている）
         if (typeof briefSnapshot.useWinningRef === 'boolean') {
@@ -222,6 +226,7 @@ export default function IroncladPage() {
         {step === 3 && baseMaterials && (
           <IroncladGenerateScreen
             baseMaterials={baseMaterials}
+            patterns={[brief.pattern, ...(brief.additionalPatterns ?? [])]}
             sizes={brief.sizes}
             onBack={() => setStep(2)}
           />
