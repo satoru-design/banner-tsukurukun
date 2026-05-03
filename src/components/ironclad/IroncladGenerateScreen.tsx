@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Download, Sparkles, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Download, Sparkles, AlertTriangle, Eye, EyeOff, Archive } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import JSZip from 'jszip';
 import type {
   IroncladBaseMaterials,
   IroncladMaterials,
@@ -15,6 +16,37 @@ import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
 import { isUsageLimitReached } from '@/lib/plans/usage-check';
 import { UsageLimitModal } from '@/components/layout/UsageLimitModal';
 import { PreviewBanner } from '@/components/ironclad/PreviewBanner';
+
+/**
+ * Phase A.17: ファイル名生成 helpers。
+ * 命名規則:
+ *   - 個別: `2026-05-04_10-30-45_王道_1080-1080.png`
+ *   - 一括: `2026-05-04_10-30-45_all.zip`
+ */
+function formatTimestamp(d: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`
+  );
+}
+
+/** size 文字列から `Width-Height` 形式を抽出。例: "Instagram (1080x1080)" → "1080-1080" */
+function extractSizeWH(size: string): string {
+  const m = size.match(/(\d+)\s*[xX×]\s*(\d+)/);
+  if (m) return `${m[1]}-${m[2]}`;
+  // フォールバック: 非英数を _ に
+  return size.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+function buildFileName(pattern: string, size: string, ts: string): string {
+  return `${ts}_${pattern}_${extractSizeWH(size)}.png`;
+}
+
+/** data:image/...;base64, プレフィックスを除去して純粋な base64 を返す */
+function stripBase64Prefix(dataUrl: string): string {
+  return dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
+}
 
 type Props = {
   baseMaterials: IroncladBaseMaterials;
@@ -34,6 +66,8 @@ type PatternSizeResult = {
   metadata?: Record<string, unknown>;
   // Phase A.14: Free 上限超過で透かし入りの場合 true
   isPreview?: boolean;
+  // Phase A.17: 一括 DL のチェック状態（生成成功時に true で初期化）
+  selected?: boolean;
 };
 
 export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack }: Props) {
@@ -124,6 +158,7 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
         promptPreview: json.promptPreview,
         metadata: json.metadata,
         isPreview: json.isPreview === true,
+        selected: true, // Phase A.17: 生成成功時に一括 DL 対象として ON
       });
 
       // Phase A.11.3: ヘッダーカウンタ即時反映（client-side session merge）
@@ -173,18 +208,63 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
       setUsageLimitModalOpen(true);
       return;
     }
+    // Phase A.17: 命名規則統一 → 2026-05-04_10-30-45_王道_1080-1080.png
     const link = document.createElement('a');
     link.href = imageUrl;
-    const ts = new Date().toISOString().replace(/[:.]/g, '-');
-    const safeName = (baseMaterials.product || 'banner')
-      .replace(/[^a-zA-Z0-9ぁ-んァ-ヶ一-龥]/g, '_')
-      .slice(0, 30);
-    const sizeTag = size.replace(/[^a-zA-Z0-9]/g, '_');
-    const patternTag = pattern.replace(/[^a-zA-Z0-9ぁ-んァ-ヶ一-龥]/g, '_');
-    link.download = `ironclad_${safeName}_${patternTag}_${sizeTag}_${ts}.png`;
+    link.download = buildFileName(pattern, size, formatTimestamp());
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Phase A.17: 個別カードのチェックボックス切替
+  const toggleSelected = (pattern: IroncladPattern, size: IroncladSize) => {
+    setResults((prev) =>
+      prev.map((r) =>
+        r.pattern === pattern && r.size === size ? { ...r, selected: !r.selected } : r,
+      ),
+    );
+  };
+
+  // Phase A.17: 一括 DL（jszip でクライアント側 ZIP 生成）
+  const [zippingProgress, setZippingProgress] = useState<{ current: number; total: number } | null>(
+    null,
+  );
+
+  const handleBatchDownload = async () => {
+    // Free が preview 入り画像を含む場合は DL モーダル
+    const targets = results.filter(
+      (r) => r.status === 'success' && r.imageUrl && r.selected !== false,
+    );
+    const previewBlocked = targets.some((r) => r.isPreview && user.plan === 'free');
+    if (previewBlocked) {
+      setUsageLimitModalOpen(true);
+      return;
+    }
+    if (targets.length === 0) return;
+
+    const ts = formatTimestamp();
+    const zip = new JSZip();
+    setZippingProgress({ current: 0, total: targets.length });
+
+    for (let i = 0; i < targets.length; i++) {
+      const r = targets[i];
+      const fileName = buildFileName(r.pattern, r.size, ts);
+      const base64 = stripBase64Prefix(r.imageUrl!);
+      zip.file(fileName, base64, { base64: true });
+      setZippingProgress({ current: i + 1, total: targets.length });
+    }
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${ts}_all.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setZippingProgress(null);
   };
 
   const completedCount = results.filter((r) => r.status === 'success').length;
@@ -192,6 +272,10 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
   const anyPromptPreview = results.find((r) => r.promptPreview)?.promptPreview;
   // Phase A.14: いずれかの結果が透かし入りなら訴求バナーを表示
   const anyPreview = results.some((r) => r.isPreview === true);
+  // Phase A.17: 一括 DL 候補（生成成功 + selected）
+  const selectedDownloadable = results.filter(
+    (r) => r.status === 'success' && r.imageUrl && r.selected !== false,
+  );
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -228,7 +312,7 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
         </div>
       )}
 
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center gap-3 flex-wrap">
         <button
           type="button"
           onClick={generateAll}
@@ -242,6 +326,21 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
               ? `すべて再生成（${totalCount}枚）`
               : `バナー生成開始（${totalCount}枚）`}
         </button>
+
+        {/* Phase A.17: 一括 DL ボタン（生成成功画像が 1 枚以上で表示） */}
+        {completedCount > 0 && (
+          <button
+            type="button"
+            onClick={handleBatchDownload}
+            disabled={selectedDownloadable.length === 0 || zippingProgress !== null}
+            className="flex items-center gap-2 px-6 py-4 rounded-xl text-white font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 disabled:opacity-40 shadow-xl transition"
+          >
+            <Archive className="w-5 h-5" />
+            {zippingProgress
+              ? `ZIP 作成中… ${zippingProgress.current}/${zippingProgress.total}`
+              : `選択中 ${selectedDownloadable.length}/${completedCount} 枚を一括DL`}
+          </button>
+        )}
       </div>
 
       {/* Phase A.16: スタイル別セクション */}
@@ -254,6 +353,7 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
           plan={user.plan}
           onRegenerate={(size) => generateOne(pattern, size)}
           onDownload={(url, size, isPreview) => handleDownload(url, pattern, size, isPreview)}
+          onToggleSelected={(size) => toggleSelected(pattern, size)}
         />
       ))}
 
@@ -296,6 +396,7 @@ function PatternSection({
   plan,
   onRegenerate,
   onDownload,
+  onToggleSelected,
 }: {
   pattern: IroncladPattern;
   results: PatternSizeResult[];
@@ -303,6 +404,7 @@ function PatternSection({
   plan: string;
   onRegenerate: (size: IroncladSize) => void;
   onDownload: (url: string, size: IroncladSize, isPreview: boolean) => void;
+  onToggleSelected: (size: IroncladSize) => void;
 }) {
   const successCount = results.filter((r) => r.status === 'success').length;
   return (
@@ -321,7 +423,19 @@ function PatternSection({
             className="border border-slate-700 rounded-lg p-3 bg-slate-900/50 space-y-2"
           >
             <div className="flex items-center justify-between">
-              <div className="text-xs font-bold text-slate-200">{r.size}</div>
+              <div className="flex items-center gap-2">
+                {/* Phase A.17: 一括 DL チェックボックス（生成成功時のみ表示） */}
+                {r.status === 'success' && r.imageUrl && (
+                  <input
+                    type="checkbox"
+                    checked={r.selected !== false}
+                    onChange={() => onToggleSelected(r.size)}
+                    className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                    title="一括DLに含める"
+                  />
+                )}
+                <div className="text-xs font-bold text-slate-200">{r.size}</div>
+              </div>
               <StatusBadge status={r.status} />
             </div>
             <div className="min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
