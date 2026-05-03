@@ -8,7 +8,7 @@ import { generateWithFallback } from '@/lib/image-providers';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { incrementUsage } from '@/lib/plans/usage';
 import { isUsageLimitReached, effectiveUsageCount } from '@/lib/plans/usage-check';
-import { USAGE_LIMIT_FREE, USAGE_LIMIT_PRO, getHardcap } from '@/lib/plans/limits';
+import { USAGE_LIMIT_FREE, USAGE_LIMIT_PRO, USAGE_LIMIT_BUSINESS, getHardcap } from '@/lib/plans/limits';
 import { getPrisma } from '@/lib/prisma';
 import {
   buildBriefSnapshot,
@@ -238,6 +238,19 @@ export async function POST(req: Request) {
           newUsageCount > USAGE_LIMIT_PRO
         ) {
           await sendMeteredUsage(updatedStripeCustomerId, generation.id);
+        }
+        // Phase A.17.0: Business 上限超過なら meterEvents 送信（同 meter / 単価は Stripe Price で決まる）
+        if (
+          updatedPlan === 'business' &&
+          updatedStripeCustomerId &&
+          typeof newUsageCount === 'number' &&
+          newUsageCount > USAGE_LIMIT_BUSINESS
+        ) {
+          try {
+            await sendMeteredUsage(updatedStripeCustomerId, generation.id);
+          } catch (e) {
+            console.error('[ironclad-generate] meterEvents failed (business):', e);
+          }
         }
       } catch (err) {
         // 履歴保存失敗はベストエフォート（生成自体は成功扱いを維持）
