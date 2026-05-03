@@ -69,6 +69,15 @@ export function IroncladBriefForm({
   const additionalPatterns = brief.additionalPatterns ?? [];
 
   const toggleAdditionalPattern = (p: IroncladPattern) => {
+    // eslint-disable-next-line no-console
+    console.log('[multi-style] toggle clicked:', {
+      target: p,
+      current: additionalPatterns,
+      length: additionalPatterns.length,
+      max: MAX_ADDITIONAL_PATTERNS,
+      isPaid,
+      plan: user.plan,
+    });
     if (additionalPatterns.includes(p)) {
       onChangeBrief({
         ...brief,
