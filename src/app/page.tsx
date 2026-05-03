@@ -17,6 +17,7 @@ type IroncladStep = 1 | 2 | 3;
 
 const INITIAL_BRIEF: IroncladBrief = {
   pattern: '王道',
+  additionalPatterns: [],
   product: '',
   target: '',
   purpose: '',
@@ -93,6 +94,7 @@ export default function IroncladPage() {
         // brief を復元
         setBrief({
           pattern: briefSnapshot.pattern,
+          additionalPatterns: [], // 履歴復元では常に代表 pattern 1 個のみ（追加は再選択させる）
           product: briefSnapshot.product,
           target: briefSnapshot.target,
           purpose: briefSnapshot.purpose,

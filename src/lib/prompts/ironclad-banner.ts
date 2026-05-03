@@ -118,7 +118,13 @@ export function getIroncladSizeMeta(s: IroncladSize): {
  * sizes は複数選択可。同じ材料で統一感のある複数サイズを一括生成する。
  */
 export interface IroncladBrief {
+  /** 代表 pattern（STEP2 suggest はこの 1 個で呼ぶ） */
   pattern: IroncladPattern;
+  /**
+   * Phase A.16: 追加スタイル（最大 2 個）。Free は常に空配列、Pro/Starter のみ最大 2 個まで設定可能。
+   * STEP3 では [pattern, ...additionalPatterns] の順に直列生成する。
+   */
+  additionalPatterns: IroncladPattern[];
   product: string;
   target: string;
   purpose: string;
