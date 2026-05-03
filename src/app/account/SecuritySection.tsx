@@ -53,16 +53,22 @@ export function SecuritySection({ user }: SecuritySectionProps) {
           </button>
         </div>
 
-        {/* 退会（subscription cancel at period end）*/}
-        {hasSubscription && (
+        {/* 退会（subscription cancel at period end）
+            free は表示しない。admin は表示するが API 失敗で 400 が返るためボタン disabled。 */}
+        {user.plan !== 'free' && (
           <div>
-            <div className="text-sm text-slate-300 mb-2">退会</div>
+            <div className="text-sm text-slate-300 mb-2">
+              退会
+              {user.plan === 'admin' && (
+                <span className="ml-2 text-xs text-slate-500">（admin プレビュー）</span>
+              )}
+            </div>
             <ul className="text-xs text-slate-500 mb-3 space-y-1 list-disc list-inside">
               <li>本サービスの退会とプランの解除を行います</li>
               <li>翌月からの課金は発生しません</li>
               <li>今月末まで現プランをご利用いただけます</li>
             </ul>
-            <UnsubscribeButton hasSubscription={hasSubscription} />
+            <UnsubscribeButton hasSubscription={hasSubscription} adminPreview={user.plan === 'admin'} />
           </div>
         )}
 

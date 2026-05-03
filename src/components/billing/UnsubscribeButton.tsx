@@ -12,12 +12,29 @@ import { LogOut } from 'lucide-react';
 
 interface Props {
   hasSubscription: boolean;
+  /** admin の場合は表示するが押下不可（subscription を持たないため） */
+  adminPreview?: boolean;
 }
 
-export function UnsubscribeButton({ hasSubscription }: Props) {
+export function UnsubscribeButton({ hasSubscription, adminPreview = false }: Props) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ cancelAt: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // admin プレビュー: ボタンは見えるが押下不可
+  if (adminPreview) {
+    return (
+      <button
+        type="button"
+        disabled
+        title="admin はサブスクリプションを持たないため動作しません"
+        className="inline-flex items-center gap-2 px-4 py-2 bg-amber-700/40 text-amber-200/70 text-sm rounded cursor-not-allowed"
+      >
+        <LogOut className="w-4 h-4" />
+        退会する（admin は対象外）
+      </button>
+    );
+  }
 
   if (!hasSubscription) return null;
 
