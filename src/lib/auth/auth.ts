@@ -112,16 +112,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       // Phase A.16: 新規ユーザーのみ CompleteRegistration を CAPI で送信
-      // admin もテスト時に発火するが、event_id で dedup されるので問題なし
-      // fire-and-forget（CAPI 失敗で signIn を止めない）
+      // 注意: Vercel serverless はレスポンス直後に terminate されるため、
+      // fire-and-forget だと fetch が送信前にキルされる。
+      // await で明示的に完了を待つ（signIn 体験に +300-500ms のコストはあるが許容）。
       if (isNewUser) {
-        sendMetaCompleteRegistrationEvent({
-          email: user.email,
-          externalId: user.id ?? undefined,
-          eventId: `cr_${user.id ?? user.email}_${Date.now()}`,
-        }).catch((e) => {
+        try {
+          await sendMetaCompleteRegistrationEvent({
+            email: user.email,
+            externalId: user.id ?? undefined,
+            eventId: `cr_${user.id ?? user.email}_${Date.now()}`,
+          });
+        } catch (e) {
+          // CAPI 失敗で signIn 自体は止めない
           console.error('[auth] CompleteRegistration CAPI failed (non-fatal):', e);
-        });
+        }
       }
     },
   },
