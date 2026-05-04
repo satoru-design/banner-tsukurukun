@@ -288,7 +288,6 @@ function DeeperDowngradeLinks({
 
   return (
     <div className="mt-4 pt-4 border-t border-slate-800">
-      <p className="text-xs text-slate-500 mb-2">他の選択肢:</p>
       <div className="flex flex-col gap-2">
         {deeperTargets.map((target) => (
           <DeeperDowngradeLink key={target} currentPlan={currentPlan} target={target} />
@@ -315,9 +314,9 @@ function DeeperDowngradeLink({ currentPlan, target }: { currentPlan: Plan; targe
     const label =
       target === 'free'
         ? `Free プランにダウングレード（= 退会）します。\n` +
-          `・本サービスの退会とプランの解除を行います\n` +
-          `・翌月からの課金は発生しません\n` +
-          `・今月末まで現プランをご利用いただけます\n\nよろしいですか？`
+          `・本サービスの退会とプランの解除を行います。\n` +
+          `・翌月からの課金は発生しません。\n` +
+          `・今月末まで現プランをご利用いただけます。\n\nよろしいですか？`
         : `${TARGET_LABEL[target]}します。\n期末から切り替わります。よろしいですか？`;
     if (!confirm(label)) return;
 

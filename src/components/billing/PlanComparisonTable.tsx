@@ -291,7 +291,7 @@ export function PlanComparisonTable({ user }: Props) {
       <p className="mt-6 text-xs text-slate-500 text-center">
         💡 月 3,000 枚を超える運用・年契約・SLA・専任サポートをご希望なら{' '}
         <a href="/lp01#contact" className="underline hover:text-slate-300">
-          Plan C のお問い合わせへ
+          Plan C のお問い合わせへ。
         </a>
       </p>
     </div>

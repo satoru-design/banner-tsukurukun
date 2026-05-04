@@ -41,7 +41,7 @@ export function SecuritySection({ user }: SecuritySectionProps) {
         <div>
           <div className="text-sm text-slate-300 mb-2">サインアウト</div>
           <div className="text-xs text-slate-500 mb-3">
-            すべてのデバイスからサインアウトします
+            すべてのデバイスからサインアウトします。
           </div>
           <button
             type="button"
@@ -64,9 +64,9 @@ export function SecuritySection({ user }: SecuritySectionProps) {
               )}
             </div>
             <ul className="text-xs text-slate-500 mb-3 space-y-1 list-disc list-inside">
-              <li>本サービスの退会とプランの解除を行います</li>
-              <li>翌月からの課金は発生しません</li>
-              <li>今月末まで現プランをご利用いただけます</li>
+              <li>本サービスの退会とプランの解除を行います。</li>
+              <li>翌月からの課金は発生しません。</li>
+              <li>今月末まで現プランをご利用いただけます。</li>
             </ul>
             <UnsubscribeButton hasSubscription={hasSubscription} adminPreview={user.plan === 'admin'} />
           </div>
@@ -76,7 +76,7 @@ export function SecuritySection({ user }: SecuritySectionProps) {
         <div>
           <div className="text-sm text-slate-300 mb-2">アカウント削除依頼</div>
           <div className="text-xs text-slate-500 mb-3">
-            アカウント情報と素材を削除する場合は運営にメールでご連絡ください
+            アカウント情報と素材を削除する場合は運営にメールでご連絡ください。
           </div>
           <a
             href={mailtoHref}

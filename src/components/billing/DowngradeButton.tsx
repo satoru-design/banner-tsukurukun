@@ -60,7 +60,7 @@ export const DowngradeButton = ({ targetPlan, label, confirmMessage }: Props = {
   if (done) {
     return (
       <p className="text-sm text-emerald-400">
-        ✓ {new Date(done.scheduledFor).toLocaleDateString('ja-JP')} から {targetLabel} に切り替わります
+        ✓ {new Date(done.scheduledFor).toLocaleDateString('ja-JP')} から {targetLabel} に切り替わります。
       </p>
     );
   }

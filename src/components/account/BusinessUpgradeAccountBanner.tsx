@@ -61,7 +61,7 @@ export function BusinessUpgradeAccountBanner({ notice, upgradeNoticeShownAt }: P
         <span className="text-2xl">📊</span>
         <div className="flex-1">
           <h4 className="font-semibold text-amber-300 mb-1">
-            あなたは Business プラン向きかもしれません
+            あなたは Business プラン向きかもしれません。
           </h4>
           <p className="text-sm text-slate-300 mb-2">
             過去 {invoiceCount} ヶ月の Pro メータード超過: 平均

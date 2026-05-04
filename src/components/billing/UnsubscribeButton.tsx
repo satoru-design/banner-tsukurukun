@@ -46,9 +46,9 @@ export function UnsubscribeButton({ hasSubscription, adminPreview = false }: Pro
     if (
       !confirm(
         '退会します。\n\n' +
-          '・本サービスの退会とプランの解除を行います\n' +
-          '・翌月からの課金は発生しません\n' +
-          '・今月末まで現プランを利用いただけます\n\n' +
+          '・本サービスの退会とプランの解除を行います。\n' +
+          '・翌月からの課金は発生しません。\n' +
+          '・今月末まで現プランを利用いただけます。\n\n' +
           'よろしいですか？',
       )
     )
