@@ -13,11 +13,15 @@ const PLAN_STYLES: Record<string, { label: string; className: string }> = {
   },
   starter: {
     label: 'Starter',
-    className: 'bg-teal-600 text-white',
+    className: 'bg-sky-500 text-white',
   },
   pro: {
     label: 'Pro',
-    className: 'bg-amber-500 text-amber-950',
+    className: 'bg-teal-500 text-white',
+  },
+  business: {
+    label: 'Business',
+    className: 'bg-emerald-500 text-white',
   },
   admin: {
     label: 'Admin',

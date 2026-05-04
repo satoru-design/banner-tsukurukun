@@ -35,6 +35,18 @@ function formatDate(d: Date | null): string {
   });
 }
 
+/** Phase A.17.0: 利用開始日時を yyyy/mm/dd_hh/mm/ss 形式で表示 */
+function formatDateTime(d: Date | null): string {
+  if (!d) return '-';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  // ja-JP timezone (Asia/Tokyo) で表示
+  const jst = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+  return (
+    `${jst.getFullYear()}/${pad(jst.getMonth() + 1)}/${pad(jst.getDate())}` +
+    `_${pad(jst.getHours())}/${pad(jst.getMinutes())}/${pad(jst.getSeconds())}`
+  );
+}
+
 export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanSectionProps) {
   const isUnlimited = !Number.isFinite(user.usageLimit);
   const ratio = isUnlimited
@@ -69,10 +81,10 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
           />
         </div>
 
-        {/* 利用開始日 */}
+        {/* 利用開始日時（yyyy/mm/dd_hh/mm/ss）*/}
         <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-400 w-32">利用開始日</span>
-          <span className="text-slate-200">{formatDate(user.planStartedAt)}</span>
+          <span className="text-sm text-slate-400 w-32">利用開始日時</span>
+          <span className="text-slate-200 font-mono text-sm">{formatDateTime(user.planStartedAt)}</span>
         </div>
 
         {/* プラン終了日（解約予約 / プラン切替予約時のみ表示） */}
