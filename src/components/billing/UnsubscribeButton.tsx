@@ -14,9 +14,11 @@ interface Props {
   hasSubscription: boolean;
   /** admin の場合は表示するが押下不可（subscription を持たないため） */
   adminPreview?: boolean;
+  /** 退会予約済みの場合の期末日。set 済なら disabled で表示。 */
+  cancelScheduledAt?: Date | null;
 }
 
-export function UnsubscribeButton({ hasSubscription, adminPreview = false }: Props) {
+export function UnsubscribeButton({ hasSubscription, adminPreview = false, cancelScheduledAt }: Props) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<{ cancelAt: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,13 +36,33 @@ export function UnsubscribeButton({ hasSubscription, adminPreview = false }: Pro
           退会する
         </button>
         <p className="text-xs text-slate-500 mt-2">
-          ※ admin アカウントはサブスクリプションを持たないため、このボタンは動作しません（顧客と同じ画面構成を確認するための表示です）
+          ※ admin アカウントはサブスクリプションを持たないため、このボタンは動作しません（顧客と同じ画面構成を確認するための表示です）。
         </p>
       </div>
     );
   }
 
   if (!hasSubscription) return null;
+
+  // 退会予約済み: 永続表示用（done state はクライアント揮発のため、サーバー側 cancelScheduledAt がソース）
+  if (cancelScheduledAt && !done) {
+    const dateLabel = cancelScheduledAt.toLocaleDateString('ja-JP');
+    return (
+      <div>
+        <button
+          type="button"
+          disabled
+          className="inline-flex items-center gap-2 px-4 py-2 bg-slate-700/40 text-slate-400 text-sm rounded cursor-not-allowed"
+        >
+          <LogOut className="w-4 h-4" />
+          {dateLabel} 退会予定
+        </button>
+        <p className="text-xs text-emerald-400 mt-2">
+          ✓ 退会予約済みです。{dateLabel} まで現プランをご利用いただけます。
+        </p>
+      </div>
+    );
+  }
 
   const handleClick = async () => {
     if (

@@ -16,9 +16,11 @@ import type { CurrentUser } from '@/lib/auth/get-current-user';
 
 interface SecuritySectionProps {
   user: CurrentUser;
+  /** Phase A.17.0: 退会予約済の場合の期末日（サーバー側で Stripe から取得） */
+  cancelScheduledAt?: Date | null;
 }
 
-export function SecuritySection({ user }: SecuritySectionProps) {
+export function SecuritySection({ user, cancelScheduledAt }: SecuritySectionProps) {
   const hasSubscription =
     user.plan === 'starter' || user.plan === 'pro' || user.plan === 'business';
   // mailto link 構築
@@ -68,7 +70,11 @@ export function SecuritySection({ user }: SecuritySectionProps) {
               <li>翌月からの課金は発生しません。</li>
               <li>今月末まで現プランをご利用いただけます。</li>
             </ul>
-            <UnsubscribeButton hasSubscription={hasSubscription} adminPreview={user.plan === 'admin'} />
+            <UnsubscribeButton
+              hasSubscription={hasSubscription}
+              adminPreview={user.plan === 'admin'}
+              cancelScheduledAt={cancelScheduledAt}
+            />
           </div>
         )}
 

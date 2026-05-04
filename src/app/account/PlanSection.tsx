@@ -24,6 +24,10 @@ interface PlanSectionProps {
     createdAt: Date;
   } | null;
   upgradeNoticeShownAt?: Date | null;
+  /** Phase A.17.0: 退会予約済の期末日（サーバー側で Stripe から取得） */
+  cancelScheduledAt?: Date | null;
+  /** Phase A.17.0: ダウングレード予約済か（subscription.schedule） */
+  downgradeScheduled?: boolean;
 }
 
 function formatDate(d: Date | null): string {
@@ -47,7 +51,15 @@ function formatDateTime(d: Date | null): string {
   );
 }
 
-export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanSectionProps) {
+export function PlanSection({
+  user,
+  upgradeNotice,
+  upgradeNoticeShownAt,
+  cancelScheduledAt,
+  downgradeScheduled,
+}: PlanSectionProps) {
+  const isCancelScheduled = !!cancelScheduledAt;
+  const hasPendingChange = isCancelScheduled || !!downgradeScheduled;
   const isUnlimited = !Number.isFinite(user.usageLimit);
   const ratio = isUnlimited
     ? 0
@@ -76,9 +88,12 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-sm text-slate-400 w-32">現在のプラン</span>
           <PlanPill plan={user.plan} size="sm" />
-          <DowngradeProposalButton
-            currentPlan={user.plan as 'free' | 'starter' | 'pro' | 'business' | 'admin'}
-          />
+          {/* 退会予約済 / ダウングレード予約済の場合は新たな ダウングレード ボタン非表示 */}
+          {!hasPendingChange && (
+            <DowngradeProposalButton
+              currentPlan={user.plan as 'free' | 'starter' | 'pro' | 'business' | 'admin'}
+            />
+          )}
         </div>
 
         {/* 利用開始日時（yyyy/mm/dd_hh/mm/ss）*/}
@@ -94,7 +109,9 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
             <div className="text-slate-200">
               <div>{formatDate(user.planExpiresAt)}</div>
               <div className="text-xs text-slate-500 mt-0.5">
-                この日まで {user.plan.toUpperCase()} を利用可。以降は予約内容に従い切替されます。
+                {isCancelScheduled
+                  ? `この日まで ${user.plan.toUpperCase()} を利用可。以降は Free に降格します（退会予約済み）。`
+                  : `この日まで ${user.plan.toUpperCase()} を利用可。以降は予約内容に従い切替されます。`}
               </div>
             </div>
           </div>
@@ -154,7 +171,7 @@ export function PlanSection({ user, upgradeNotice, upgradeNoticeShownAt }: PlanS
 
         {/* Phase A.17.0: 3 プラン比較テーブル（freee 会計式・現プラン列ハイライト） */}
         <div className="pt-4">
-          <PlanComparisonTable user={user} />
+          <PlanComparisonTable user={user} hasPendingChange={hasPendingChange} />
         </div>
       </div>
     </section>

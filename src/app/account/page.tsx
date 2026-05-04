@@ -18,6 +18,7 @@ import { Header } from '@/components/layout/Header';
 import { getCurrentUser, type CurrentUser } from '@/lib/auth/get-current-user';
 import { getPrisma } from '@/lib/prisma';
 import { getUsageLimit } from '@/lib/plans/limits';
+import { isStripeEnabled, getStripeClient } from '@/lib/billing/stripe-client';
 import { ProfileSection } from './ProfileSection';
 import { PlanSection } from './PlanSection';
 import { HistorySection } from './HistorySection';
@@ -71,9 +72,34 @@ export default async function AccountPage() {
     }),
     prisma.user.findUnique({
       where: { id: user.userId! },
-      select: { upgradeNoticeShownAt: true },
+      select: { upgradeNoticeShownAt: true, stripeSubscriptionId: true },
     }),
   ]);
+
+  // Phase A.17.0: Stripe から退会・プラン変更予約状態を取得
+  // - cancelScheduledAt: 退会予約あり（cancel_at_period_end / cancel_at）
+  // - downgradeScheduled: プラン変更予約あり（subscription.schedule）
+  let cancelScheduledAt: Date | null = null;
+  let downgradeScheduled = false;
+  if (isStripeEnabled() && freshUser?.stripeSubscriptionId) {
+    try {
+      const stripe = getStripeClient();
+      const sub = await stripe.subscriptions.retrieve(freshUser.stripeSubscriptionId);
+      if (sub.cancel_at_period_end || sub.cancel_at) {
+        const ts =
+          sub.cancel_at ??
+          sub.items.data.find((i) => i.price.recurring?.usage_type === 'licensed')
+            ?.current_period_end ??
+          null;
+        if (ts) cancelScheduledAt = new Date(ts * 1000);
+      }
+      if (sub.schedule) {
+        downgradeScheduled = true;
+      }
+    } catch (e) {
+      console.error('[account] stripe subscription fetch failed:', e);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
@@ -99,9 +125,11 @@ export default async function AccountPage() {
               : null
           }
           upgradeNoticeShownAt={freshUser?.upgradeNoticeShownAt ?? null}
+          cancelScheduledAt={cancelScheduledAt}
+          downgradeScheduled={downgradeScheduled}
         />
         <HistorySection userId={user.userId!} plan={user.plan} />
-        <SecuritySection user={user} />
+        <SecuritySection user={user} cancelScheduledAt={cancelScheduledAt} />
       </main>
     </div>
   );

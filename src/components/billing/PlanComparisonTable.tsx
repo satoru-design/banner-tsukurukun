@@ -117,9 +117,11 @@ const COLOR = {
 
 interface Props {
   user: CurrentUser;
+  /** Phase A.17.0: 退会 or ダウングレード予約済の場合、CTA をすべて disabled 化 */
+  hasPendingChange?: boolean;
 }
 
-export function PlanComparisonTable({ user }: Props) {
+export function PlanComparisonTable({ user, hasPendingChange = false }: Props) {
   // env から取得した priceId map（NEXT_PUBLIC_ なのでブラウザ側からも参照可）
   const priceIds: Record<PlanKey, string | undefined> = {
     starter: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER,
@@ -138,6 +140,15 @@ export function PlanComparisonTable({ user }: Props) {
       return (
         <div className="text-center text-sm font-bold text-white py-3">
           利用中
+        </div>
+      );
+    }
+
+    // Phase A.17.0: 退会 or プラン変更予約済の場合は他プラン CTA を disabled
+    if (hasPendingChange) {
+      return (
+        <div className="text-center text-xs text-slate-500 py-3">
+          予約期間中は変更不可
         </div>
       );
     }
