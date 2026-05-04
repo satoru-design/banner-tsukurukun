@@ -21,18 +21,22 @@ export function UnsubscribeButton({ hasSubscription, adminPreview = false }: Pro
   const [done, setDone] = useState<{ cancelAt: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // admin プレビュー: ボタンは見えるが押下不可
+  // admin プレビュー: ボタンは表示するが押下不可。注釈は admin にのみ別途表示。
   if (adminPreview) {
     return (
-      <button
-        type="button"
-        disabled
-        title="admin はサブスクリプションを持たないため動作しません"
-        className="inline-flex items-center gap-2 px-4 py-2 bg-amber-700/40 text-amber-200/70 text-sm rounded cursor-not-allowed"
-      >
-        <LogOut className="w-4 h-4" />
-        退会する（admin は対象外）
-      </button>
+      <div>
+        <button
+          type="button"
+          disabled
+          className="inline-flex items-center gap-2 px-4 py-2 bg-amber-700/40 text-amber-200/70 text-sm rounded cursor-not-allowed"
+        >
+          <LogOut className="w-4 h-4" />
+          退会する
+        </button>
+        <p className="text-xs text-slate-500 mt-2">
+          ※ admin アカウントはサブスクリプションを持たないため、このボタンは動作しません（顧客と同じ画面構成を確認するための表示です）
+        </p>
+      </div>
     );
   }
 
