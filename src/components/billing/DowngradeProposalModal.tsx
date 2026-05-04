@@ -256,8 +256,117 @@ export function DowngradeProposalModal({ currentPlan, onClose }: Props) {
           >
             キャンセル（このまま {info.name} を継続）
           </button>
+
+          {/* Phase A.17.0: 「一応」用意する 2 つ下・3 つ下のダウングレード導線 */}
+          <DeeperDowngradeLinks currentPlan={currentPlan} oneStepDown={destination} />
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * 二つ下以下のプランへのダウングレード導線。
+ * 「本来は一つ下を提案、しかし他選択肢も一応設置」という設計意図。
+ */
+function DeeperDowngradeLinks({
+  currentPlan,
+  oneStepDown,
+}: {
+  currentPlan: Plan;
+  oneStepDown: Plan;
+}) {
+  const PLAN_RANK: Record<Plan, number> = { admin: 4, business: 3, pro: 2, starter: 1, free: 0 };
+  const currentRank = PLAN_RANK[currentPlan];
+
+  // 現在より下位 + oneStepDown 以外の plan を抽出（rank 降順 = 近い順）
+  const deeperTargets: Plan[] = (['business', 'pro', 'starter', 'free'] as Plan[])
+    .filter((p) => PLAN_RANK[p] < currentRank && p !== oneStepDown)
+    .sort((a, b) => PLAN_RANK[b] - PLAN_RANK[a]);
+
+  if (deeperTargets.length === 0) return null;
+
+  return (
+    <div className="mt-4 pt-4 border-t border-slate-800">
+      <p className="text-xs text-slate-500 mb-2">他の選択肢:</p>
+      <div className="flex flex-col gap-2">
+        {deeperTargets.map((target) => (
+          <DeeperDowngradeLink key={target} currentPlan={currentPlan} target={target} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const TARGET_LABEL: Record<Plan, string> = {
+  starter: 'Starter プランにダウングレード',
+  pro: 'Pro プランにダウングレード',
+  business: 'Business プランにダウングレード',
+  free: 'Free プランにダウングレード（退会）',
+  admin: '',
+};
+
+function DeeperDowngradeLink({ currentPlan, target }: { currentPlan: Plan; target: Plan }) {
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleClick = async () => {
+    const label =
+      target === 'free'
+        ? `Free プランにダウングレード（= 退会）します。\n` +
+          `・本サービスの退会とプランの解除を行います\n` +
+          `・翌月からの課金は発生しません\n` +
+          `・今月末まで現プランをご利用いただけます\n\nよろしいですか？`
+        : `${TARGET_LABEL[target]}します。\n期末から切り替わります。よろしいですか？`;
+    if (!confirm(label)) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const endpoint = target === 'free' ? '/api/billing/cancel' : '/api/billing/downgrade';
+      const body = target === 'free' ? undefined : JSON.stringify({ targetPlan: target });
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body,
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error ?? `HTTP ${res.status}`);
+      }
+      const json = await res.json();
+      const dateLabel =
+        json.scheduledFor || json.cancelAt
+          ? new Date(json.scheduledFor || json.cancelAt).toLocaleDateString('ja-JP')
+          : '今月末';
+      setDone(
+        target === 'free'
+          ? `✓ 退会を受け付けました。${dateLabel} まで現プランをご利用いただけます。`
+          : `✓ ${dateLabel} から ${TARGET_LABEL[target].replace('にダウングレード', '')} に切り替わります。`,
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'エラーが発生しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (done) {
+    return <p className="text-xs text-emerald-400">{done}</p>;
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={loading}
+        className="w-full text-left text-xs text-slate-400 hover:text-slate-200 underline disabled:opacity-50"
+      >
+        {loading ? '処理中...' : `↓ ${TARGET_LABEL[target]}`}
+      </button>
+      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
     </div>
   );
 }
