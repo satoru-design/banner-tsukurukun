@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { getPrisma } from '@/lib/prisma';
 import { authConfig } from './auth.config';
+import { sendMetaCompleteRegistrationEvent } from '@/lib/billing/meta-capi';
 
 const prisma = getPrisma();
 
@@ -91,8 +92,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     /**
      * 初回サインイン時 (User row 作成直後) に admin 自動昇格。
      * ADMIN_EMAILS env のリストに該当するメアドを admin に。
+     *
+     * Phase A.16: 初回サインイン (isNewUser=true) のみ Meta CAPI に
+     * CompleteRegistration イベント送信。広告最適化シグナル蓄積用。
      */
-    async signIn({ user }) {
+    async signIn({ user, isNewUser }) {
       if (!user.email) return;
       const adminEmails = (process.env.ADMIN_EMAILS ?? '')
         .split(',')
@@ -104,6 +108,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         await prisma.user.update({
           where: { email: user.email },
           data: { plan: 'admin' },
+        });
+      }
+
+      // Phase A.16: 新規ユーザーのみ CompleteRegistration を CAPI で送信
+      // admin もテスト時に発火するが、event_id で dedup されるので問題なし
+      // fire-and-forget（CAPI 失敗で signIn を止めない）
+      if (isNewUser) {
+        sendMetaCompleteRegistrationEvent({
+          email: user.email,
+          externalId: user.id ?? undefined,
+          eventId: `cr_${user.id ?? user.email}_${Date.now()}`,
+        }).catch((e) => {
+          console.error('[auth] CompleteRegistration CAPI failed (non-fatal):', e);
         });
       }
     },
