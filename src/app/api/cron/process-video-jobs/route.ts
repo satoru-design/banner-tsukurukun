@@ -1,25 +1,19 @@
 /**
- * Phase B.1 Day 4: 動画ジョブ非同期ワーカー (Vercel Cron 駆動)
+ * Phase B.1: 動画ジョブワーカー (Vercel Cron 駆動、毎分起動)
  *
- * 1分ごとに起動して、各実行で:
- *   1. 'pending' を1件 → provider.start() を呼んで 'processing' へ
- *   2. 'processing' を1件 → provider.pollStatus() を呼んで完了確認
- *      - done: download → Vercel Blob upload → 'done' へ
- *      - failed: 'failed' へ
- *      - processing: そのまま (次の cron run でまたチェック)
+ * 各実行で 'pending' を1件 atomic claim → provider.run() で
+ * start + poll + download まで完結 → Vercel Blob upload → status='done'。
  *
- * 各 cron run の maxDuration は300秒。1ジョブあたりの処理は最大1〜2分なので
- * 2件処理しても十分間に合う。
+ * SDK の getVideosOperation は元の Operation インスタンスを必要とするため、
+ * cron 跨ぎで start/poll を分けると "_fromAPIResponse is not a function"
+ * になる。1関数呼び出し内で完結させるのが正解。
  *
- * 同時実行ロックは UPDATE ... WHERE status='pending' RETURNING id で実現。
+ * Vercel maxDuration=300秒。Veo Lite 8s で約60-90秒なので余裕あり。
  */
 
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
-import {
-  getVideoProvider,
-  VideoProviderId,
-} from '@/lib/video-providers';
+import { getVideoProvider, VideoProviderId } from '@/lib/video-providers';
 import { uploadGenerationVideo } from '@/lib/generations/video-blob-client';
 
 export const runtime = 'nodejs';
@@ -27,9 +21,7 @@ export const maxDuration = 300;
 
 /**
  * 'pending' を1件 atomically claim して 'processing' に遷移させる。
- * 同時実行で同じ行を取らないよう、Postgres の UPDATE ... LIMIT 1 を使用。
- *
- * Prisma は LIMIT 付き UPDATE を直接サポートしないので $queryRaw で実装。
+ * 同時実行で同じ行を取らないよう FOR UPDATE SKIP LOCKED を使用。
  */
 async function claimPendingJob(): Promise<{ id: string } | null> {
   const prisma = getPrisma();
@@ -48,7 +40,7 @@ async function claimPendingJob(): Promise<{ id: string } | null> {
   return rows[0] ?? null;
 }
 
-async function processPending(): Promise<{ jobId: string; status: string } | null> {
+async function processOneJob(): Promise<{ jobId: string; status: string } | null> {
   const claimed = await claimPendingJob();
   if (!claimed) return null;
 
@@ -61,7 +53,7 @@ async function processPending(): Promise<{ jobId: string; status: string } | nul
 
   try {
     const provider = getVideoProvider(job.provider as VideoProviderId);
-    const start = await provider.start({
+    const result = await provider.run({
       prompt: job.prompt,
       inputImageUrl: job.inputImageUrl ?? undefined,
       aspectRatio: job.aspectRatio as '9:16' | '16:9' | '1:1',
@@ -70,98 +62,34 @@ async function processPending(): Promise<{ jobId: string; status: string } | nul
       trackingId: job.id,
     });
 
-    const mergedMetadata: Record<string, unknown> = {
-      ...((job.providerMetadata as Record<string, unknown> | null) ?? {}),
-      ...(start.providerMetadata ?? {}),
-    };
-    await prisma.generationVideo.update({
-      where: { id: job.id },
-      data: {
-        vertexOperationId: start.operationId,
-        providerMetadata: mergedMetadata as Parameters<typeof prisma.generationVideo.update>[0]['data']['providerMetadata'],
-      },
-    });
-
-    return { jobId: job.id, status: 'processing' };
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    const stack = e instanceof Error ? e.stack : undefined;
-    const cause = e instanceof Error && 'cause' in e ? String((e as Error & { cause?: unknown }).cause) : undefined;
-    // 元の error message に binary が混じると DB クエリで切れるので encodeURIComponent で safe 化してメタに格納
-    console.error('[process-video-jobs] start failed:', job.id, message, stack);
-    await prisma.generationVideo.update({
-      where: { id: job.id },
-      data: {
-        status: 'failed',
-        errorMessage: message.slice(0, 500),
-        completedAt: new Date(),
-        providerMetadata: {
-          ...((job.providerMetadata as Record<string, unknown> | null) ?? {}),
-          failedAt: 'start',
-          fullErrorMessage: encodeURIComponent(message),
-          stack: stack?.slice(0, 2000),
-          cause,
-        } as Record<string, unknown> as Parameters<typeof prisma.generationVideo.update>[0]['data']['providerMetadata'],
-      },
-    });
-    return { jobId: job.id, status: 'failed' };
-  }
-}
-
-async function processProcessing(): Promise<{ jobId: string; status: string } | null> {
-  const prisma = getPrisma();
-  const job = await prisma.generationVideo.findFirst({
-    where: { status: 'processing', vertexOperationId: { not: null } },
-    orderBy: { startedAt: 'asc' },
-    include: { generation: { select: { userId: true } } },
-  });
-  if (!job || !job.vertexOperationId) return null;
-
-  try {
-    const provider = getVideoProvider(job.provider as VideoProviderId);
-    const status = await provider.pollStatus(job.vertexOperationId);
-
-    if (status.state === 'processing') {
-      // まだ生成中。次回 cron で再ポーリング
-      return { jobId: job.id, status: 'processing' };
-    }
-
-    if (status.state === 'failed') {
-      await prisma.generationVideo.update({
-        where: { id: job.id },
-        data: {
-          status: 'failed',
-          errorMessage: status.errorMessage ?? 'Unknown error',
-          completedAt: new Date(),
-        },
-      });
-      return { jobId: job.id, status: 'failed' };
-    }
-
-    // status.state === 'done' → ダウンロード → Vercel Blob 移送
-    if (!status.resultUri) {
-      throw new Error('Provider returned done state but no resultUri');
-    }
-    const { buffer, mimeType } = await provider.download(status.resultUri);
+    // Vercel Blob にアップロード
     const blobUrl = await uploadGenerationVideo(
       job.generation.userId,
       job.generationId,
       job.id,
-      buffer,
-      mimeType,
+      result.buffer,
+      result.mimeType,
     );
 
     const finalCost = provider.estimateCost(job.durationSeconds, {
       audio: job.generateAudio,
     });
 
+    const mergedMetadata: Record<string, unknown> = {
+      ...((job.providerMetadata as Record<string, unknown> | null) ?? {}),
+      ...(result.providerMetadata ?? {}),
+      resultGcsUri: result.resultUri,
+    };
+
     await prisma.generationVideo.update({
       where: { id: job.id },
       data: {
         status: 'done',
         blobUrl,
+        vertexOperationId: (mergedMetadata.operationName as string | undefined) ?? null,
         costUsd: finalCost,
         completedAt: new Date(),
+        providerMetadata: mergedMetadata as Parameters<typeof prisma.generationVideo.update>[0]['data']['providerMetadata'],
       },
     });
 
@@ -169,7 +97,7 @@ async function processProcessing(): Promise<{ jobId: string; status: string } | 
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     const stack = e instanceof Error ? e.stack : undefined;
-    console.error('[process-video-jobs] poll/download failed:', job.id, message, stack);
+    console.error('[process-video-jobs] failed:', job.id, message, stack);
     await prisma.generationVideo.update({
       where: { id: job.id },
       data: {
@@ -178,7 +106,6 @@ async function processProcessing(): Promise<{ jobId: string; status: string } | 
         completedAt: new Date(),
         providerMetadata: {
           ...((job.providerMetadata as Record<string, unknown> | null) ?? {}),
-          failedAt: 'poll-or-download',
           fullErrorMessage: encodeURIComponent(message),
           stack: stack?.slice(0, 2000),
         } as Record<string, unknown> as Parameters<typeof prisma.generationVideo.update>[0]['data']['providerMetadata'],
@@ -194,25 +121,10 @@ export const GET = async (req: Request) => {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // mode=pending or mode=processing で個別実行も可能 (デバッグ用)
-  const url = new URL(req.url);
-  const mode = url.searchParams.get('mode'); // null | 'pending' | 'processing'
-
-  const results: Array<{ jobId: string; status: string }> = [];
-
-  if (!mode || mode === 'pending') {
-    const r = await processPending();
-    if (r) results.push({ ...r, jobId: r.jobId });
-  }
-
-  if (!mode || mode === 'processing') {
-    const r = await processProcessing();
-    if (r) results.push(r);
-  }
-
+  const result = await processOneJob();
   return NextResponse.json({
     ok: true,
-    processed: results.length,
-    results,
+    processed: result ? 1 : 0,
+    result,
   });
 };
