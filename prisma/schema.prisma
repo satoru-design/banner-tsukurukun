@@ -7,52 +7,52 @@ datasource db {
 }
 
 model Banner {
-  id               String   @id @default(cuid())
-  productName      String?
-  lpUrl            String?
-  target           String?
-  mainCopy         String?
-  subCopy          String?
-  elements         String?
-  base64Image      String?
-  angle            String?
-  imageModel       String?
+  id          String  @id @default(cuid())
+  productName String?
+  lpUrl       String?
+  target      String?
+  mainCopy    String?
+  subCopy     String?
+  elements    String?
+  base64Image String?
+  angle       String?
+  imageModel  String?
 
   // Phase A.5 で追加
-  angleId          String?  // "benefit" | "fear" | ... | "sensory"
-  priceBadge       String?  // JSON stringified PriceBadge | null
-  ctaTemplateId    String?  // CTA テンプレ ID
-  ctaText          String?  // 実際に使われた CTA 文言
-  emphasisRatio    String?  // "2x" | "3x"
-  urgency          String?  // "low" | "high"
+  angleId       String? // "benefit" | "fear" | ... | "sensory"
+  priceBadge    String? // JSON stringified PriceBadge | null
+  ctaTemplateId String? // CTA テンプレ ID
+  ctaText       String? // 実際に使われた CTA 文言
+  emphasisRatio String? // "2x" | "3x"
+  urgency       String? // "low" | "high"
 
-  styleProfileId   String?
-  styleProfile     StyleProfile? @relation(fields: [styleProfileId], references: [id])
+  styleProfileId String?
+  styleProfile   StyleProfile? @relation(fields: [styleProfileId], references: [id])
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model StyleProfile {
-  id                  String   @id @default(cuid())
-  name                String   @unique
-  productContext      String?
+  id             String  @id @default(cuid())
+  name           String  @unique
+  productContext String?
 
   // Vercel Blob URLs, JSON.stringify(string[])
-  referenceImageUrls  String
+  referenceImageUrls String
 
   // Extracted 6 elements, JSON.stringify
-  visualStyle         String
-  typography          String
-  priceBadge          String
-  cta                 String
-  layout              String
-  copyTone            String
+  visualStyle String
+  typography  String
+  priceBadge  String
+  cta         String
+  layout      String
+  copyTone    String
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  banners             Banner[]
+  banners Banner[]
 }
 
 /// Phase A.7 Ironclad: 永続素材ライブラリ。商品画像・認証バッジ等を一度アップロードしたら
@@ -60,34 +60,34 @@ model StyleProfile {
 /// Phase A.8 拡張: type='winning_banner' で勝ちバナー解析結果も保持する二層構造。
 /// Phase A.10 拡張: User リレーション正式化。
 model Asset {
-  id          String   @id @default(cuid())
+  id       String  @id @default(cuid())
   /// 'product' | 'badge' | 'logo' | 'other' | 'winning_banner' (Phase A.8追加)
-  type        String
+  type     String
   /// ユーザー表示名（例: "5 Point Detox", "GMP Quality"）
-  name        String
+  name     String
   /// Vercel Blob の Public URL
-  blobUrl     String
+  blobUrl  String
   /// 画像の MIME type (image/png, image/jpeg など)
-  mimeType    String?
+  mimeType String?
   /// Screen 1 のデフォルト選択対象か（最後に使ったものを自動選択するため）
-  isPinned    Boolean  @default(false)
+  isPinned Boolean @default(false)
 
   /// Phase A.8: SaaS化見据え。Phase 1 は全 NULL で運用。
-  userId            String?
+  userId String?
   /// Phase A.10: User リレーション
-  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   /// Phase A.8: 勝ちバナー解析結果（プロンプト注入用の抽象タグのみ）
   /// JSON: { palette, copyAngle, cta, layout, typo, mood, pattern, abstractTags[] }
-  analysisAbstract  Json?
+  analysisAbstract Json?
   /// Phase A.8: 勝ちバナー解析結果（分析・デバッグ用の生抽出データ。外部APIには絶対送信禁止）
   /// JSON: { paletteHex[], extractedTexts[], detectedElements[], rawObservations }
-  analysisConcrete  Json?
+  analysisConcrete Json?
   /// Phase A.8: 解析プロンプトのバージョン管理（将来プロンプト改善時の互換性用）
-  analysisVersion   Int?
+  analysisVersion  Int?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([type])
   @@index([createdAt])
@@ -105,39 +105,39 @@ model User {
 
   /// Phase A.10: 'free' | 'starter' | 'pro' | 'admin'
   /// Phase A.11+ で機能 gate のキーとして使用
-  plan          String    @default("free")
+  plan String @default("free")
 
   /// Phase A.11.0: ユーザー編集後の表示名（NULL なら name を使う）
-  nameOverride          String?
+  nameOverride            String?
   /// Phase A.11.0: 現在プラン開始日（既存ユーザーは migration で createdAt をセット）
-  planStartedAt         DateTime?
+  planStartedAt           DateTime?
   /// Phase A.11.0: 有料プラン期限（free/admin は NULL）
-  planExpiresAt         DateTime?
+  planExpiresAt           DateTime?
   /// Phase A.11.0: Stripe Customer ID（A.12 で使用、今は NULL）
-  stripeCustomerId      String?  @unique
+  stripeCustomerId        String?   @unique
   /// Phase A.11.0: Stripe Subscription ID（A.12 で使用、今は NULL）
-  stripeSubscriptionId  String?  @unique
+  stripeSubscriptionId    String?   @unique
   /// Phase A.11.0: 当月使用回数（lazy reset）
-  usageCount            Int       @default(0)
+  usageCount              Int       @default(0)
   /// Phase A.11.0: 次回リセット日時（NULL なら初回アクセス時にセット）
-  usageResetAt          DateTime?
+  usageResetAt            DateTime?
   /// Phase A.12: 直近の支払い失敗時刻（NULL なら正常）
   /// invoice.payment_failed で now() / payment_succeeded で NULL
-  paymentFailedAt       DateTime?
+  paymentFailedAt         DateTime?
   /// Phase A.14: Pro 上限到達アラート（101 回目で 1 度のみ表示）の last shown
   /// payment_succeeded webhook で NULL リセット
-  proOverageNoticeShownAt   DateTime?
+  proOverageNoticeShownAt DateTime?
   /// Phase A.17.0: Business アップグレード推奨バナーの最終表示時刻
   /// /account の BusinessUpgradeAccountBanner の再表示制御に使用
-  upgradeNoticeShownAt  DateTime?
+  upgradeNoticeShownAt    DateTime?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  assets        Asset[]
-  generations   Generation[]
+  accounts       Account[]
+  sessions       Session[]
+  assets         Asset[]
+  generations    Generation[]
   upgradeNotices UpgradeNotice[]
 
   @@index([stripeCustomerId])
@@ -148,14 +148,14 @@ model User {
 model UpgradeNotice {
   id              String    @id @default(cuid())
   userId          String
-  type            String    // 'business_upgrade_recommendation'
-  recommendedPlan String    // 'business'
-  metricSnapshot  Json      // { avgOveragePerMonth: 12000, last3MonthsAvgUsage: 380, ... }
+  type            String // 'business_upgrade_recommendation'
+  recommendedPlan String // 'business'
+  metricSnapshot  Json // { avgOveragePerMonth: 12000, last3MonthsAvgUsage: 380, ... }
   createdAt       DateTime  @default(now())
   shownAt         DateTime?
   dismissedAt     DateTime?
 
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([type])
@@ -202,47 +202,108 @@ model VerificationToken {
 
 /// Phase A.11.5: 生成履歴。1 ブリーフ = 1 セッション、複数サイズ画像を含む
 model Generation {
-  id              String    @id @default(cuid())
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   /// IroncladBrief + IroncladSelections + 使用 asset の id 群を JSON でスナップショット保存
-  briefSnapshot   Json
+  briefSnapshot Json
 
   /// Phase A.14: Free 上限超過時の「透かし入りプレビュー」フラグ
   /// true なら PREVIEW 透かし入りで保存、UI でアップグレード訴求バナー表示
-  isPreview       Boolean   @default(false)
+  isPreview Boolean @default(false)
 
-  createdAt       DateTime  @default(now())
+  createdAt DateTime @default(now())
 
-  images          GenerationImage[]
+  images           GenerationImage[]
+  generationVideos GenerationVideo[]
 
   @@index([userId, createdAt])
 }
 
 /// Phase A.11.5: Generation 内の各サイズ画像
 model GenerationImage {
-  id                String     @id @default(cuid())
-  generationId      String
-  generation        Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  id           String     @id @default(cuid())
+  generationId String
+  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
 
   /// 'Instagram (1080x1080)' 等
-  size              String
+  size             String
   /// Vercel Blob Public URL
-  blobUrl           String
+  blobUrl          String
   /// 'gpt-image' / 'flux' / 'imagen4'
-  provider          String
+  provider         String
   /// model, fallback flag 等
-  providerMetadata  Json?
+  providerMetadata Json?
 
   /// ★お気に入り（永続アクセス保護対象）
-  isFavorite        Boolean    @default(false)
+  isFavorite  Boolean   @default(false)
   /// お気に入り化された日時（プラン別 5 枚カウント用）
-  favoritedAt       DateTime?
+  favoritedAt DateTime?
 
-  createdAt         DateTime   @default(now())
+  createdAt DateTime @default(now())
 
   @@index([generationId])
+  @@index([isFavorite, favoritedAt])
+}
+
+/// Phase B.1: Generation 内の動画生成結果
+/// 既存 GenerationImage と並列の構造。1 Generation = 多 Video 可能。
+/// async ジョブとして status='pending' → 'processing' → 'done'/'failed' で進行。
+model GenerationVideo {
+  id           String     @id @default(cuid())
+  generationId String
+  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
+
+  /// 'Meta Reels (9:16)' / 'YouTube Shorts (9:16)' / 'TikTok (9:16)' / 'Square (1:1)'
+  format      String
+  /// '9:16' / '16:9' / '1:1'
+  aspectRatio String
+
+  /// ジョブ状態: 'pending' | 'processing' | 'done' | 'failed' | 'cancelled'
+  status String @default("pending")
+
+  /// 'veo-3.1-fast' | 'veo-3.1-lite' | 'kling-2.1-standard' | 'kling-2.1-pro' | 'runway-gen4'
+  provider String
+
+  /// Vertex AI Operation Name (ポーリング用)
+  vertexOperationId String?
+
+  /// 完成動画 (Vercel Blob Public URL)。done 時のみ設定
+  blobUrl       String?
+  /// 入力画像 (元バナー or アップロード画像) の Blob URL
+  inputImageUrl String?
+
+  /// 動画尺 (秒): 4 / 6 / 8 (Veo) / 5 / 10 (Kling)
+  durationSeconds Int
+
+  /// 音声生成有効か (Veo Lite のみ true)
+  generateAudio Boolean @default(false)
+
+  /// 入力プロンプト (英語に翻訳済)
+  prompt   String  @db.Text
+  /// 元のユーザー指示 (日本語)
+  promptJa String? @db.Text
+
+  /// 単位: USD。生成コスト (失敗でも課金されたら記録)
+  costUsd Decimal @default(0) @db.Decimal(10, 4)
+
+  /// エラー詳細 (failed 時のみ)
+  errorMessage String?
+
+  /// プロバイダ追加メタ (full operation payload, retry count 等)
+  providerMetadata Json?
+
+  /// ★お気に入り（永続保護対象）
+  isFavorite  Boolean   @default(false)
+  favoritedAt DateTime?
+
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  @@index([generationId])
+  @@index([status, createdAt])
   @@index([isFavorite, favoritedAt])
 }
 
