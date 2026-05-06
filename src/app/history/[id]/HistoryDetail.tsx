@@ -257,20 +257,18 @@ export function HistoryDetail({ detail: initialDetail }: HistoryDetailProps) {
                   <Download className="w-3 h-3" />
                   DL
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setVideoDialogImage(img)}
-                  disabled={user.plan === 'free'}
-                  title={user.plan === 'free' ? '動画化は Starter プラン以上で開放' : 'この画像を動画化'}
-                  className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded transition ${
-                    user.plan === 'free'
-                      ? 'bg-slate-700 opacity-40 cursor-not-allowed text-white'
-                      : 'bg-purple-600 hover:bg-purple-500 text-white cursor-pointer'
-                  }`}
-                >
-                  <Film className="w-3 h-3" />
-                  動画化
-                </button>
+                {/* Phase B.1 ベータ: 動画化は admin 限定 (品質検証中) */}
+                {user.plan === 'admin' && (
+                  <button
+                    type="button"
+                    onClick={() => setVideoDialogImage(img)}
+                    title="この画像を動画化 (β: admin限定)"
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded transition bg-purple-600 hover:bg-purple-500 text-white cursor-pointer"
+                  >
+                    <Film className="w-3 h-3" />
+                    動画化 β
+                  </button>
+                )}
               </div>
             </div>
           </div>
