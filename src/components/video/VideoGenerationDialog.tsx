@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Sparkles, X, Download, Loader2 } from 'lucide-react';
+import { Sparkles, X, Download, Loader2, Wand2 } from 'lucide-react';
 
 interface VideoGenerationDialogProps {
   isOpen: boolean;
@@ -98,6 +98,7 @@ export function VideoGenerationDialog({
   const [promptJa, setPromptJa] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
 
   const [videoId, setVideoId] = useState<string | null>(null);
   const [videoStatus, setVideoStatus] = useState<string | null>(null);
@@ -181,6 +182,30 @@ export function VideoGenerationDialog({
     }
   };
 
+  const handleSuggestPrompt = async () => {
+    setSuggesting(true);
+    setErrorMessage(null);
+    try {
+      const res = await fetch('/api/suggest-video-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputImageUrl, generationId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || `HTTP ${res.status}`);
+        return;
+      }
+      if (typeof data.promptJa === 'string' && data.promptJa.trim()) {
+        setPromptJa(data.promptJa.trim().slice(0, 500));
+      }
+    } catch (e) {
+      setErrorMessage(e instanceof Error ? e.message : 'Network error');
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
   const handleReset = () => {
     setVideoId(null);
     setVideoStatus(null);
@@ -261,11 +286,11 @@ export function VideoGenerationDialog({
             <>
               {/* プロバイダ選択 */}
               <div>
-                <label className="mb-1 block text-sm font-medium">モデル</label>
+                <label className="mb-1 block text-sm font-medium text-slate-900">モデル</label>
                 <select
                   value={provider}
                   onChange={(e) => setProvider(e.target.value as ProviderId)}
-                  className="w-full rounded border p-2"
+                  className="w-full rounded border border-slate-300 bg-white p-2 text-slate-900"
                 >
                   {PROVIDERS.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -278,11 +303,11 @@ export function VideoGenerationDialog({
 
               {/* アスペクト比 */}
               <div>
-                <label className="mb-1 block text-sm font-medium">フォーマット</label>
+                <label className="mb-1 block text-sm font-medium text-slate-900">フォーマット</label>
                 <select
                   value={aspectRatio}
                   onChange={(e) => setAspectRatio(e.target.value as '9:16' | '16:9' | '1:1')}
-                  className="w-full rounded border p-2"
+                  className="w-full rounded border border-slate-300 bg-white p-2 text-slate-900"
                 >
                   {ASPECT_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -294,7 +319,7 @@ export function VideoGenerationDialog({
 
               {/* 尺 */}
               <div>
-                <label className="mb-1 block text-sm font-medium">尺</label>
+                <label className="mb-1 block text-sm font-medium text-slate-900">尺</label>
                 <div className="flex gap-2">
                   {currentProvider.allowedDurations.map((d) => (
                     <button
@@ -304,7 +329,7 @@ export function VideoGenerationDialog({
                       className={`flex-1 rounded border p-2 text-sm ${
                         validDuration === d
                           ? 'border-purple-600 bg-purple-50 font-medium text-purple-900'
-                          : 'hover:bg-gray-50'
+                          : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-50'
                       }`}
                     >
                       {d}秒 ({formatJpy(currentProvider.pricePerSec * d)})
@@ -315,7 +340,7 @@ export function VideoGenerationDialog({
 
               {/* 音声 (Lite のみ) */}
               {currentProvider.supportsAudio && (
-                <label className="flex items-center gap-2 rounded border p-3">
+                <label className="flex items-center gap-2 rounded border border-slate-300 bg-white p-3 text-slate-900">
                   <input
                     type="checkbox"
                     checked={generateAudio}
@@ -329,15 +354,30 @@ export function VideoGenerationDialog({
 
               {/* プロンプト */}
               <div>
-                <label className="mb-1 block text-sm font-medium">
-                  動きの指示 (日本語)
-                </label>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label className="block text-sm font-medium text-slate-900">
+                    動きの指示 (日本語)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleSuggestPrompt}
+                    disabled={suggesting}
+                    className="inline-flex items-center gap-1 rounded border border-purple-300 bg-purple-50 px-2 py-1 text-xs text-purple-900 hover:bg-purple-100 disabled:opacity-50"
+                  >
+                    {suggesting ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-3 w-3" />
+                    )}
+                    {suggesting ? 'AI 提案中…' : 'AI に書いてもらう'}
+                  </button>
+                </div>
                 <textarea
                   value={promptJa}
                   onChange={(e) => setPromptJa(e.target.value)}
                   placeholder="例: カメラがゆっくりズームアウトしながら、女性が右手で商品を持ち上げて笑顔でこちらを見る"
                   rows={4}
-                  className="w-full rounded border p-2 text-sm"
+                  className="w-full rounded border border-slate-300 bg-white p-2 text-sm text-slate-900 placeholder:text-slate-400"
                   maxLength={500}
                 />
                 <p className="mt-1 text-xs text-gray-500">{promptJa.length} / 500</p>
