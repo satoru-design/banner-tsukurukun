@@ -65,6 +65,13 @@ export class VideoProviderError extends Error {
   }
 }
 
+export interface VideoRunResult {
+  resultUri: string;
+  buffer: Buffer;
+  mimeType: string;
+  providerMetadata: Record<string, unknown>;
+}
+
 export interface VideoProvider {
   readonly id: VideoProviderId;
   readonly displayName: string;
@@ -73,13 +80,12 @@ export interface VideoProvider {
   /// 許容される尺 (秒)
   readonly allowedDurations: ReadonlyArray<number>;
 
-  start(params: VideoStartParams): Promise<VideoStartResult>;
-
-  /// 完了/失敗するか、まだ処理中かを返す
-  pollStatus(operationId: string): Promise<VideoStatus>;
-
-  /// 完成動画をダウンロード (resultUri を取って Buffer 化)
-  download(resultUri: string): Promise<VideoDownloadResult>;
+  /**
+   * 単一プロセス内で start → poll → download まで完了する one-shot 実行。
+   * SDK の getVideosOperation が元の Operation インスタンスを要求するため、
+   * cross-call 分割は不可。Vercel maxDuration=300s 内に収まる前提。
+   */
+  run(params: VideoStartParams, options?: { maxWaitMs?: number }): Promise<VideoRunResult>;
 
   /// USD 単位の見積もり原価
   estimateCost(durationSeconds: number, options: { audio: boolean }): number;

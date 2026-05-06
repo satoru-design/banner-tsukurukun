@@ -16,9 +16,7 @@ import {
   VideoProvider,
   VideoProviderId,
   VideoStartParams,
-  VideoStartResult,
-  VideoStatus,
-  VideoDownloadResult,
+  VideoRunResult,
   VideoProviderError,
 } from './types';
 
@@ -113,21 +111,31 @@ export interface VeoModelConfig {
   pricePerSecond: number; // USD/秒
 }
 
-export async function startVeoGeneration(
+/**
+ * Veo 3.1 generation を 1 関数呼び出し内で start → poll → download まで完結。
+ *
+ * SDK の getVideosOperation は元の Operation インスタンスの _fromAPIResponse
+ * メソッドが必要なため、operation を関数スコープ内で生かしたまま poll する。
+ * cron 跨ぎで { name: ... } を再構築すると "_fromAPIResponse is not a function" になる。
+ */
+export async function runVeoGeneration(
   modelConfig: VeoModelConfig,
+  providerId: VideoProviderId,
   params: VideoStartParams,
-): Promise<VideoStartResult> {
+  options: { maxWaitMs?: number } = {},
+): Promise<VideoRunResult> {
+  const maxWaitMs = options.maxWaitMs ?? 270_000; // Vercel 300s 内
   const client = getVertexClient();
   const { uriPrefix } = getGcsBucket();
   const outputGcsUri = `${uriPrefix}/jobs/${params.trackingId}/`;
 
-  // 入力画像があれば fetch して base64 化 (HTTPS URL のみ対応)
+  // 入力画像があれば fetch して base64 化
   let image: { imageBytes: string; mimeType: string } | undefined;
   if (params.inputImageUrl) {
     const res = await fetch(params.inputImageUrl);
     if (!res.ok) {
       throw new VideoProviderError(
-        modelConfig.modelId.includes('lite') ? 'veo-3.1-lite' : 'veo-3.1-fast',
+        providerId,
         `Failed to fetch input image: ${params.inputImageUrl} (status ${res.status})`,
       );
     }
@@ -154,72 +162,52 @@ export async function startVeoGeneration(
   };
   if (image) requestBody.image = image;
 
-  const op = await client.models.generateVideos(requestBody as unknown as Parameters<typeof client.models.generateVideos>[0]);
+  // start
+  let operation = await client.models.generateVideos(
+    requestBody as unknown as Parameters<typeof client.models.generateVideos>[0],
+  );
 
-  // operation.name は projects/.../operations/... 形式
-  const operationId = (op as { name?: string }).name
-    || JSON.stringify(op).slice(0, 200);
+  // poll
+  const startedAt = Date.now();
+  while (!(operation as { done?: boolean }).done) {
+    if (Date.now() - startedAt > maxWaitMs) {
+      throw new VideoProviderError(
+        providerId,
+        `Polling timeout after ${Math.round((Date.now() - startedAt) / 1000)}s`,
+      );
+    }
+    await new Promise((r) => setTimeout(r, 15_000));
+    operation = await client.operations.getVideosOperation({ operation });
+  }
 
-  return {
-    operationId,
-    providerMetadata: {
-      modelId: modelConfig.modelId,
-      outputGcsUri,
-      startedAt: new Date().toISOString(),
-    },
-  };
-}
-
-export async function pollVeoStatus(
-  providerId: VideoProviderId,
-  operationId: string,
-): Promise<VideoStatus> {
-  const client = getVertexClient();
-  // SDK の operations.get は { name } を受け取る形式
-  const op = await client.operations.get({ operation: { name: operationId } as never });
-  const opData = op as {
-    done?: boolean;
+  const opData = operation as unknown as {
     error?: { code?: number; message?: string };
     response?: { generatedVideos?: Array<{ video?: { uri?: string } }> };
     result?: { generatedVideos?: Array<{ video?: { uri?: string } }> };
   };
 
-  if (!opData.done) return { state: 'processing' };
-
   if (opData.error) {
-    return {
-      state: 'failed',
-      errorMessage: `code=${opData.error.code}: ${opData.error.message}`,
-      providerMetadata: { error: opData.error },
-    };
+    throw new VideoProviderError(
+      providerId,
+      `Veo API error: code=${opData.error.code} message=${opData.error.message}`,
+    );
   }
 
-  const generated = opData.response?.generatedVideos
-    || opData.result?.generatedVideos
-    || [];
-  const first = generated[0]?.video?.uri;
-  if (!first) {
-    return {
-      state: 'failed',
-      errorMessage: 'Operation done but no generatedVideos returned',
-      providerMetadata: { rawOperation: opData },
-    };
+  const generated =
+    opData.response?.generatedVideos || opData.result?.generatedVideos || [];
+  const resultUri = generated[0]?.video?.uri;
+  if (!resultUri) {
+    throw new VideoProviderError(
+      providerId,
+      `Operation done but no generatedVideos returned: ${JSON.stringify(opData).slice(0, 300)}`,
+    );
   }
-  return {
-    state: 'done',
-    resultUri: first,
-  };
-}
 
-export async function downloadVeoResult(resultUri: string): Promise<VideoDownloadResult> {
+  // download from GCS
   ensureCredentials();
-  // gs://bucket/path → bucket + path
   const m = resultUri.match(/^gs:\/\/([^\/]+)\/(.+)$/);
   if (!m) {
-    throw new VideoProviderError(
-      'veo-3.1-fast',
-      `Invalid GCS URI: ${resultUri}`,
-    );
+    throw new VideoProviderError(providerId, `Invalid GCS URI: ${resultUri}`);
   }
   const [, bucketName, objectPath] = m;
   const storage = new Storage({
@@ -227,9 +215,17 @@ export async function downloadVeoResult(resultUri: string): Promise<VideoDownloa
     keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
   });
   const [contents] = await storage.bucket(bucketName).file(objectPath).download();
+
   return {
+    resultUri,
     buffer: contents,
     mimeType: 'video/mp4',
+    providerMetadata: {
+      modelId: modelConfig.modelId,
+      outputGcsUri,
+      operationName: (operation as { name?: string }).name,
+      pollDurationSec: Math.round((Date.now() - startedAt) / 1000),
+    },
   };
 }
 
@@ -245,26 +241,17 @@ export function makeVeoProvider(
     supportsAudio: modelConfig.supportsAudio,
     allowedDurations,
 
-    async start(params: VideoStartParams) {
+    async run(params, options) {
       if (!allowedDurations.includes(params.durationSeconds)) {
         throw new VideoProviderError(
           id,
           `durationSeconds=${params.durationSeconds} not allowed. Use ${allowedDurations.join('/')}`,
         );
       }
-      return startVeoGeneration(modelConfig, params);
+      return runVeoGeneration(modelConfig, id, params, options);
     },
 
-    async pollStatus(operationId: string) {
-      return pollVeoStatus(id, operationId);
-    },
-
-    async download(resultUri: string) {
-      return downloadVeoResult(resultUri);
-    },
-
-    estimateCost(durationSeconds: number, options: { audio: boolean }) {
-      // Lite で音声時のみ単価変わる場合は subclass で override
+    estimateCost(durationSeconds: number) {
       return durationSeconds * modelConfig.pricePerSecond;
     },
   };
