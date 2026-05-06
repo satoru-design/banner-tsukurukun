@@ -157,6 +157,33 @@ export function VideoGenerationDialog({
     return () => clearInterval(interval);
   }, [videoId, videoStatus]);
 
+  /**
+   * fetch のレスポンスを安全に JSON パース。
+   * Content-Type が application/json でない場合は status code から
+   * 適切な日本語メッセージを返す（gzip HTML を JSON.parse して binary
+   * エラーを出すのを防ぐ）。
+   */
+  const safeParseJson = async (res: Response): Promise<{ data: any; errorMessage?: string }> => {
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      let msg: string;
+      if (res.status === 401) msg = 'ログインの有効期限が切れました。再ログインしてください。';
+      else if (res.status === 403) msg = 'この機能を使う権限がありません。';
+      else if (res.status === 404) msg = 'API が見つかりませんでした。';
+      else if (res.status >= 500) msg = `サーバーエラー (${res.status})。しばらくしてから再試行してください。`;
+      else msg = `予期しない応答 (${res.status})`;
+      return { data: null, errorMessage: msg };
+    }
+    try {
+      return { data: await res.json() };
+    } catch (e) {
+      return {
+        data: null,
+        errorMessage: 'サーバーから不正な応答が返りました。再試行してください。',
+      };
+    }
+  };
+
   const handleSubmit = async () => {
     if (!promptJa.trim()) {
       setErrorMessage('動きの指示を入力してください');
@@ -179,9 +206,14 @@ export function VideoGenerationDialog({
           format: `${aspectRatio} ${validDuration}s`,
         }),
       });
-      const data = await res.json();
+      const { data, errorMessage: parseError } = await safeParseJson(res);
+      if (parseError) {
+        setErrorMessage(parseError);
+        setSubmitting(false);
+        return;
+      }
       if (!res.ok) {
-        setErrorMessage(data.error || `HTTP ${res.status}`);
+        setErrorMessage(data?.error || `HTTP ${res.status}`);
         setSubmitting(false);
         return;
       }
@@ -203,9 +235,13 @@ export function VideoGenerationDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inputImageUrl, generationId }),
       });
-      const data = await res.json();
+      const { data, errorMessage: parseError } = await safeParseJson(res);
+      if (parseError) {
+        setErrorMessage(parseError);
+        return;
+      }
       if (!res.ok) {
-        setErrorMessage(data.error || `HTTP ${res.status}`);
+        setErrorMessage(data?.error || `HTTP ${res.status}`);
         return;
       }
       if (typeof data.promptJa === 'string' && data.promptJa.trim()) {
