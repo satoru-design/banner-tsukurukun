@@ -3,17 +3,18 @@
 /**
  * Phase B.1: 動画生成ダイアログ
  *
- * 既存のバナー画像から動画を生成するための UI。
+ * 既存のバナー画像から動画を生成するための UI。既存サイトと同じダーク基調。
  * - フォーマット選択 (9:16/16:9/1:1)
  * - 尺 (4/6/8 秒、provider により制限)
  * - プロバイダ (Veo Fast / Veo Lite 音声付 / Kling tier)
- * - 動きの指示 (日本語入力)
+ * - 動きの指示 (日本語入力 + AI 提案)
  *
- * 送信後はポーリング表示。完成すると <video> プレビュー。
+ * 金額表示は意図的に省略 (admin 検証中は気にせず使ってもらう方針)。
  */
 
 import { useEffect, useState } from 'react';
-import { Sparkles, X, Download, Loader2, Wand2 } from 'lucide-react';
+import { Sparkles, X, Download, Wand2, Loader2 } from 'lucide-react';
+import { GenerationProgress } from '@/components/ui/GenerationProgress';
 
 interface VideoGenerationDialogProps {
   isOpen: boolean;
@@ -34,44 +35,45 @@ type ProviderId =
 interface ProviderOption {
   id: ProviderId;
   label: string;
-  pricePerSec: number;
   allowedDurations: number[];
   supportsAudio: boolean;
   description: string;
+  /// 完了までの推定秒数 (プログレスバー用)
+  estimatedSeconds: number;
 }
 
 const PROVIDERS: ProviderOption[] = [
   {
     id: 'veo-3.1-fast',
     label: 'Veo 3.1 Fast',
-    pricePerSec: 0.15,
     allowedDurations: [4, 6, 8],
     supportsAudio: false,
     description: '高速・コスパ良。音声なし。',
+    estimatedSeconds: 60,
   },
   {
     id: 'veo-3.1-lite',
     label: 'Veo 3.1 Lite (音声+リップシンク)',
-    pricePerSec: 0.10,
     allowedDurations: [4, 6, 8],
     supportsAudio: true,
     description: '音声+口パクを同時生成。記事のHeyGen互換。',
+    estimatedSeconds: 75,
   },
   {
     id: 'kling-2.1-standard',
     label: 'Kling 2.1 Standard',
-    pricePerSec: 0.025,
     allowedDurations: [5, 10],
     supportsAudio: false,
-    description: '最安価格。音声なし。',
+    description: '高速で軽い動き向け。音声なし。',
+    estimatedSeconds: 90,
   },
   {
     id: 'kling-2.1-pro',
     label: 'Kling 2.1 Pro',
-    pricePerSec: 0.05,
     allowedDurations: [5, 10],
     supportsAudio: false,
     description: 'プロ品質。動きが自然。',
+    estimatedSeconds: 120,
   },
 ];
 
@@ -81,8 +83,21 @@ const ASPECT_OPTIONS: Array<{ value: '9:16' | '16:9' | '1:1'; label: string }> =
   { value: '1:1', label: '1:1 正方形 (Instagram フィード)' },
 ];
 
-const USD_TO_JPY = 155;
-const formatJpy = (usd: number) => `¥${Math.round(usd * USD_TO_JPY).toLocaleString()}`;
+/// 内部 status を顧客向け日本語に変換
+function statusToJa(status: string | null): string {
+  switch (status) {
+    case 'pending':
+      return '生成キューに登録しました';
+    case 'processing':
+      return 'AI が動画を作成中です';
+    case 'done':
+      return '完成しました';
+    case 'failed':
+      return '生成に失敗しました';
+    default:
+      return '準備中';
+  }
+}
 
 export function VideoGenerationDialog({
   isOpen,
@@ -108,8 +123,6 @@ export function VideoGenerationDialog({
   const validDuration = currentProvider.allowedDurations.includes(durationSeconds)
     ? durationSeconds
     : currentProvider.allowedDurations[currentProvider.allowedDurations.length - 1];
-
-  const costUsd = currentProvider.pricePerSec * validDuration;
 
   // dialog 起動時にプロバイダ選択肢に応じて尺を補正
   useEffect(() => {
@@ -159,7 +172,6 @@ export function VideoGenerationDialog({
           generationId,
           inputImageUrl,
           promptJa: promptJa.trim(),
-          // promptEn を入れていない場合は API 側で promptJa を流用
           provider,
           aspectRatio,
           durationSeconds: validDuration,
@@ -215,26 +227,42 @@ export function VideoGenerationDialog({
 
   if (!isOpen) return null;
 
+  // ダーク基調 (既存サイトと統一)
+  const inputClass =
+    'w-full rounded border border-slate-700 bg-slate-900 p-2 text-slate-100 focus:border-purple-500 focus:outline-none';
+  const labelClass = 'mb-1 block text-sm font-medium text-slate-200';
+
+  // 生成中 (videoId が立っていて done/failed でない) は X ボタンも無効化
+  // → ユーザーが誤って閉じて進捗を見失わないようにする
+  const inProgress = Boolean(videoId) && videoStatus !== 'done' && videoStatus !== 'failed';
+
+  // 背景クリックでは絶対に閉じない (作業状況を見失う事故を防ぐ)
+  // 閉じるのは右上の X ボタンのみ。生成中は X も無効化。
+  const handleClose = () => {
+    if (inProgress) return;
+    onClose();
+  };
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
     >
       <div
-        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-800 bg-neutral-950 shadow-2xl"
       >
         {/* ヘッダ */}
-        <div className="sticky top-0 flex items-center justify-between border-b bg-white p-4">
-          <h2 className="flex items-center gap-2 text-lg font-bold">
-            <Sparkles className="h-5 w-5 text-purple-600" />
-            動画化 {imageSizeLabel ? `(${imageSizeLabel})` : ''}
+        <div className="sticky top-0 flex items-center justify-between border-b border-slate-800 bg-neutral-950 p-4">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-100">
+            <Sparkles className="h-5 w-5 text-purple-400" />
+            動画化 {imageSizeLabel ? <span className="text-sm text-slate-400">({imageSizeLabel})</span> : null}
           </h2>
           <button
             type="button"
-            onClick={onClose}
-            className="rounded p-1 hover:bg-gray-100"
-            aria-label="閉じる"
+            onClick={handleClose}
+            disabled={inProgress}
+            className="rounded p-1 text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
+            aria-label={inProgress ? '生成中は閉じられません' : '閉じる'}
+            title={inProgress ? '生成中です。完了するまで閉じられません' : '閉じる'}
           >
             <X className="h-5 w-5" />
           </button>
@@ -246,17 +274,19 @@ export function VideoGenerationDialog({
             <img
               src={inputImageUrl}
               alt="入力画像"
-              className="max-h-48 rounded border"
+              className="max-h-48 rounded border border-slate-800"
             />
           </div>
 
           {videoId && videoStatus !== 'done' && videoStatus !== 'failed' ? (
-            // 生成中表示
-            <div className="rounded-lg bg-purple-50 p-6 text-center">
-              <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin text-purple-600" />
-              <p className="text-sm font-medium">動画生成中… (30〜90秒)</p>
-              <p className="mt-2 text-xs text-gray-500">
-                ステータス: {videoStatus} / Job ID: {videoId.slice(0, 8)}…
+            // 生成中表示 (既存 GenerationProgress を流用)
+            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-6">
+              <GenerationProgress
+                estimatedSeconds={currentProvider.estimatedSeconds}
+                label={statusToJa(videoStatus)}
+              />
+              <p className="mt-3 text-center text-xs text-slate-500">
+                ※ 30〜120秒ほどかかります。このままお待ちください。
               </p>
             </div>
           ) : videoStatus === 'done' && videoBlobUrl ? (
@@ -267,7 +297,7 @@ export function VideoGenerationDialog({
                 <a
                   href={videoBlobUrl}
                   download
-                  className="flex-1 rounded bg-purple-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-purple-700"
+                  className="flex-1 rounded bg-purple-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-purple-500"
                 >
                   <Download className="mr-1 inline h-4 w-4" />
                   ダウンロード
@@ -275,7 +305,7 @@ export function VideoGenerationDialog({
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="rounded border px-4 py-2 text-sm hover:bg-gray-50"
+                  className="rounded border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
                 >
                   もう一度生成
                 </button>
@@ -284,30 +314,30 @@ export function VideoGenerationDialog({
           ) : (
             // 入力フォーム
             <>
-              {/* プロバイダ選択 */}
+              {/* プロバイダ */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-900">モデル</label>
+                <label className={labelClass}>モデル</label>
                 <select
                   value={provider}
                   onChange={(e) => setProvider(e.target.value as ProviderId)}
-                  className="w-full rounded border border-slate-300 bg-white p-2 text-slate-900"
+                  className={inputClass}
                 >
                   {PROVIDERS.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.label} (¥{Math.round(p.pricePerSec * USD_TO_JPY)}〜/秒)
+                      {p.label}
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-gray-500">{currentProvider.description}</p>
+                <p className="mt-1 text-xs text-slate-500">{currentProvider.description}</p>
               </div>
 
               {/* アスペクト比 */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-900">フォーマット</label>
+                <label className={labelClass}>フォーマット</label>
                 <select
                   value={aspectRatio}
                   onChange={(e) => setAspectRatio(e.target.value as '9:16' | '16:9' | '1:1')}
-                  className="w-full rounded border border-slate-300 bg-white p-2 text-slate-900"
+                  className={inputClass}
                 >
                   {ASPECT_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -319,20 +349,20 @@ export function VideoGenerationDialog({
 
               {/* 尺 */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-900">尺</label>
+                <label className={labelClass}>尺</label>
                 <div className="flex gap-2">
                   {currentProvider.allowedDurations.map((d) => (
                     <button
                       key={d}
                       type="button"
                       onClick={() => setDurationSeconds(d)}
-                      className={`flex-1 rounded border p-2 text-sm ${
+                      className={`flex-1 rounded border p-2 text-sm transition ${
                         validDuration === d
-                          ? 'border-purple-600 bg-purple-50 font-medium text-purple-900'
-                          : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-50'
+                          ? 'border-purple-500 bg-purple-900/40 font-medium text-purple-100'
+                          : 'border-slate-700 bg-slate-900 text-slate-200 hover:border-slate-600'
                       }`}
                     >
-                      {d}秒 ({formatJpy(currentProvider.pricePerSec * d)})
+                      {d}秒
                     </button>
                   ))}
                 </div>
@@ -340,11 +370,12 @@ export function VideoGenerationDialog({
 
               {/* 音声 (Lite のみ) */}
               {currentProvider.supportsAudio && (
-                <label className="flex items-center gap-2 rounded border border-slate-300 bg-white p-3 text-slate-900">
+                <label className="flex items-center gap-2 rounded border border-slate-700 bg-slate-900 p-3 text-slate-200 cursor-pointer hover:border-slate-600">
                   <input
                     type="checkbox"
                     checked={generateAudio}
                     onChange={(e) => setGenerateAudio(e.target.checked)}
+                    className="h-4 w-4"
                   />
                   <span className="text-sm">
                     日本語ナレーション + リップシンクを生成 (preview)
@@ -355,14 +386,14 @@ export function VideoGenerationDialog({
               {/* プロンプト */}
               <div>
                 <div className="mb-1 flex items-center justify-between gap-2">
-                  <label className="block text-sm font-medium text-slate-900">
+                  <label className="block text-sm font-medium text-slate-200">
                     動きの指示 (日本語)
                   </label>
                   <button
                     type="button"
                     onClick={handleSuggestPrompt}
                     disabled={suggesting}
-                    className="inline-flex items-center gap-1 rounded border border-purple-300 bg-purple-50 px-2 py-1 text-xs text-purple-900 hover:bg-purple-100 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 rounded border border-purple-500/40 bg-purple-900/30 px-2 py-1 text-xs text-purple-200 hover:bg-purple-900/50 disabled:opacity-50"
                   >
                     {suggesting ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -377,15 +408,15 @@ export function VideoGenerationDialog({
                   onChange={(e) => setPromptJa(e.target.value)}
                   placeholder="例: カメラがゆっくりズームアウトしながら、女性が右手で商品を持ち上げて笑顔でこちらを見る"
                   rows={4}
-                  className="w-full rounded border border-slate-300 bg-white p-2 text-sm text-slate-900 placeholder:text-slate-400"
+                  className={`${inputClass} placeholder:text-slate-500`}
                   maxLength={500}
                 />
-                <p className="mt-1 text-xs text-gray-500">{promptJa.length} / 500</p>
+                <p className="mt-1 text-xs text-slate-500">{promptJa.length} / 500</p>
               </div>
 
               {/* エラー */}
               {errorMessage && (
-                <div className="rounded bg-red-50 p-3 text-sm text-red-700">
+                <div className="rounded border border-red-500/40 bg-red-950/40 p-3 text-sm text-red-200">
                   {errorMessage}
                 </div>
               )}
@@ -395,9 +426,9 @@ export function VideoGenerationDialog({
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting || !promptJa.trim()}
-                className="w-full rounded bg-purple-600 px-4 py-3 font-medium text-white hover:bg-purple-700 disabled:bg-gray-300"
+                className="w-full rounded bg-purple-600 px-4 py-3 font-medium text-white hover:bg-purple-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
               >
-                {submitting ? '送信中…' : `動画を生成 (${formatJpy(costUsd)})`}
+                {submitting ? '送信中…' : '動画を生成'}
               </button>
             </>
           )}
