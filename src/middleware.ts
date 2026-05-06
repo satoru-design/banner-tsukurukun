@@ -45,8 +45,21 @@ export default auth((req) => {
     return;
   }
 
-  // 未ログイン → /signin にリダイレクト（callbackUrl で元の path を保持）
+  // 未ログイン
   if (!req.auth) {
+    // /api/* は HTML redirect ではなく JSON 401 を返す。
+    // (HTTP redirect → /signin の gzip HTML を fetch().json() がパースして
+    //  binary 文字化けエラーになるのを防ぐ)
+    if (pathname.startsWith('/api/')) {
+      return new Response(
+        JSON.stringify({ error: 'ログインの有効期限が切れました。再ログインしてください。', code: 'SESSION_EXPIRED' }),
+        {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    }
+    // それ以外（ページ）は /signin にリダイレクト（callbackUrl で元の path を保持）
     const signInUrl = new URL('/signin', req.url);
     signInUrl.searchParams.set('callbackUrl', pathname);
     return Response.redirect(signInUrl);
