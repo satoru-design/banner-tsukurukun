@@ -25,31 +25,59 @@ import {
 let credentialsPathCache: string | null = null;
 
 /**
- * GOOGLE_APPLICATION_CREDENTIALS_BASE64 を decode して /tmp に書き出し、
- * GOOGLE_APPLICATION_CREDENTIALS にパスをセットする。Vercel 等のサーバーレス環境向け。
+ * Vertex AI 認証ファイルを準備。
+ * 優先順位:
+ *   1. GOOGLE_APPLICATION_CREDENTIALS_BASE64 が set → decode して /tmp に書き出し
+ *      (Vercel 等の serverless 環境向け。base64 を trim してから decode)
+ *   2. GOOGLE_APPLICATION_CREDENTIALS の path が存在 → そのまま使用
+ *      (ローカル開発向け)
+ *   3. どちらも無効 → throw
+ *
+ * 注意: Vercel では GOOGLE_APPLICATION_CREDENTIALS に Windows ローカルの path 文字列が
+ *       残っていると existsSync が false → fallthrough して BASE64 を見る、という
+ *       前提で順序設計している。
  */
 function ensureCredentials(): void {
   if (credentialsPathCache) return;
 
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    if (existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)) {
-      credentialsPathCache = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  // 優先1: BASE64 from env (serverless 環境)
+  const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
+  if (b64 && b64.trim()) {
+    try {
+      const json = Buffer.from(b64.trim(), 'base64').toString('utf8');
+      // 簡易バリデーション (service_account JSON か?)
+      const parsed = JSON.parse(json);
+      if (parsed.type !== 'service_account') {
+        throw new Error(`decoded credentials json is not a service_account (type=${parsed.type})`);
+      }
+      const path = join(tmpdir(), 'vertex-veo-key.json');
+      writeFileSync(path, json);
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = path;
+      credentialsPathCache = path;
       return;
+    } catch (e) {
+      throw new VideoProviderError(
+        'veo-3.1-fast',
+        `Failed to decode GOOGLE_APPLICATION_CREDENTIALS_BASE64: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
     }
   }
 
-  const b64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
-  if (!b64) {
-    throw new VideoProviderError(
-      'veo-3.1-fast',
-      'GOOGLE_APPLICATION_CREDENTIALS or GOOGLE_APPLICATION_CREDENTIALS_BASE64 not set',
-    );
+  // 優先2: 既存の credentials file path (ローカル開発)
+  if (
+    process.env.GOOGLE_APPLICATION_CREDENTIALS &&
+    existsSync(process.env.GOOGLE_APPLICATION_CREDENTIALS)
+  ) {
+    credentialsPathCache = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    return;
   }
-  const json = Buffer.from(b64, 'base64').toString('utf8');
-  const path = join(tmpdir(), 'vertex-veo-key.json');
-  writeFileSync(path, json);
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = path;
-  credentialsPathCache = path;
+
+  throw new VideoProviderError(
+    'veo-3.1-fast',
+    'GOOGLE_APPLICATION_CREDENTIALS_BASE64 (preferred) または GOOGLE_APPLICATION_CREDENTIALS の path が必要',
+  );
 }
 
 export function getVertexClient(): GoogleGenAI {
