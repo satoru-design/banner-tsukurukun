@@ -36,7 +36,7 @@ for (const v of videos) {
   console.log(`  age: ${ageMin}min, started: ${v.startedAt ? 'yes' : 'no'}, completed: ${v.completedAt ? 'yes' : 'no'}`);
   console.log(`  vertexOpId: ${v.vertexOperationId ? v.vertexOperationId.slice(0, 100) : 'null'}`);
   console.log(`  blobUrl: ${v.blobUrl ? 'set' : 'null'}`);
-  console.log(`  error: ${v.errorMessage ?? '-'}`);
+  console.log(`  error: ${(v.errorMessage ?? '-').slice(0, 500)}`);
   console.log(`  metadata: ${JSON.stringify(v.providerMetadata).slice(0, 200)}`);
   console.log(`  prompt: ${(v.promptJa ?? '').slice(0, 80)}`);
   console.log('---');

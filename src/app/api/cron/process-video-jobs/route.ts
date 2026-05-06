@@ -85,13 +85,23 @@ async function processPending(): Promise<{ jobId: string; status: string } | nul
     return { jobId: job.id, status: 'processing' };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error('[process-video-jobs] start failed:', job.id, message);
+    const stack = e instanceof Error ? e.stack : undefined;
+    const cause = e instanceof Error && 'cause' in e ? String((e as Error & { cause?: unknown }).cause) : undefined;
+    // 元の error message に binary が混じると DB クエリで切れるので encodeURIComponent で safe 化してメタに格納
+    console.error('[process-video-jobs] start failed:', job.id, message, stack);
     await prisma.generationVideo.update({
       where: { id: job.id },
       data: {
         status: 'failed',
-        errorMessage: message,
+        errorMessage: message.slice(0, 500),
         completedAt: new Date(),
+        providerMetadata: {
+          ...((job.providerMetadata as Record<string, unknown> | null) ?? {}),
+          failedAt: 'start',
+          fullErrorMessage: encodeURIComponent(message),
+          stack: stack?.slice(0, 2000),
+          cause,
+        } as Record<string, unknown> as Parameters<typeof prisma.generationVideo.update>[0]['data']['providerMetadata'],
       },
     });
     return { jobId: job.id, status: 'failed' };
@@ -158,13 +168,20 @@ async function processProcessing(): Promise<{ jobId: string; status: string } | 
     return { jobId: job.id, status: 'done' };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error('[process-video-jobs] poll/download failed:', job.id, message);
+    const stack = e instanceof Error ? e.stack : undefined;
+    console.error('[process-video-jobs] poll/download failed:', job.id, message, stack);
     await prisma.generationVideo.update({
       where: { id: job.id },
       data: {
         status: 'failed',
-        errorMessage: message,
+        errorMessage: message.slice(0, 500),
         completedAt: new Date(),
+        providerMetadata: {
+          ...((job.providerMetadata as Record<string, unknown> | null) ?? {}),
+          failedAt: 'poll-or-download',
+          fullErrorMessage: encodeURIComponent(message),
+          stack: stack?.slice(0, 2000),
+        } as Record<string, unknown> as Parameters<typeof prisma.generationVideo.update>[0]['data']['providerMetadata'],
       },
     });
     return { jobId: job.id, status: 'failed' };
