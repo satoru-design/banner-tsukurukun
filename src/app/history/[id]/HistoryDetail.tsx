@@ -10,9 +10,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Star, Download, Trash2, Sparkles, Pencil, Archive } from 'lucide-react';
+import { Star, Download, Trash2, Sparkles, Pencil, Archive, Film } from 'lucide-react';
 import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
 import { downloadGenerationZip } from './zip-helper';
+import { VideoGenerationDialog } from '@/components/video/VideoGenerationDialog';
 
 interface DetailImage {
   id: string;
@@ -54,6 +55,8 @@ export function HistoryDetail({ detail: initialDetail }: HistoryDetailProps) {
   const [favError, setFavError] = useState<string | null>(null);
   const [zipLoading, setZipLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Phase B.1: 動画生成ダイアログ
+  const [videoDialogImage, setVideoDialogImage] = useState<DetailImage | null>(null);
 
   // Phase A.17.0: ZIP DL は Pro / Business / admin で利用可
   const isPro = user.plan === 'pro' || user.plan === 'business' || user.plan === 'admin';
@@ -254,11 +257,36 @@ export function HistoryDetail({ detail: initialDetail }: HistoryDetailProps) {
                   <Download className="w-3 h-3" />
                   DL
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setVideoDialogImage(img)}
+                  disabled={user.plan === 'free'}
+                  title={user.plan === 'free' ? '動画化は Starter プラン以上で開放' : 'この画像を動画化'}
+                  className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded transition ${
+                    user.plan === 'free'
+                      ? 'bg-slate-700 opacity-40 cursor-not-allowed text-white'
+                      : 'bg-purple-600 hover:bg-purple-500 text-white cursor-pointer'
+                  }`}
+                >
+                  <Film className="w-3 h-3" />
+                  動画化
+                </button>
               </div>
             </div>
           </div>
         ))}
       </section>
+
+      {/* Phase B.1: 動画生成ダイアログ */}
+      {videoDialogImage && (
+        <VideoGenerationDialog
+          isOpen={true}
+          onClose={() => setVideoDialogImage(null)}
+          generationId={detail.id}
+          inputImageUrl={videoDialogImage.blobUrl}
+          imageSizeLabel={videoDialogImage.size}
+        />
+      )}
     </div>
   );
 }
