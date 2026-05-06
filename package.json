@@ -13,6 +13,8 @@
     "@anthropic-ai/sdk": "^0.90.0",
     "@auth/prisma-adapter": "^2.11.2",
     "@base-ui/react": "^1.4.0",
+    "@fal-ai/client": "^1.10.1",
+    "@google-cloud/storage": "^7.19.0",
     "@google/genai": "^1.50.1",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
