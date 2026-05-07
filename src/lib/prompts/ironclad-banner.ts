@@ -121,6 +121,12 @@ export function getIroncladSizeMeta(s: IroncladSize): {
  * Screen 2 のサジェスト生成の入力源にもなる。
  * sizes は複数選択可。同じ材料で統一感のある複数サイズを一括生成する。
  */
+/**
+ * Phase B.5: 動画 co-gen 用 aspect ratio。Veo 3.1 が現状サポートする 2 種のみ。
+ * 1:1 は Veo 非対応のため UI には出さない (admin が混乱しないように)。
+ */
+export type VideoCogenAspectRatio = '9:16' | '16:9';
+
 export interface IroncladBrief {
   /** 代表 pattern（STEP2 suggest はこの 1 個で呼ぶ） */
   pattern: IroncladPattern;
@@ -133,6 +139,12 @@ export interface IroncladBrief {
   target: string;
   purpose: string;
   sizes: IroncladSize[];
+  /**
+   * Phase B.5: 動画 co-gen を有効化する aspect ratio 群。
+   * admin かつ length>=1 で各 (Pattern × Size × AR) で動画 1 本ずつ生成。
+   * 非 admin は常に空配列。
+   */
+  videoAspectRatios?: VideoCogenAspectRatio[];
 }
 
 /**

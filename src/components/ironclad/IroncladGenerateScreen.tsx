@@ -11,6 +11,7 @@ import type {
   IroncladMaterials,
   IroncladPattern,
   IroncladSize,
+  VideoCogenAspectRatio,
 } from '@/lib/prompts/ironclad-banner';
 import { GenerationProgress } from '@/components/ui/GenerationProgress';
 import { VideoCogenProgress } from '@/components/ironclad/VideoCogenProgress';
@@ -56,6 +57,8 @@ type Props = {
   /** Phase A.16: [代表 pattern, ...additionalPatterns] の順 */
   patterns: IroncladPattern[];
   sizes: IroncladSize[];
+  /** Phase B.5: 動画 co-gen 用 AR (admin かつ length>=1 で各 Pattern×Size×AR で動画 1 本生成) */
+  videoAspectRatios?: VideoCogenAspectRatio[];
   onBack: () => void;
 };
 
@@ -73,7 +76,7 @@ type PatternSizeResult = {
   selected?: boolean;
 };
 
-export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack }: Props) {
+export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, videoAspectRatios, onBack }: Props) {
   // Phase A.11.3: useSession で current user を取得し、生成前の上限 pre-check と
   // 成功時の usageCount session 反映に使用
   const { data: session, update: updateSession } = useSession();
@@ -94,9 +97,11 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
   // Phase A.17.0 Y: Pro 上限到達検知（一度 true になったらセッション内維持）
   const [proLimitReachedInSession, setProLimitReachedInSession] = useState(false);
 
-  // Phase B.3: admin 同時動画生成。チェック ON で各バナー生成 → clean Imagen → Veo pending を投入
-  const [generateVideoFlag, setGenerateVideoFlag] = useState(false);
+  // Phase B.5: 動画 co-gen の進捗追跡。admin でお題画面で AR を 1 つ以上選んだ場合のみ走る。
+  // ironclad-generate response の videoIds[] (各 AR で 1 ID) を蓄積していく。
   const [videoCogenIds, setVideoCogenIds] = useState<string[]>([]);
+  const isVideoCogenEnabled =
+    user.plan === 'admin' && (videoAspectRatios?.length ?? 0) > 0;
 
   const updateResult = (
     pattern: IroncladPattern,
@@ -128,14 +133,14 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
     // Phase A.16: ループごとに pattern を差し替えて API に渡す
     const materials: IroncladMaterials = { ...baseMaterials, pattern, size };
 
-    // Phase B.3: admin かつチェック ON で動画も同時生成
+    // Phase B.5: お題画面で選んだ AR ごとに動画 co-gen。admin かつ AR が 1+ ある時のみ。
     const requestBody: IroncladMaterials & {
-      generateVideo?: boolean;
+      videoAspectRatios?: VideoCogenAspectRatio[];
       videoProvider?: 'veo-3.1-fast' | 'veo-3.1-lite';
       videoDurationSeconds?: 4 | 6 | 8;
     } = { ...materials };
-    if (user.plan === 'admin' && generateVideoFlag) {
-      requestBody.generateVideo = true;
+    if (isVideoCogenEnabled) {
+      requestBody.videoAspectRatios = videoAspectRatios;
       requestBody.videoProvider = 'veo-3.1-fast';
       requestBody.videoDurationSeconds = 8;
     }
@@ -197,9 +202,12 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
         setToastInfo({ generationId: json.generationId });
       }
 
-      // Phase B.3: 動画 co-gen が走ったら ID をストックし、UI で進行中表示
-      if (typeof json.videoId === 'string') {
-        setVideoCogenIds((prev) => [...prev, json.videoId]);
+      // Phase B.5: 動画 co-gen の videoIds (各 AR 1 ID) をストック
+      if (Array.isArray(json.videoIds)) {
+        const newIds = json.videoIds.filter((x: unknown): x is string => typeof x === 'string');
+        if (newIds.length > 0) {
+          setVideoCogenIds((prev) => [...prev, ...newIds]);
+        }
       }
     } catch (e) {
       const isAbort = e instanceof DOMException && e.name === 'AbortError';
@@ -351,35 +359,16 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
         </div>
       )}
 
-      {/* Phase B.3: admin 限定の動画 co-gen トグル */}
-      {user.plan === 'admin' && (
-        <div className="flex flex-col items-center justify-center gap-2">
-          <label className="inline-flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-400/40 text-amber-200 text-sm cursor-pointer hover:bg-amber-500/15">
-            <input
-              type="checkbox"
-              checked={generateVideoFlag}
-              onChange={(e) => setGenerateVideoFlag(e.target.checked)}
-              className="w-4 h-4 accent-amber-400"
-              disabled={overallGenerating}
-            />
-            <span>
-              動画も同時生成する
-              <span className="ml-2 text-xs text-amber-300/70">
-                (admin 限定 β)
-              </span>
-            </span>
-          </label>
-          {videoCogenIds.length > 0 && (
-            <p className="text-xs text-amber-200/80">
-              動画 {videoCogenIds.length} 本を生成キューに投入しました。下に進捗が表示されます。
-            </p>
-          )}
+      {/* Phase B.5: 動画 co-gen が有効化されている場合のお知らせ + 進捗パネル */}
+      {isVideoCogenEnabled && (
+        <div className="space-y-3">
+          <div className="text-center text-xs text-amber-300/80">
+            🎬 動画も同時生成中: {videoAspectRatios?.join(' / ')} ×{' '}
+            {patterns.length} スタイル × {sizes.length} サイズ
+            {videoCogenIds.length > 0 && ` (${videoCogenIds.length} 本キュー投入済)`}
+          </div>
+          {videoCogenIds.length > 0 && <VideoCogenProgress videoIds={videoCogenIds} />}
         </div>
-      )}
-
-      {/* Phase B.3: 動画 co-gen の進捗パネル (admin かつ生成投入後のみ表示) */}
-      {user.plan === 'admin' && videoCogenIds.length > 0 && (
-        <VideoCogenProgress videoIds={videoCogenIds} />
       )}
 
       <div className="flex items-center justify-center gap-3 flex-wrap">

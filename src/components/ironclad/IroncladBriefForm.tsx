@@ -13,6 +13,7 @@ import {
   CUSTOM_SIZE_MAX,
   getIroncladSizeMeta,
   parseCustomSize,
+  type VideoCogenAspectRatio,
 } from '@/lib/prompts/ironclad-banner';
 import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
 import { CheckoutButton } from '@/components/billing/CheckoutButton';
@@ -485,6 +486,16 @@ export function IroncladBriefForm({
         )}
       </div>
 
+      {/* Phase B.5: admin 限定の動画 co-gen 設定 (アスペクト比選択) */}
+      {user.plan === 'admin' && (
+        <VideoCogenSection
+          selected={brief.videoAspectRatios ?? []}
+          onChange={(ars) => onChangeBrief({ ...brief, videoAspectRatios: ars })}
+          patternCount={allSelectedPatterns.length}
+          sizeCount={brief.sizes.length}
+        />
+      )}
+
       <AssetLibrary
         assetType="product"
         selectedId={productAsset?.id ?? null}
@@ -516,6 +527,87 @@ export function IroncladBriefForm({
           次へ（AIサジェスト生成）→
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Phase B.5: admin 限定の動画 co-gen 設定セクション。
+ * 静止画と同じ Pattern × Size の組合せに対し、選んだ AR ごとに 1 本ずつ動画生成。
+ * 1:1 は Veo 3.1 が現状サポートしていないため UI に出さない。
+ */
+function VideoCogenSection({
+  selected,
+  onChange,
+  patternCount,
+  sizeCount,
+}: {
+  selected: VideoCogenAspectRatio[];
+  onChange: (next: VideoCogenAspectRatio[]) => void;
+  patternCount: number;
+  sizeCount: number;
+}) {
+  const ALL_ARS: { value: VideoCogenAspectRatio; label: string; hint: string }[] = [
+    { value: '9:16', label: '9:16 (縦)', hint: 'Reels / TikTok / Shorts' },
+    { value: '16:9', label: '16:9 (横)', hint: 'YouTube / 横動画広告' },
+  ];
+
+  const toggle = (ar: VideoCogenAspectRatio) => {
+    if (selected.includes(ar)) {
+      onChange(selected.filter((x) => x !== ar));
+    } else {
+      onChange([...selected, ar]);
+    }
+  };
+
+  // Veo 3.1 Fast: $0.15/sec * 8s = $1.20 動画
+  // + Imagen クリーン素材: $0.04
+  // + Sonnet prompt: ~$0.01
+  // ≒ $1.25/本 で見積
+  const COST_PER_VIDEO = 1.25;
+  const totalVideos = patternCount * sizeCount * selected.length;
+  const totalCost = (totalVideos * COST_PER_VIDEO).toFixed(2);
+
+  return (
+    <div className="p-4 rounded-xl border border-amber-400/30 bg-amber-500/[0.04] space-y-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h3 className="text-sm font-bold text-amber-200">
+          🎬 動画も生成する <span className="text-xs text-amber-400/70">(admin β)</span>
+        </h3>
+        {selected.length > 0 && (
+          <span className="text-[11px] text-amber-200/80 tabular-nums">
+            動画 {totalVideos} 本 (約 ${totalCost})
+          </span>
+        )}
+      </div>
+      <p className="text-[11px] text-amber-300/70 leading-relaxed">
+        静止画と同じ Pattern × Size の組合せに対し、選んだアスペクト比ごとに動画を 1 本ずつ生成します。
+        OFF なら動画は作りません。
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {ALL_ARS.map((opt) => {
+          const active = selected.includes(opt.value);
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => toggle(opt.value)}
+              className={`px-3 py-2 rounded-lg text-xs font-medium border transition ${
+                active
+                  ? 'bg-amber-500/20 border-amber-400 text-amber-100'
+                  : 'bg-slate-900/40 border-slate-700 text-slate-400 hover:border-amber-600'
+              }`}
+            >
+              {active ? '✓ ' : ''}
+              {opt.label}
+              <span className="ml-1 text-[10px] opacity-70">{opt.hint}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-amber-400/50">
+        Veo 3.1 Fast / 8 秒 / 1080p。1:1 は現在 Veo 非対応のため除外しています。
+      </p>
     </div>
   );
 }

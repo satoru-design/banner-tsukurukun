@@ -15,17 +15,22 @@
 import { generateWithFallback } from '@/lib/image-providers';
 import { put } from '@vercel/blob';
 import { getPrisma } from '@/lib/prisma';
-import type { IroncladMaterials, IroncladSize } from '@/lib/prompts/ironclad-banner';
-import { getIroncladSizeMeta } from '@/lib/prompts/ironclad-banner';
+import type { IroncladMaterials } from '@/lib/prompts/ironclad-banner';
 import { buildVeoPrompts } from './video-prompt-knowledge';
 
 export type VideoProviderId = 'veo-3.1-fast' | 'veo-3.1-lite';
 export type VideoDurationSeconds = 4 | 6 | 8;
+export type VeoAspectRatio = '9:16' | '16:9';
 
 export interface CoVideoOptions {
   provider?: VideoProviderId;
   durationSeconds?: VideoDurationSeconds;
   promptJa?: string;
+  /**
+   * Phase B.5: 動画用 aspect ratio (1+)。各 AR で 1 本ずつ動画生成。
+   * 1:1 は Veo 非対応のため受け付けない (UI 側で除外している前提)。
+   */
+  aspectRatios: VeoAspectRatio[];
 }
 
 const NEGATIVE_PROMPT =
@@ -35,7 +40,7 @@ const NEGATIVE_PROMPT =
  * クリーン素材用 prompt。「商品 + 自然な被写体・背景・光」を描写し、
  * 文字焼き込み指示を一切含めない。
  */
-function buildCleanPrompt(m: IroncladMaterials, aspectRatio: string): string {
+function buildCleanPrompt(m: IroncladMaterials, aspectRatio: VeoAspectRatio): string {
   const product = m.product || '商品';
   const target = m.target || '一般消費者';
   const tone = m.tone || 'professional';
@@ -52,37 +57,9 @@ function buildCleanPrompt(m: IroncladMaterials, aspectRatio: string): string {
   ].join('\n');
 }
 
-/**
- * Generation の aspectRatio から Veo 対応の aspectRatio に変換。
- * 4:5 / 1.91:1 等は Veo が直接サポートしないので、最も近い枠 (9:16 or 16:9 or 1:1) に丸める。
- */
-function mapToVeoAspectRatio(aspectRatio: string): '9:16' | '16:9' | '1:1' {
-  if (aspectRatio === '9:16' || aspectRatio === '16:9' || aspectRatio === '1:1') {
-    return aspectRatio;
-  }
-  // 4:5, 2:3 等は縦長扱い → 9:16
-  if (/^\d+:\d+$/.test(aspectRatio)) {
-    const [w, h] = aspectRatio.split(':').map(Number);
-    if (h > w) return '9:16';
-    if (w > h) return '16:9';
-    return '1:1';
-  }
-  return '9:16';
-}
-
-/**
- * size 文字列から aspectRatio を取得 (Generation テーブル size に対応)。
- */
-function aspectRatioFromSize(size: IroncladSize): string {
-  const meta = getIroncladSizeMeta(size);
-  return meta?.aspectRatio ?? '9:16';
-}
-
 interface CleanImageResult {
-  videoId: string;
-  cleanBlobUrl: string;
-  veoAspectRatio: '9:16' | '16:9' | '1:1';
-  estimatedCostUsd: number;
+  videoIds: string[];
+  totalEstimatedCostUsd: number;
 }
 
 /**
@@ -99,77 +76,76 @@ export async function generateCleanImageAndQueueVideo(args: {
   const { userId, generationId, materials, options } = args;
   const provider: VideoProviderId = options.provider ?? 'veo-3.1-fast';
   const durationSeconds: VideoDurationSeconds = options.durationSeconds ?? 8;
-  const aspectRatio = aspectRatioFromSize(materials.size);
-  const veoAspect = mapToVeoAspectRatio(aspectRatio);
+  const aspectRatios = options.aspectRatios.length > 0 ? options.aspectRatios : ['9:16' as const];
 
-  // ----- STEP 1: Imagen 4 で clean 素材生成 -----
-  // composite mode を避け、reference は productImageUrl のみ (バッジは文字含むため除外)
-  const cleanPrompt = buildCleanPrompt(materials, veoAspect);
-  const refs = materials.productImageUrl ? [materials.productImageUrl] : undefined;
-
-  const cleanResult = await generateWithFallback('imagen4', {
-    prompt: cleanPrompt,
-    aspectRatio: veoAspect, // Imagen に Veo 互換アスペクト比で生成させる (リサイズ問題を回避)
-    referenceImageUrls: refs,
-    negativePrompt: NEGATIVE_PROMPT,
-  });
-
-  // ----- STEP 2: Vercel Blob に保存 -----
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) throw new Error('BLOB_READ_WRITE_TOKEN is not set');
-  const base64 = cleanResult.base64.split(',')[1] ?? cleanResult.base64;
-  const buf = Buffer.from(base64, 'base64');
-  const path = `generations/${userId}/${generationId}/_clean_for_video.png`;
-  const blob = await put(path, buf, { access: 'public', contentType: 'image/png', token });
-
-  // ----- STEP 3: Sonnet で Veo 用 prompt 3 点セットを生成 -----
-  // research に基づく Veo 3.1 prompt engineering ベストプラクティスを system prompt 化
-  // (src/lib/generations/video-prompt-knowledge.ts 参照)
-  const veoPrompts = await buildVeoPrompts({
-    product: materials.product,
-    target: materials.target,
-    tone: materials.tone,
-    aspectRatio: veoAspect,
-    durationSeconds,
-    userDirection: options.promptJa,
-  });
-
-  // ----- STEP 4: GenerationVideo pending 作成 (cron が拾って Veo 投入) -----
-  // 概算コスト: Veo 3.1 Fast = $0.15/sec, Veo 3.1 Lite = $0.40/sec (audio 込)
-  const costPerSec = provider === 'veo-3.1-lite' ? 0.4 : 0.15;
-  const estimatedCostUsd = +(costPerSec * durationSeconds).toFixed(4);
-
   const prisma = getPrisma();
-  const video = await prisma.generationVideo.create({
-    data: {
-      generationId,
-      format: `${veoAspect} ${durationSeconds}s (admin co-gen)`,
-      aspectRatio: veoAspect,
-      status: 'pending',
-      provider,
-      inputImageUrl: blob.url,
-      durationSeconds,
-      generateAudio: provider === 'veo-3.1-lite',
-      prompt: veoPrompts.promptEn, // Veo に渡す英語プロンプト
-      promptJa: veoPrompts.promptJa, // 日本語サマリ (UI 表示用)
-      costUsd: 0,
-      providerMetadata: {
-        estimatedCostUsd,
-        coGenerated: true,
-        cleanProvider: cleanResult.providerId,
-        cleanAspectRatio: veoAspect,
-        originalSize: materials.size,
-        // Phase B.3: cron が provider.run() に渡せるよう保存
-        negativePrompt: veoPrompts.negativePrompt,
-      },
-    },
-    select: { id: true },
-  });
+
+  // 各 AR について「clean image 生成 → Blob 保存 → Sonnet prompt 生成 → GenerationVideo pending 作成」を並列実行
+  const refs = materials.productImageUrl ? [materials.productImageUrl] : undefined;
+  const costPerSec = provider === 'veo-3.1-lite' ? 0.4 : 0.15;
+  const costPerVideo = +(costPerSec * durationSeconds).toFixed(4);
+
+  const results = await Promise.all(
+    aspectRatios.map(async (veoAspect) => {
+      // STEP 1: Imagen 4 で clean 素材生成 (この AR で)
+      const cleanPrompt = buildCleanPrompt(materials, veoAspect);
+      const cleanResult = await generateWithFallback('imagen4', {
+        prompt: cleanPrompt,
+        aspectRatio: veoAspect,
+        referenceImageUrls: refs,
+        negativePrompt: NEGATIVE_PROMPT,
+      });
+
+      // STEP 2: Vercel Blob に保存 (AR ごとに別ファイル)
+      const base64 = cleanResult.base64.split(',')[1] ?? cleanResult.base64;
+      const buf = Buffer.from(base64, 'base64');
+      const safeAr = veoAspect.replace(':', 'x');
+      const path = `generations/${userId}/${generationId}/_clean_for_video_${safeAr}.png`;
+      const blob = await put(path, buf, { access: 'public', contentType: 'image/png', token });
+
+      // STEP 3: Sonnet で Veo 用 prompt
+      const veoPrompts = await buildVeoPrompts({
+        product: materials.product,
+        target: materials.target,
+        tone: materials.tone,
+        aspectRatio: veoAspect,
+        durationSeconds,
+        userDirection: options.promptJa,
+      });
+
+      // STEP 4: GenerationVideo pending 作成
+      const video = await prisma.generationVideo.create({
+        data: {
+          generationId,
+          format: `${veoAspect} ${durationSeconds}s (admin co-gen)`,
+          aspectRatio: veoAspect,
+          status: 'pending',
+          provider,
+          inputImageUrl: blob.url,
+          durationSeconds,
+          generateAudio: provider === 'veo-3.1-lite',
+          prompt: veoPrompts.promptEn,
+          promptJa: veoPrompts.promptJa,
+          costUsd: 0,
+          providerMetadata: {
+            estimatedCostUsd: costPerVideo,
+            coGenerated: true,
+            cleanProvider: cleanResult.providerId,
+            cleanAspectRatio: veoAspect,
+            originalSize: materials.size,
+            negativePrompt: veoPrompts.negativePrompt,
+          },
+        },
+        select: { id: true },
+      });
+      return { videoId: video.id, costUsd: costPerVideo };
+    }),
+  );
 
   return {
-    videoId: video.id,
-    cleanBlobUrl: blob.url,
-    veoAspectRatio: veoAspect,
-    estimatedCostUsd,
+    videoIds: results.map((r) => r.videoId),
+    totalEstimatedCostUsd: +results.reduce((s, r) => s + r.costUsd, 0).toFixed(4),
   };
 }
