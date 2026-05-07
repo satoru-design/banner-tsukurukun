@@ -359,16 +359,9 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, videoAs
         </div>
       )}
 
-      {/* Phase B.5: 動画 co-gen が有効化されている場合のお知らせ + 進捗パネル */}
-      {isVideoCogenEnabled && (
-        <div className="space-y-3">
-          <div className="text-center text-xs text-amber-300/80">
-            🎬 動画も同時生成中: {videoAspectRatios?.join(' / ')} ×{' '}
-            {patterns.length} スタイル × {sizes.length} サイズ
-            {videoCogenIds.length > 0 && ` (${videoCogenIds.length} 本キュー投入済)`}
-          </div>
-          {videoCogenIds.length > 0 && <VideoCogenProgress videoIds={videoCogenIds} />}
-        </div>
+      {/* Phase B.5: 動画 co-gen の進捗パネル (キュー投入後のみ表示) */}
+      {isVideoCogenEnabled && videoCogenIds.length > 0 && (
+        <VideoCogenProgress videoIds={videoCogenIds} />
       )}
 
       <div className="flex items-center justify-center gap-3 flex-wrap">
@@ -382,8 +375,8 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, videoAs
           {overallGenerating
             ? `生成中… ${completedCount + 1}/${totalCount}`
             : completedCount > 0
-              ? `すべて再生成（${totalCount}枚）`
-              : `バナー生成開始（${totalCount}枚）`}
+              ? 'すべて再生成する'
+              : '生成開始する'}
         </button>
 
         {/* Phase A.17: 一括 DL ボタン（生成成功画像が 1 枚以上で表示） */}
