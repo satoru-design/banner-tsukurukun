@@ -145,6 +145,16 @@ export interface IroncladBrief {
    * 非 admin は常に空配列。
    */
   videoAspectRatios?: VideoCogenAspectRatio[];
+  /**
+   * Phase B.6: 動画内で人物に日本語を喋らせる (Veo 3.1 Lite で音声+リップシンク同時生成)。
+   * true で provider='veo-3.1-lite' に切替。
+   */
+  videoNarrationEnabled?: boolean;
+  /**
+   * Phase B.6: 手動セリフ (任意)。空なら materials のコピーから Sonnet が自動推測。
+   * 8 秒以内で自然に話せる 1〜2 文を想定 (15〜40 文字程度)。
+   */
+  videoNarrationScript?: string;
 }
 
 /**

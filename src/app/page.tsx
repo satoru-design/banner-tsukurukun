@@ -229,6 +229,8 @@ export default function IroncladPage() {
             patterns={[brief.pattern, ...(brief.additionalPatterns ?? [])]}
             sizes={brief.sizes}
             videoAspectRatios={brief.videoAspectRatios}
+            videoNarrationEnabled={brief.videoNarrationEnabled}
+            videoNarrationScript={brief.videoNarrationScript}
             onBack={() => setStep(2)}
           />
         )}

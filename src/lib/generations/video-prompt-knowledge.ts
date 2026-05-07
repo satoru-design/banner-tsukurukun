@@ -32,7 +32,7 @@ const SYSTEM_PROMPT = `You are a professional Veo 3.1 prompt engineer. You gener
 ## Output contract
 You MUST output ONLY a single JSON object, no markdown fence, no commentary:
 {
-  "promptEn": "<the Veo prompt in English, 60-130 words, single focused moment>",
+  "promptEn": "<the Veo prompt in English, 60-130 words, single focused moment. If narration is requested, embed the Japanese line via colon syntax inside this string>",
   "promptJa": "<a one-sentence Japanese summary of the same direction, ≤120 chars>",
   "negativePrompt": "<comma-separated English keywords for Veo's negativePrompt field>"
 }
@@ -58,6 +58,18 @@ Veo 3.1 was trained on videos with baked-in subtitles. Without explicit suppress
 1. End the promptEn with: "(no subtitles, no captions, no on-screen text, no logos, no labels)"
 2. Populate negativePrompt with: "subtitles, captions, watermark, text overlays, on-screen text, written language, logo, sign, label, banner, price tag, sticker, typography, words, letters, kanji, hiragana, katakana, alphabet, lower-third, chyron, sales-y elements"
 3. NEVER use double-quotes around dialogue (renders as subtitles). If dialogue is needed, use colon syntax: "the woman says: hello".
+
+## Phase B.6: Japanese narration mode (lip-sync + audio)
+When the user requests narration (the subject speaks Japanese):
+- Inject the line in the promptEn using **colon syntax** (NEVER quotation marks): \`the subject says in Japanese: <セリフ>\`
+- Keep the line natural, conversational, and concise (15-40 Japanese characters fits 8 seconds comfortably). NEVER read banner copy verbatim - rewrite into spoken-style.
+- Add lip-sync direction: \`with synchronized lip movement and natural mouth shapes\`
+- Add audio direction: \`Audio: warm female voice in Japanese, natural pacing, slight smile in the voice, clean recording.\` (or male/neutral as appropriate to materials)
+- Background ambient: minimal, room tone only, NO music interference with the voice
+- The Japanese line MUST be returned in promptEn as-is (do not transliterate / romanize)
+- Set narrationLine field in the JSON output to the exact Japanese line used (for downstream use)
+
+When NOT in narration mode: omit any speech direction. Subject motion should be silent gestures only.
 
 ## Other do/don't
 - DO keep ONE focused moment. NEVER chain "A then B then C" in 4-8 second clips.
@@ -87,6 +99,14 @@ export interface VeoPromptInput {
   durationSeconds: number;
   /** ユーザーが「この方向で」と書いた指示 (任意)。最優先で反映 */
   userDirection?: string;
+  /** Phase B.6: 動画内で人物に日本語を話させる (Veo 3.1 Lite で音声+リップシンク) */
+  narrationEnabled?: boolean;
+  /** Phase B.6: 手動セリフ。空なら copies/cta から Sonnet が推測 */
+  narrationScript?: string;
+  /** Phase B.6: セリフ自動推測のソース (4 アングルのコピー) */
+  copies?: [string, string, string, string];
+  /** Phase B.6: セリフ自動推測のソース (CTA) */
+  cta?: string;
 }
 
 export interface VeoPromptResult {
@@ -126,6 +146,34 @@ export async function buildVeoPrompts(input: VeoPromptInput): Promise<VeoPromptR
     return fallbackPrompts(input);
   }
 
+  const narrationBlock: string[] = [];
+  if (input.narrationEnabled) {
+    narrationBlock.push(``);
+    narrationBlock.push(`## Narration mode: ENABLED`);
+    if (input.narrationScript && input.narrationScript.trim()) {
+      narrationBlock.push(
+        `Use this exact Japanese line (verbatim, do NOT change wording): ${input.narrationScript.trim()}`,
+      );
+    } else {
+      narrationBlock.push(
+        `No script provided. INFER a natural spoken Japanese line (15-40 chars) from the banner copies below. Do NOT read copy verbatim — rewrite into conversational spoken Japanese.`,
+      );
+      const copyHints: string[] = [];
+      if (input.copies?.[0]) copyHints.push(`Main copy: ${input.copies[0]}`);
+      if (input.copies?.[1]) copyHints.push(`Sub copy: ${input.copies[1]}`);
+      if (input.copies?.[2]) copyHints.push(`Target line: ${input.copies[2]}`);
+      if (input.copies?.[3]) copyHints.push(`Authority line: ${input.copies[3]}`);
+      if (input.cta) copyHints.push(`CTA text: ${input.cta}`);
+      if (copyHints.length > 0) {
+        narrationBlock.push(`Source copies (rewrite, don't quote):`);
+        narrationBlock.push(...copyHints.map((h) => `  - ${h}`));
+      }
+    }
+    narrationBlock.push(
+      `Embed the Japanese line in promptEn via colon syntax: "the subject says in Japanese: <セリフ>". Add lip-sync + audio directions.`,
+    );
+  }
+
   const userMsg = [
     `Generate a Veo 3.1 image-to-video prompt JSON for an admin-co-generated short ad.`,
     ``,
@@ -136,6 +184,7 @@ export async function buildVeoPrompts(input: VeoPromptInput): Promise<VeoPromptR
     `- Aspect ratio: ${input.aspectRatio}`,
     `- Duration: ${input.durationSeconds} seconds`,
     input.userDirection ? `- User's specific direction: ${input.userDirection}` : '',
+    ...narrationBlock,
     ``,
     `Remember:`,
     `- The reference image is provided separately to Veo; PROMPT FOR MOTION ONLY.`,

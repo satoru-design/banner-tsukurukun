@@ -31,6 +31,15 @@ export interface CoVideoOptions {
    * 1:1 は Veo 非対応のため受け付けない (UI 側で除外している前提)。
    */
   aspectRatios: VeoAspectRatio[];
+  /**
+   * Phase B.6: 人物に日本語を話させる (Veo 3.1 Lite で音声+リップシンク同時生成)。
+   * true なら provider='veo-3.1-lite' に強制し generateAudio=true で動かす。
+   */
+  narrationEnabled?: boolean;
+  /**
+   * Phase B.6: 手動セリフ (任意)。空 (undefined) なら materials のコピーから Sonnet が推測。
+   */
+  narrationScript?: string;
 }
 
 const NEGATIVE_PROMPT =
@@ -79,7 +88,10 @@ export async function generateCleanImageAndQueueVideo(args: {
   options: CoVideoOptions;
 }): Promise<CleanImageResult> {
   const { userId, generationId, materials, options } = args;
-  const provider: VideoProviderId = options.provider ?? 'veo-3.1-fast';
+  // Phase B.6: narration ON なら必ず Lite (音声+リップシンク対応モデル) に強制
+  const provider: VideoProviderId = options.narrationEnabled
+    ? 'veo-3.1-lite'
+    : (options.provider ?? 'veo-3.1-fast');
   const durationSeconds: VideoDurationSeconds = options.durationSeconds ?? 8;
   const aspectRatios = options.aspectRatios.length > 0 ? options.aspectRatios : ['9:16' as const];
 
@@ -110,7 +122,7 @@ export async function generateCleanImageAndQueueVideo(args: {
       const path = `generations/${userId}/${generationId}/_clean_for_video_${safeAr}.png`;
       const blob = await put(path, buf, { access: 'public', contentType: 'image/png', token });
 
-      // STEP 3: Sonnet で Veo 用 prompt
+      // STEP 3: Sonnet で Veo 用 prompt (narration が ON なら日本語セリフ込み)
       const veoPrompts = await buildVeoPrompts({
         product: materials.product,
         target: materials.target,
@@ -118,6 +130,10 @@ export async function generateCleanImageAndQueueVideo(args: {
         aspectRatio: veoAspect,
         durationSeconds,
         userDirection: options.promptJa,
+        narrationEnabled: options.narrationEnabled === true,
+        narrationScript: options.narrationScript,
+        copies: materials.copies,
+        cta: materials.cta,
       });
 
       // STEP 4: GenerationVideo pending 作成
@@ -130,7 +146,8 @@ export async function generateCleanImageAndQueueVideo(args: {
           provider,
           inputImageUrl: blob.url,
           durationSeconds,
-          generateAudio: provider === 'veo-3.1-lite',
+          // Phase B.6: Lite かつ narrationEnabled で音声+リップシンク同時生成
+          generateAudio: provider === 'veo-3.1-lite' && options.narrationEnabled === true,
           prompt: veoPrompts.promptEn,
           promptJa: veoPrompts.promptJa,
           costUsd: 0,

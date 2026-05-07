@@ -69,6 +69,10 @@ type Props = {
   sizes: IroncladSize[];
   /** Phase B.5: 動画 co-gen 用 AR (admin かつ length>=1 で各 Pattern×Size×AR で動画 1 本生成) */
   videoAspectRatios?: VideoCogenAspectRatio[];
+  /** Phase B.6: 動画内で人物に日本語を話させる (Veo 3.1 Lite) */
+  videoNarrationEnabled?: boolean;
+  /** Phase B.6: 手動セリフ。空なら Sonnet が materials のコピーから自動生成 */
+  videoNarrationScript?: string;
   onBack: () => void;
 };
 
@@ -104,7 +108,15 @@ type PatternSizeResult = {
   selected?: boolean;
 };
 
-export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, videoAspectRatios, onBack }: Props) {
+export function IroncladGenerateScreen({
+  baseMaterials,
+  patterns,
+  sizes,
+  videoAspectRatios,
+  videoNarrationEnabled,
+  videoNarrationScript,
+  onBack,
+}: Props) {
   // Phase A.11.3: useSession で current user を取得し、生成前の上限 pre-check と
   // 成功時の usageCount session 反映に使用
   const { data: session, update: updateSession } = useSession();
@@ -194,15 +206,24 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, videoAs
     const materials: IroncladMaterials = { ...baseMaterials, pattern, size };
 
     // Phase B.5: お題画面で選んだ AR ごとに動画 co-gen。admin かつ AR が 1+ ある時のみ。
+    // Phase B.6: narrationEnabled なら provider を Lite に切り替え (音声+リップシンク)
     const requestBody: IroncladMaterials & {
       videoAspectRatios?: VideoCogenAspectRatio[];
       videoProvider?: 'veo-3.1-fast' | 'veo-3.1-lite';
       videoDurationSeconds?: 4 | 6 | 8;
+      videoNarrationEnabled?: boolean;
+      videoNarrationScript?: string;
     } = { ...materials };
     if (isVideoCogenEnabled) {
       requestBody.videoAspectRatios = videoAspectRatios;
-      requestBody.videoProvider = 'veo-3.1-fast';
+      requestBody.videoProvider = videoNarrationEnabled ? 'veo-3.1-lite' : 'veo-3.1-fast';
       requestBody.videoDurationSeconds = 8;
+      if (videoNarrationEnabled) {
+        requestBody.videoNarrationEnabled = true;
+        if (videoNarrationScript && videoNarrationScript.trim()) {
+          requestBody.videoNarrationScript = videoNarrationScript.trim();
+        }
+      }
     }
 
     // Phase A.11.2 hotfix: クライアント側タイムアウト 320s（サーバ maxDuration=300s + 余裕 20s）。
