@@ -493,6 +493,14 @@ export function IroncladBriefForm({
           onChange={(ars) => onChangeBrief({ ...brief, videoAspectRatios: ars })}
           patternCount={allSelectedPatterns.length}
           sizeCount={brief.sizes.length}
+          narrationEnabled={brief.videoNarrationEnabled ?? false}
+          onChangeNarrationEnabled={(v) =>
+            onChangeBrief({ ...brief, videoNarrationEnabled: v })
+          }
+          narrationScript={brief.videoNarrationScript ?? ''}
+          onChangeNarrationScript={(v) =>
+            onChangeBrief({ ...brief, videoNarrationScript: v })
+          }
         />
       )}
 
@@ -541,11 +549,19 @@ function VideoCogenSection({
   onChange,
   patternCount,
   sizeCount,
+  narrationEnabled,
+  onChangeNarrationEnabled,
+  narrationScript,
+  onChangeNarrationScript,
 }: {
   selected: VideoCogenAspectRatio[];
   onChange: (next: VideoCogenAspectRatio[]) => void;
   patternCount: number;
   sizeCount: number;
+  narrationEnabled: boolean;
+  onChangeNarrationEnabled: (v: boolean) => void;
+  narrationScript: string;
+  onChangeNarrationScript: (v: string) => void;
 }) {
   const ALL_ARS: { value: VideoCogenAspectRatio; label: string; hint: string }[] = [
     { value: '9:16', label: '9:16 (縦)', hint: 'Reels / TikTok / Shorts' },
@@ -602,6 +618,44 @@ function VideoCogenSection({
       <p className="text-[10px] text-amber-400/50">
         Veo 3.1 Fast / 8 秒 / 1080p。1:1 は現在 Veo 非対応のため除外しています。
       </p>
+
+      {/* Phase B.6: 人物に日本語を話させる (Veo 3.1 Lite で音声+リップシンク同時生成) */}
+      {selected.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-amber-400/20 space-y-2">
+          <label className="inline-flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={narrationEnabled}
+              onChange={(e) => onChangeNarrationEnabled(e.target.checked)}
+              className="w-4 h-4 accent-amber-400"
+            />
+            <span className="text-xs font-bold text-amber-200">
+              人物に日本語を話させる
+              <span className="ml-1 text-[10px] text-amber-400/70">
+                (音声+リップシンク / Veo 3.1 Lite)
+              </span>
+            </span>
+          </label>
+          {narrationEnabled && (
+            <div className="space-y-1 pl-6">
+              <label className="block text-[11px] text-amber-300/80">
+                セリフ (任意 / 空欄なら自動生成)
+              </label>
+              <textarea
+                value={narrationScript}
+                onChange={(e) => onChangeNarrationScript(e.target.value)}
+                placeholder="例: 16日で-2kg、40代の新習慣、試してみて"
+                maxLength={60}
+                rows={2}
+                className="w-full px-2 py-1.5 rounded bg-slate-900/60 border border-amber-700/40 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
+              />
+              <p className="text-[10px] text-amber-400/50">
+                8 秒以内で話せる 15〜40 文字程度を目安に。空欄なら静止画コピーから AI が自動生成します。
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

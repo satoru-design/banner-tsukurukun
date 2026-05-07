@@ -27,14 +27,17 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 /**
- * Phase B.5: admin 同時動画生成のリクエスト拡張部分。
+ * Phase B.5/B.6: admin 同時動画生成のリクエスト拡張部分。
  * videoAspectRatios の各 AR で 1 本ずつ動画 pending 作成 (cron が拾う)。
+ * narrationEnabled=true なら provider='veo-3.1-lite' で音声+リップシンク。
  */
 interface VideoCogenRequest {
   videoAspectRatios?: ('9:16' | '16:9')[];
   videoProvider?: 'veo-3.1-fast' | 'veo-3.1-lite';
   videoDurationSeconds?: 4 | 6 | 8;
   videoPromptJa?: string;
+  videoNarrationEnabled?: boolean;
+  videoNarrationScript?: string;
 }
 
 export async function POST(req: Request) {
@@ -50,6 +53,11 @@ export async function POST(req: Request) {
       videoProvider: rawBody.videoProvider,
       videoDurationSeconds: rawBody.videoDurationSeconds,
       videoPromptJa: rawBody.videoPromptJa,
+      videoNarrationEnabled: rawBody.videoNarrationEnabled === true,
+      videoNarrationScript:
+        typeof rawBody.videoNarrationScript === 'string'
+          ? rawBody.videoNarrationScript.slice(0, 200)
+          : undefined,
     };
 
     // 最低限バリデーション
@@ -297,6 +305,8 @@ export async function POST(req: Request) {
             durationSeconds: videoCogen.videoDurationSeconds,
             promptJa: videoCogen.videoPromptJa,
             aspectRatios: requestedARs,
+            narrationEnabled: videoCogen.videoNarrationEnabled,
+            narrationScript: videoCogen.videoNarrationScript,
           };
           const cogen = await generateCleanImageAndQueueVideo({
             userId: currentUser.userId,
