@@ -93,6 +93,10 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
   // Phase A.17.0 Y: Pro 上限到達検知（一度 true になったらセッション内維持）
   const [proLimitReachedInSession, setProLimitReachedInSession] = useState(false);
 
+  // Phase B.3: admin 同時動画生成。チェック ON で各バナー生成 → clean Imagen → Veo pending を投入
+  const [generateVideoFlag, setGenerateVideoFlag] = useState(false);
+  const [videoCogenIds, setVideoCogenIds] = useState<string[]>([]);
+
   const updateResult = (
     pattern: IroncladPattern,
     size: IroncladSize,
@@ -123,6 +127,18 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
     // Phase A.16: ループごとに pattern を差し替えて API に渡す
     const materials: IroncladMaterials = { ...baseMaterials, pattern, size };
 
+    // Phase B.3: admin かつチェック ON で動画も同時生成
+    const requestBody: IroncladMaterials & {
+      generateVideo?: boolean;
+      videoProvider?: 'veo-3.1-fast' | 'veo-3.1-lite';
+      videoDurationSeconds?: 4 | 6 | 8;
+    } = { ...materials };
+    if (user.plan === 'admin' && generateVideoFlag) {
+      requestBody.generateVideo = true;
+      requestBody.videoProvider = 'veo-3.1-fast';
+      requestBody.videoDurationSeconds = 8;
+    }
+
     // Phase A.11.2 hotfix: クライアント側タイムアウト 320s（サーバ maxDuration=300s + 余裕 20s）。
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 320 * 1000);
@@ -131,7 +147,7 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
       const res = await fetch('/api/ironclad-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(materials),
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
 
@@ -178,6 +194,11 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
       // Phase A.11.5: 履歴保存通知トースト
       if (typeof json.generationId === 'string') {
         setToastInfo({ generationId: json.generationId });
+      }
+
+      // Phase B.3: 動画 co-gen が走ったら ID をストックし、UI で進行中表示
+      if (typeof json.videoId === 'string') {
+        setVideoCogenIds((prev) => [...prev, json.videoId]);
       }
     } catch (e) {
       const isAbort = e instanceof DOMException && e.name === 'AbortError';
@@ -326,6 +347,33 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
           <pre className="text-[11px] text-slate-300 whitespace-pre-wrap break-words max-h-96 overflow-y-auto">
             {anyPromptPreview}
           </pre>
+        </div>
+      )}
+
+      {/* Phase B.3: admin 限定の動画 co-gen トグル */}
+      {user.plan === 'admin' && (
+        <div className="flex flex-col items-center justify-center gap-2">
+          <label className="inline-flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-400/40 text-amber-200 text-sm cursor-pointer hover:bg-amber-500/15">
+            <input
+              type="checkbox"
+              checked={generateVideoFlag}
+              onChange={(e) => setGenerateVideoFlag(e.target.checked)}
+              className="w-4 h-4 accent-amber-400"
+              disabled={overallGenerating}
+            />
+            <span>
+              動画も同時生成する
+              <span className="ml-2 text-xs text-amber-300/70">
+                (admin 限定 β / Veo 3.1 Fast 8秒 / 約 $0.96/本)
+              </span>
+            </span>
+          </label>
+          {videoCogenIds.length > 0 && (
+            <p className="text-xs text-amber-200/80">
+              動画 {videoCogenIds.length} 本を pending で投入しました。
+              生成完了は履歴ページで確認できます (約 1〜2 分)。
+            </p>
+          )}
         </div>
       )}
 

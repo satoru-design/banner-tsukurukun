@@ -7,10 +7,10 @@
  * - 「同条件で再生成」「編集して再生成」ボタン
  * - 「一括 ZIP DL」（Pro+ のみ有効）
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Star, Download, Trash2, Sparkles, Pencil, Archive, Film } from 'lucide-react';
+import { Star, Download, Trash2, Sparkles, Pencil, Archive, Film, Loader2, AlertTriangle } from 'lucide-react';
 import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
 import { downloadGenerationZip } from './zip-helper';
 import { VideoGenerationDialog } from '@/components/video/VideoGenerationDialog';
@@ -23,6 +23,19 @@ interface DetailImage {
   isFavorite: boolean;
   favoritedAt: string | null;
   createdAt: string;
+}
+
+interface DetailVideo {
+  id: string;
+  status: string;
+  provider: string;
+  aspectRatio: string;
+  durationSeconds: number;
+  blobUrl: string | null;
+  inputImageUrl: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  completedAt: string | null;
 }
 
 interface DetailDto {
@@ -41,6 +54,7 @@ interface DetailDto {
     caution: string;
   };
   images: DetailImage[];
+  videos: DetailVideo[];
 }
 
 interface HistoryDetailProps {
@@ -57,6 +71,35 @@ export function HistoryDetail({ detail: initialDetail }: HistoryDetailProps) {
   const [deleting, setDeleting] = useState(false);
   // Phase B.1: 動画生成ダイアログ
   const [videoDialogImage, setVideoDialogImage] = useState<DetailImage | null>(null);
+
+  // Phase B.3: pending/processing 動画は 15 秒毎にポーリングして status 更新
+  useEffect(() => {
+    const inFlight = detail.videos.filter(
+      (v) => v.status === 'pending' || v.status === 'processing',
+    );
+    if (inFlight.length === 0) return;
+    const timer = setInterval(async () => {
+      const updates = await Promise.all(
+        inFlight.map(async (v) => {
+          try {
+            const r = await fetch(`/api/generate-video/${v.id}`);
+            if (!r.ok) return null;
+            return (await r.json()) as DetailVideo;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      setDetail((prev) => ({
+        ...prev,
+        videos: prev.videos.map((v) => {
+          const u = updates.find((x): x is DetailVideo => !!x && x.id === v.id);
+          return u ? { ...v, ...u } : v;
+        }),
+      }));
+    }, 15_000);
+    return () => clearInterval(timer);
+  }, [detail.videos]);
 
   // Phase A.17.0: ZIP DL は Pro / Business / admin で利用可
   const isPro = user.plan === 'pro' || user.plan === 'business' || user.plan === 'admin';
@@ -274,6 +317,65 @@ export function HistoryDetail({ detail: initialDetail }: HistoryDetailProps) {
           </div>
         ))}
       </section>
+
+      {/* Phase B.3: 動画グリッド (admin 同時生成 or 動画化βで作成された GenerationVideo) */}
+      {detail.videos.length > 0 && (
+        <section className="mt-8">
+          <h3 className="flex items-center gap-2 text-lg font-bold text-amber-200 mb-3">
+            <Film className="w-5 h-5" />
+            動画 ({detail.videos.length})
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {detail.videos.map((v) => (
+              <div
+                key={v.id}
+                className="bg-neutral-900/50 border border-slate-800 rounded-lg overflow-hidden"
+              >
+                {v.status === 'done' && v.blobUrl ? (
+                  <video
+                    src={v.blobUrl}
+                    controls
+                    className="w-full h-auto"
+                    preload="metadata"
+                  />
+                ) : v.status === 'failed' ? (
+                  <div className="aspect-[9/16] flex items-center justify-center bg-rose-950/40 text-rose-300 p-6 text-center">
+                    <div>
+                      <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
+                      <p className="text-xs">{v.errorMessage || '生成失敗'}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="aspect-[9/16] flex flex-col items-center justify-center bg-slate-900/60 text-slate-300 p-6">
+                    <Loader2 className="w-8 h-8 animate-spin text-amber-300 mb-3" />
+                    <p className="text-xs">
+                      {v.status === 'pending' ? '順番待ち' : '生成中'} ({v.provider})
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      通常 1〜2 分で完成します
+                    </p>
+                  </div>
+                )}
+                <div className="p-3 flex items-center justify-between gap-2">
+                  <span className="text-xs text-slate-400">
+                    {v.aspectRatio} / {v.durationSeconds}s / {v.provider}
+                  </span>
+                  {v.status === 'done' && v.blobUrl && (
+                    <a
+                      href={v.blobUrl}
+                      download
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded transition"
+                    >
+                      <Download className="w-3 h-3" />
+                      MP4
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Phase B.1: 動画生成ダイアログ */}
       {videoDialogImage && (
