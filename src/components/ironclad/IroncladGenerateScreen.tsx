@@ -420,6 +420,9 @@ export function IroncladGenerateScreen({
   };
 
   const completedCount = results.filter((r) => r.status === 'success').length;
+  const errorCount = results.filter((r) => r.status === 'error').length;
+  // Phase B.9: 1 度でも生成を試した(成功 or エラー)ならプライマリボタンを「再生成」に切替
+  const hasAttempted = completedCount > 0 || errorCount > 0;
   const totalCount = results.length;
   const anyPromptPreview = results.find((r) => r.promptPreview)?.promptPreview;
   // Phase A.14: いずれかの結果が透かし入りなら訴求バナーを表示
@@ -483,7 +486,7 @@ export function IroncladGenerateScreen({
           <Sparkles className={`w-5 h-5 ${overallGenerating ? 'animate-pulse' : ''}`} />
           {overallGenerating
             ? `生成中… ${completedCount + 1}/${totalCount}`
-            : completedCount > 0
+            : hasAttempted
               ? 'すべて再生成する'
               : '生成開始する'}
         </button>
@@ -521,7 +524,7 @@ export function IroncladGenerateScreen({
         />
       ))}
 
-      <div className="flex justify-start pt-4 border-t border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800">
         <button
           type="button"
           onClick={onBack}
@@ -529,6 +532,18 @@ export function IroncladGenerateScreen({
         >
           ← 素材に戻る
         </button>
+        {/* Phase B.9: 結果の下にも再生成ボタンを設置 (スクロール後でも押しやすいように) */}
+        {hasAttempted && (
+          <button
+            type="button"
+            onClick={generateAll}
+            disabled={overallGenerating}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-red-500 hover:opacity-90 disabled:opacity-40 shadow-lg transition"
+          >
+            <Sparkles className={`w-4 h-4 ${overallGenerating ? 'animate-pulse' : ''}`} />
+            {overallGenerating ? `生成中… ${completedCount + 1}/${totalCount}` : 'すべて再生成する'}
+          </button>
+        )}
       </div>
 
       {/* Phase A.11.3: 上限到達モーダル */}
