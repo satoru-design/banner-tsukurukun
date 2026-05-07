@@ -53,12 +53,17 @@ async function processOneJob(): Promise<{ jobId: string; status: string } | null
 
   try {
     const provider = getVideoProvider(job.provider as VideoProviderId);
+    // Phase B.3: providerMetadata に保存された negativePrompt を拾って渡す
+    const meta = (job.providerMetadata as Record<string, unknown> | null) ?? {};
+    const negativePrompt =
+      typeof meta.negativePrompt === 'string' ? meta.negativePrompt : undefined;
     const result = await provider.run({
       prompt: job.prompt,
       inputImageUrl: job.inputImageUrl ?? undefined,
       aspectRatio: job.aspectRatio as '9:16' | '16:9' | '1:1',
       durationSeconds: job.durationSeconds as 4 | 5 | 6 | 8 | 10,
       generateAudio: job.generateAudio,
+      negativePrompt,
       trackingId: job.id,
     });
 

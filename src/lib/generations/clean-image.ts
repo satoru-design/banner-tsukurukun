@@ -17,6 +17,7 @@ import { put } from '@vercel/blob';
 import { getPrisma } from '@/lib/prisma';
 import type { IroncladMaterials, IroncladSize } from '@/lib/prompts/ironclad-banner';
 import { getIroncladSizeMeta } from '@/lib/prompts/ironclad-banner';
+import { buildVeoPrompts } from './video-prompt-knowledge';
 
 export type VideoProviderId = 'veo-3.1-fast' | 'veo-3.1-lite';
 export type VideoDurationSeconds = 4 | 6 | 8;
@@ -49,20 +50,6 @@ function buildCleanPrompt(m: IroncladMaterials, aspectRatio: string): string {
     `The image must be entirely visual: only the product, possibly a person interacting with it, and natural background.`,
     `Cinematic lighting, shallow depth of field, magazine-cover quality.`,
   ].join('\n');
-}
-
-/**
- * Veo に渡す動画 promptJa の自動生成。ユーザー入力がなければ商品/target/tone から組み立てる。
- */
-function buildVideoPromptJa(m: IroncladMaterials, durationSeconds: number): string {
-  const product = m.product || '商品';
-  const tone = m.tone || '上質';
-  return [
-    `${product} を主役にした ${durationSeconds} 秒の広告動画。`,
-    `自然な動き・微細なカメラワーク・上質な光の演出で ${tone} な印象を伝える。`,
-    `テキスト・看板・ロゴ・ラベルは画面に一切表示しない。`,
-    `写実的・商業広告品質・浅い被写界深度。`,
-  ].join('');
 }
 
 /**
@@ -135,8 +122,19 @@ export async function generateCleanImageAndQueueVideo(args: {
   const path = `generations/${userId}/${generationId}/_clean_for_video.png`;
   const blob = await put(path, buf, { access: 'public', contentType: 'image/png', token });
 
-  // ----- STEP 3: GenerationVideo pending 作成 (cron が拾って Veo 投入) -----
-  const promptJa = options.promptJa?.trim() || buildVideoPromptJa(materials, durationSeconds);
+  // ----- STEP 3: Sonnet で Veo 用 prompt 3 点セットを生成 -----
+  // research に基づく Veo 3.1 prompt engineering ベストプラクティスを system prompt 化
+  // (src/lib/generations/video-prompt-knowledge.ts 参照)
+  const veoPrompts = await buildVeoPrompts({
+    product: materials.product,
+    target: materials.target,
+    tone: materials.tone,
+    aspectRatio: veoAspect,
+    durationSeconds,
+    userDirection: options.promptJa,
+  });
+
+  // ----- STEP 4: GenerationVideo pending 作成 (cron が拾って Veo 投入) -----
   // 概算コスト: Veo 3.1 Fast = $0.15/sec, Veo 3.1 Lite = $0.40/sec (audio 込)
   const costPerSec = provider === 'veo-3.1-lite' ? 0.4 : 0.15;
   const estimatedCostUsd = +(costPerSec * durationSeconds).toFixed(4);
@@ -152,8 +150,8 @@ export async function generateCleanImageAndQueueVideo(args: {
       inputImageUrl: blob.url,
       durationSeconds,
       generateAudio: provider === 'veo-3.1-lite',
-      prompt: promptJa, // cron 側で英訳されることを想定
-      promptJa,
+      prompt: veoPrompts.promptEn, // Veo に渡す英語プロンプト
+      promptJa: veoPrompts.promptJa, // 日本語サマリ (UI 表示用)
       costUsd: 0,
       providerMetadata: {
         estimatedCostUsd,
@@ -161,6 +159,8 @@ export async function generateCleanImageAndQueueVideo(args: {
         cleanProvider: cleanResult.providerId,
         cleanAspectRatio: veoAspect,
         originalSize: materials.size,
+        // Phase B.3: cron が provider.run() に渡せるよう保存
+        negativePrompt: veoPrompts.negativePrompt,
       },
     },
     select: { id: true },

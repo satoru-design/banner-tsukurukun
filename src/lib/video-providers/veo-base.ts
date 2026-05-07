@@ -154,6 +154,10 @@ export async function runVeoGeneration(
   if (modelConfig.supportsAudio && params.generateAudio) {
     config.generateAudio = true;
   }
+  // Phase B.3: 字幕/テキスト/ロゴ抑制。Vertex AI Veo は config.negativePrompt をサポート
+  if (params.negativePrompt && params.negativePrompt.trim().length > 0) {
+    config.negativePrompt = params.negativePrompt.trim();
+  }
 
   const requestBody: Record<string, unknown> = {
     model: modelConfig.modelId,
