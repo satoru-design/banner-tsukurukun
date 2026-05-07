@@ -1,9 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UpgradeToBusinessBanner } from './UpgradeToBusinessBanner';
 import { USAGE_LIMIT_PRO } from '@/lib/plans/limits';
-import { Download, Sparkles, AlertTriangle, Eye, EyeOff, Archive, Check } from 'lucide-react';
+import {
+  Download,
+  Sparkles,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  Archive,
+  Check,
+  Loader2,
+  CheckCircle2,
+  Film,
+} from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import JSZip from 'jszip';
 import type {
@@ -14,7 +25,6 @@ import type {
   VideoCogenAspectRatio,
 } from '@/lib/prompts/ironclad-banner';
 import { GenerationProgress } from '@/components/ui/GenerationProgress';
-import { VideoCogenProgress } from '@/components/ironclad/VideoCogenProgress';
 import { Toast } from '@/components/ui/Toast';
 import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
 import { isUsageLimitReached } from '@/lib/plans/usage-check';
@@ -62,6 +72,24 @@ type Props = {
   onBack: () => void;
 };
 
+/** Phase B.5: Pattern × Size に紐付く動画 co-gen 1 件 */
+type VideoCogenItem = {
+  id: string;
+  pattern: IroncladPattern;
+  size: IroncladSize;
+  aspectRatio: '9:16' | '16:9';
+};
+
+/** Phase B.5: GET /api/generate-video/[id] のレスポンス */
+type VideoStatusDto = {
+  id: string;
+  status: 'pending' | 'processing' | 'done' | 'failed' | string;
+  blobUrl: string | null;
+  errorMessage: string | null;
+  durationSeconds: number;
+  aspectRatio: string;
+};
+
 type PatternSizeResult = {
   pattern: IroncladPattern;
   size: IroncladSize;
@@ -98,10 +126,42 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, videoAs
   const [proLimitReachedInSession, setProLimitReachedInSession] = useState(false);
 
   // Phase B.5: 動画 co-gen の進捗追跡。admin でお題画面で AR を 1 つ以上選んだ場合のみ走る。
-  // ironclad-generate response の videoIds[] (各 AR で 1 ID) を蓄積していく。
-  const [videoCogenIds, setVideoCogenIds] = useState<string[]>([]);
+  // 各 video item に pattern × size × aspectRatio を紐付けて、静止画グリッド内で
+  // 対応する位置にプログレスバーを inline 表示する。
+  const [videoCogenItems, setVideoCogenItems] = useState<VideoCogenItem[]>([]);
+  const [videoStatuses, setVideoStatuses] = useState<Record<string, VideoStatusDto>>({});
   const isVideoCogenEnabled =
     user.plan === 'admin' && (videoAspectRatios?.length ?? 0) > 0;
+
+  // Phase B.5: pending/processing 動画を 8 秒間隔でポーリングして status を更新
+  useEffect(() => {
+    const inFlight = videoCogenItems.filter((it) => {
+      const s = videoStatuses[it.id];
+      return !s || (s.status !== 'done' && s.status !== 'failed');
+    });
+    if (inFlight.length === 0) return;
+    const tick = async () => {
+      const updates = await Promise.all(
+        inFlight.map(async (it) => {
+          try {
+            const r = await fetch(`/api/generate-video/${it.id}`);
+            if (!r.ok) return null;
+            return (await r.json()) as VideoStatusDto;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      setVideoStatuses((prev) => {
+        const next = { ...prev };
+        for (const u of updates) if (u) next[u.id] = u;
+        return next;
+      });
+    };
+    void tick();
+    const t = setInterval(() => void tick(), 8_000);
+    return () => clearInterval(t);
+  }, [videoCogenItems, videoStatuses]);
 
   const updateResult = (
     pattern: IroncladPattern,
@@ -202,11 +262,24 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, videoAs
         setToastInfo({ generationId: json.generationId });
       }
 
-      // Phase B.5: 動画 co-gen の videoIds (各 AR 1 ID) をストック
-      if (Array.isArray(json.videoIds)) {
-        const newIds = json.videoIds.filter((x: unknown): x is string => typeof x === 'string');
-        if (newIds.length > 0) {
-          setVideoCogenIds((prev) => [...prev, ...newIds]);
+      // Phase B.5: 動画 co-gen の videos (各 AR 1 件) を pattern × size に紐付けてストック
+      if (Array.isArray(json.videos)) {
+        const validated = (json.videos as unknown[]).filter(
+          (v): v is { id: string; aspectRatio: '9:16' | '16:9' } =>
+            !!v &&
+            typeof v === 'object' &&
+            typeof (v as { id?: unknown }).id === 'string' &&
+            ((v as { aspectRatio?: unknown }).aspectRatio === '9:16' ||
+              (v as { aspectRatio?: unknown }).aspectRatio === '16:9'),
+        );
+        const newItems: VideoCogenItem[] = validated.map((v) => ({
+          id: v.id,
+          pattern,
+          size,
+          aspectRatio: v.aspectRatio,
+        }));
+        if (newItems.length > 0) {
+          setVideoCogenItems((prev) => [...prev, ...newItems]);
         }
       }
     } catch (e) {
@@ -359,10 +432,6 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, videoAs
         </div>
       )}
 
-      {/* Phase B.5: 動画 co-gen の進捗パネル (キュー投入後のみ表示) */}
-      {isVideoCogenEnabled && videoCogenIds.length > 0 && (
-        <VideoCogenProgress videoIds={videoCogenIds} />
-      )}
 
       <div className="flex items-center justify-center gap-3 flex-wrap">
         <button
@@ -401,6 +470,8 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, videoAs
           key={pattern}
           pattern={pattern}
           results={results.filter((r) => r.pattern === pattern)}
+          videoItems={videoCogenItems.filter((v) => v.pattern === pattern)}
+          videoStatuses={videoStatuses}
           overallGenerating={overallGenerating}
           plan={user.plan}
           onRegenerate={(size) => generateOne(pattern, size)}
@@ -444,6 +515,8 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, videoAs
 function PatternSection({
   pattern,
   results,
+  videoItems,
+  videoStatuses,
   overallGenerating,
   plan,
   onRegenerate,
@@ -452,6 +525,8 @@ function PatternSection({
 }: {
   pattern: IroncladPattern;
   results: PatternSizeResult[];
+  videoItems: VideoCogenItem[];
+  videoStatuses: Record<string, VideoStatusDto>;
   overallGenerating: boolean;
   plan: string;
   onRegenerate: (size: IroncladSize) => void;
@@ -470,8 +545,8 @@ function PatternSection({
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {results.map((r) => (
+          <React.Fragment key={r.size}>
           <div
-            key={r.size}
             className="border border-slate-700 rounded-lg p-3 bg-slate-900/50 space-y-2"
           >
             <div className="flex items-center justify-between gap-2">
@@ -558,9 +633,92 @@ function PatternSection({
               </div>
             )}
           </div>
+          {/* Phase B.5: この (pattern, size) に紐づく動画カードを直後に並べる */}
+          {videoItems
+            .filter((v) => v.size === r.size)
+            .map((v) => (
+              <VideoInlineCard
+                key={v.id}
+                item={v}
+                status={videoStatuses[v.id]}
+                bannerSize={r.size}
+              />
+            ))}
+          </React.Fragment>
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * Phase B.5: 静止画グリッド内に並ぶ動画 1 件ぶんのカード。
+ * 静止画カードと同サイズで、進捗バー / 完成動画 / 失敗を表示する。
+ */
+function VideoInlineCard({
+  item,
+  status,
+  bannerSize,
+}: {
+  item: VideoCogenItem;
+  status: VideoStatusDto | undefined;
+  bannerSize: IroncladSize;
+}) {
+  const ESTIMATED_SECONDS = 130;
+  const isDone = status?.status === 'done' && !!status.blobUrl;
+  const isFailed = status?.status === 'failed';
+
+  return (
+    <div className="border border-amber-700/40 rounded-lg p-3 bg-amber-950/10 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-200">
+          <Film className="w-3.5 h-3.5" />
+          動画 {item.aspectRatio}
+        </div>
+        <span className="text-[10px] text-amber-300/60">
+          {bannerSize} / {status?.durationSeconds ?? 8}s
+        </span>
+      </div>
+      <div className="min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
+        {isDone && status?.blobUrl ? (
+          <video
+            src={status.blobUrl}
+            controls
+            className="w-full h-auto bg-black"
+            preload="metadata"
+          />
+        ) : isFailed ? (
+          <div className="text-rose-400 text-xs p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 mt-0.5" />
+            {status?.errorMessage || '生成失敗'}
+          </div>
+        ) : (
+          <div className="w-full">
+            <GenerationProgress
+              compact
+              estimatedSeconds={ESTIMATED_SECONDS}
+              label={status?.status === 'processing' ? '動画を生成中…' : '順番待ち'}
+            />
+          </div>
+        )}
+      </div>
+      {isDone && status?.blobUrl && (
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1 text-[11px] text-emerald-300">
+            <CheckCircle2 className="w-3 h-3" />
+            完成
+          </span>
+          <a
+            href={status.blobUrl}
+            download
+            className="inline-flex items-center gap-1 px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white text-[11px] rounded transition"
+          >
+            <Download className="w-3 h-3" />
+            MP4
+          </a>
+        </div>
+      )}
+    </div>
   );
 }
 
