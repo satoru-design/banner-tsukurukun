@@ -20,16 +20,27 @@ import { applyPreviewWatermark } from '@/lib/image-providers/watermark';
 import { sendMeteredUsage } from '@/lib/billing/usage-records';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+// Phase B.8: gpt-image-2 のレイテンシが時間帯により非常に高くなる現象に対応
+// maxDuration を Vercel Pro 上限の 800s まで引き上げ
+export const maxDuration = 800;
 
 /**
  * Phase B.7: 動画 co-gen は別エンドポイント (/api/queue-cogen-videos) に分離済。
- * このエンドポイントは静止画生成のみを担当し、5 分タイムアウトを回避する。
+ * このエンドポイントは静止画生成のみを担当する。
+ *
+ * Phase B.8: タイムアウト問題のデバッグ用に主要ステップに timestamp ログを追加。
+ *   gpt-image-2 / DB / Blob のどこが遅いかを Vercel logs で特定するため。
  */
 
 export async function POST(req: Request) {
+  const reqStart = Date.now();
+  const ts = (label: string) => {
+    const elapsed = Date.now() - reqStart;
+    console.log(`[ironclad-generate] +${(elapsed / 1000).toFixed(1)}s: ${label}`);
+  };
   try {
     const materials = (await req.json()) as IroncladMaterials;
+    ts('body parsed');
 
     // 最低限バリデーション
     if (!materials.product || !materials.target || !materials.purpose) {
@@ -124,6 +135,7 @@ export async function POST(req: Request) {
       secondaryBadgeText: materials.copies[3],
     };
 
+    ts(`calling gpt-image (refs=${referenceImageUrls.length}, size=${materials.size})`);
     const result = await generateWithFallback('gpt-image', {
       prompt: finalPrompt,
       aspectRatio,
@@ -133,6 +145,7 @@ export async function POST(req: Request) {
       referenceMode: 'composite',
       copyBundle,
     });
+    ts('gpt-image returned');
 
     // Phase A.11.0: 生成成功時に使用回数カウントアップ（失敗時はカウントしない）
     // Phase A.11.3: 新 usageCount をレスポンスに含めてクライアント update() に渡す
@@ -217,6 +230,7 @@ export async function POST(req: Request) {
         }
         generationId = generation.id;
 
+        ts('uploading image to Blob');
         // 画像を Blob にアップロード（preview なら透かし入りバッファを base64 化したもの）
         const blobUrl = await uploadGenerationImage(
           currentUser.userId,
@@ -224,6 +238,7 @@ export async function POST(req: Request) {
           materials.size,
           finalBase64,
         );
+        ts('blob upload done');
 
         await prisma.generationImage.create({
           data: {

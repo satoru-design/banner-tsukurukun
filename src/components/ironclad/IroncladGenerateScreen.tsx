@@ -208,9 +208,9 @@ export function IroncladGenerateScreen({
     // Phase B.7: 動画 co-gen は別 API (/api/queue-cogen-videos) に分離済。
     // 静止画 API は materials のみを送る。
 
-    // Phase A.11.2 hotfix: クライアント側タイムアウト 320s（サーバ maxDuration=300s + 余裕 20s）。
+    // Phase B.8: サーバ maxDuration=800s + 余裕 20s で client 側 abort
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 320 * 1000);
+    const timeoutId = setTimeout(() => controller.abort(), 820 * 1000);
 
     try {
       const res = await fetch('/api/ironclad-generate', {
@@ -235,7 +235,7 @@ export function IroncladGenerateScreen({
           errMsg = j?.error || errMsg;
         } catch {
           if (res.status === 504) {
-            errMsg = '生成がタイムアウトしました（5分超過）。もう一度お試しください';
+            errMsg = '生成がタイムアウトしました。もう一度お試しください';
           }
         }
         throw new Error(errMsg);
@@ -325,7 +325,7 @@ export function IroncladGenerateScreen({
     } catch (e) {
       const isAbort = e instanceof DOMException && e.name === 'AbortError';
       const errorMessage = isAbort
-        ? '生成がタイムアウトしました（5分20秒経過）。もう一度お試しください'
+        ? '生成がタイムアウトしました。もう一度お試しください'
         : e instanceof Error
           ? e.message
           : String(e);
