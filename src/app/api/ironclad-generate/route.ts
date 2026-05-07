@@ -27,11 +27,11 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 /**
- * Phase B.3: admin 同時動画生成のリクエスト拡張部分。
- * IroncladMaterials とは別 namespace で扱い、cron が拾う GenerationVideo を pending で作成する。
+ * Phase B.5: admin 同時動画生成のリクエスト拡張部分。
+ * videoAspectRatios の各 AR で 1 本ずつ動画 pending 作成 (cron が拾う)。
  */
 interface VideoCogenRequest {
-  generateVideo?: boolean;
+  videoAspectRatios?: ('9:16' | '16:9')[];
   videoProvider?: 'veo-3.1-fast' | 'veo-3.1-lite';
   videoDurationSeconds?: 4 | 6 | 8;
   videoPromptJa?: string;
@@ -42,7 +42,11 @@ export async function POST(req: Request) {
     const rawBody = (await req.json()) as IroncladMaterials & VideoCogenRequest;
     const materials = rawBody;
     const videoCogen: VideoCogenRequest = {
-      generateVideo: rawBody.generateVideo === true,
+      videoAspectRatios: Array.isArray(rawBody.videoAspectRatios)
+        ? rawBody.videoAspectRatios.filter((x): x is '9:16' | '16:9' =>
+            x === '9:16' || x === '16:9',
+          )
+        : undefined,
       videoProvider: rawBody.videoProvider,
       videoDurationSeconds: rawBody.videoDurationSeconds,
       videoPromptJa: rawBody.videoPromptJa,
@@ -280,18 +284,20 @@ export async function POST(req: Request) {
       }
     }
 
-    // Phase B.3: admin かつ generateVideo=true なら、clean 素材生成 + GenerationVideo pending 投入
-    let videoId: string | undefined;
-    let videoEstimatedCostUsd: number | undefined;
-    if (videoCogen.generateVideo && currentUser.userId && generationId) {
+    // Phase B.5: admin かつ videoAspectRatios.length>=1 で、各 AR で 1 本ずつ動画 pending 投入
+    let videoIds: string[] = [];
+    let videoTotalEstimatedCostUsd: number | undefined;
+    const requestedARs = videoCogen.videoAspectRatios ?? [];
+    if (requestedARs.length > 0 && currentUser.userId && generationId) {
       if (updatedPlan !== 'admin') {
-        console.warn('[ironclad-generate] generateVideo requested by non-admin, ignored');
+        console.warn('[ironclad-generate] video co-gen requested by non-admin, ignored');
       } else {
         try {
           const opts: CoVideoOptions = {
             provider: videoCogen.videoProvider,
             durationSeconds: videoCogen.videoDurationSeconds,
             promptJa: videoCogen.videoPromptJa,
+            aspectRatios: requestedARs,
           };
           const cogen = await generateCleanImageAndQueueVideo({
             userId: currentUser.userId,
@@ -299,8 +305,8 @@ export async function POST(req: Request) {
             materials,
             options: opts,
           });
-          videoId = cogen.videoId;
-          videoEstimatedCostUsd = cogen.estimatedCostUsd;
+          videoIds = cogen.videoIds;
+          videoTotalEstimatedCostUsd = cogen.totalEstimatedCostUsd;
         } catch (err) {
           console.error('[ironclad-generate] video co-gen failed:', err);
           // ベストエフォート: 静止画は成功扱いのまま、UI 側でエラーを別途表示
@@ -317,8 +323,8 @@ export async function POST(req: Request) {
       usageCount: newUsageCount,
       generationId,
       isPreview,
-      videoId,
-      videoEstimatedCostUsd,
+      videoIds,
+      videoTotalEstimatedCostUsd,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
