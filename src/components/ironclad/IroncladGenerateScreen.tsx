@@ -493,6 +493,7 @@ export function IroncladGenerateScreen({
           results={results.filter((r) => r.pattern === pattern)}
           videoItems={videoCogenItems.filter((v) => v.pattern === pattern)}
           videoStatuses={videoStatuses}
+          videoAspectRatios={isVideoCogenEnabled ? videoAspectRatios : undefined}
           overallGenerating={overallGenerating}
           plan={user.plan}
           onRegenerate={(size) => generateOne(pattern, size)}
@@ -538,6 +539,7 @@ function PatternSection({
   results,
   videoItems,
   videoStatuses,
+  videoAspectRatios,
   overallGenerating,
   plan,
   onRegenerate,
@@ -548,6 +550,8 @@ function PatternSection({
   results: PatternSizeResult[];
   videoItems: VideoCogenItem[];
   videoStatuses: Record<string, VideoStatusDto>;
+  /** Phase B.5: 動画 co-gen が有効な場合の AR 一覧。idle プレースホルダー描画に使う */
+  videoAspectRatios?: ('9:16' | '16:9')[];
   overallGenerating: boolean;
   plan: string;
   onRegenerate: (size: IroncladSize) => void;
@@ -654,17 +658,21 @@ function PatternSection({
               </div>
             )}
           </div>
-          {/* Phase B.5: この (pattern, size) に紐づく動画カードを直後に並べる */}
-          {videoItems
-            .filter((v) => v.size === r.size)
-            .map((v) => (
+          {/* Phase B.5/B.6: この (pattern, size) に紐づく動画カードを直後に並べる
+              (videoAspectRatios で選択された AR ぶん、まだ生成投入されていなければ
+              idle プレースホルダー、投入後はステータスポーリング結果を反映) */}
+          {(videoAspectRatios ?? []).map((ar) => {
+            const item = videoItems.find((v) => v.size === r.size && v.aspectRatio === ar);
+            return (
               <VideoInlineCard
-                key={v.id}
-                item={v}
-                status={videoStatuses[v.id]}
+                key={item?.id ?? `idle-${r.size}-${ar}`}
+                aspectRatio={ar}
                 bannerSize={r.size}
+                status={item ? videoStatuses[item.id] : undefined}
+                isPlaceholder={!item}
               />
-            ))}
+            );
+          })}
           </React.Fragment>
         ))}
       </div>
@@ -674,16 +682,19 @@ function PatternSection({
 
 /**
  * Phase B.5: 静止画グリッド内に並ぶ動画 1 件ぶんのカード。
- * 静止画カードと同サイズで、進捗バー / 完成動画 / 失敗を表示する。
+ * - isPlaceholder=true: 生成前 idle (「生成ボタンを押してください」)
+ * - status あり: pending/processing/done/failed のステータスに応じて表示
  */
 function VideoInlineCard({
-  item,
-  status,
+  aspectRatio,
   bannerSize,
+  status,
+  isPlaceholder,
 }: {
-  item: VideoCogenItem;
-  status: VideoStatusDto | undefined;
+  aspectRatio: '9:16' | '16:9';
   bannerSize: IroncladSize;
+  status: VideoStatusDto | undefined;
+  isPlaceholder: boolean;
 }) {
   const ESTIMATED_SECONDS = 130;
   const isDone = status?.status === 'done' && !!status.blobUrl;
@@ -694,14 +705,20 @@ function VideoInlineCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-xs font-bold text-amber-200">
           <Film className="w-3.5 h-3.5" />
-          動画 {item.aspectRatio}
+          動画 {aspectRatio}
         </div>
         <span className="text-[10px] text-amber-300/60">
           {bannerSize} / {status?.durationSeconds ?? 8}s
         </span>
       </div>
       <div className="min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
-        {isDone && status?.blobUrl ? (
+        {isPlaceholder ? (
+          <div className="text-amber-400/60 text-xs p-3 text-center">
+            生成ボタンを押すと
+            <br />
+            動画も同時に生成されます
+          </div>
+        ) : isDone && status?.blobUrl ? (
           <video
             src={status.blobUrl}
             controls
