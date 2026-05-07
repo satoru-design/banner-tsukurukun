@@ -1,4 +1,19 @@
 /**
+ * ⚠️ 2026-05-07 検証停止 ⚠️
+ *
+ * 結論: 現行 Veo 3.1 では「商品 + 日本語広告」用途で品質不足
+ *  - 字幕焼き込みが構造的に解消できない (3 重対策しても再発)
+ *  - 商品ロゴ・パッケージ文字の一貫性が保てない
+ *  - コスト × 品質 × 速度のバランスで現時点採算合わず
+ *
+ * 機構自体は admin 限定でそのまま残置。将来モデルが更新されたら下記
+ * 差し替えポイントだけ修正で再開可能:
+ *  1. src/lib/video-providers/types.ts の VideoProviderId に新モデル ID を追加
+ *  2. src/lib/video-providers/<new-model>.ts に provider 実装を追加
+ *  3. src/lib/video-providers/index.ts のレジストリに登録
+ *  4. このファイルの provider 既定値、または UI の選択肢を切替
+ *  5. video-prompt-knowledge.ts の system prompt を新モデルに合わせて改修
+ *
  * Phase B.3: 動画化用「文字なしクリーン素材」の生成 + GenerationVideo 投入。
  *
  * メイン静止画 (gpt-image-2 で文字焼き込み) と並行して、Imagen 4 Ultra で

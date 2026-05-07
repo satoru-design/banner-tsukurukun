@@ -582,7 +582,8 @@ function VideoCogenSection({
     <div className="p-4 rounded-xl border border-amber-400/30 bg-amber-500/[0.04] space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-sm font-bold text-amber-200">
-          🎬 動画も生成する <span className="text-xs text-amber-400/70">(admin β)</span>
+          🎬 動画も生成する{' '}
+          <span className="text-xs text-amber-400/70">(admin / 検証停止中)</span>
         </h3>
         {selected.length > 0 && (
           <span className="text-[11px] text-amber-200/80 tabular-nums">
@@ -591,8 +592,10 @@ function VideoCogenSection({
         )}
       </div>
       <p className="text-[11px] text-amber-300/70 leading-relaxed">
-        静止画と同じ Pattern × Size の組合せに対し、選んだアスペクト比ごとに動画を 1 本ずつ生成します。
-        OFF なら動画は作りません。
+        現在 Veo 3.1 の字幕焼き込み問題により品質不安定のため、本機能は{' '}
+        <strong className="text-amber-200">検証停止中</strong>です。OFF 推奨。
+        <br />
+        将来的に動画生成モデルがアップデートされたタイミングで API を差し替え再開予定。
       </p>
       <div className="flex flex-wrap gap-2">
         {ALL_ARS.map((opt) => {
