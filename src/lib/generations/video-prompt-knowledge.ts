@@ -1,4 +1,10 @@
 /**
+ * ⚠️ 2026-05-07 検証停止 ⚠️
+ * Veo 3.1 では「商品 + 日本語広告」用途で品質不足と判断。本ファイルは
+ * 将来のモデル差し替え時 (Kling / Runway / 次世代 Veo) のテンプレとして残置。
+ * 差し替え時は system prompt をモデルの prompt エンジニアリングルールに
+ * 合わせて全書き換え必要 (現状は Veo 3.1 専用)。
+ *
  * Phase B.3: Veo 3.1 用 prompt 生成の knowledge base + Sonnet 呼び出し。
  *
  * このファイルは「Vertex AI Veo 3.1 の prompt engineering ベストプラクティス」を
