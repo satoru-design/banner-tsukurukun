@@ -424,6 +424,22 @@ export function IroncladGenerateScreen({
   // Phase B.9: 1 度でも生成を試した(成功 or エラー)ならプライマリボタンを「再生成」に切替
   const hasAttempted = completedCount > 0 || errorCount > 0;
   const totalCount = results.length;
+
+  // Phase B.10: 進捗表示を「静止画 + 動画」合算ベースに
+  const videoTotalCount = isVideoCogenEnabled
+    ? results.length * (videoAspectRatios?.length ?? 0)
+    : 0;
+  const videoDoneCount = videoCogenItems.filter(
+    (v) => videoStatuses[v.id]?.status === 'done',
+  ).length;
+  const allTotalCount = totalCount + videoTotalCount;
+  const allCompletedCount = completedCount + videoDoneCount;
+  const isAnyVideoInFlight = videoCogenItems.some((v) => {
+    const s = videoStatuses[v.id];
+    return !s || s.status === 'pending' || s.status === 'processing';
+  });
+  // 静止画ループ中、または投入済 GenerationVideo に未完成のものがあれば「生成中」扱い
+  const isProcessing = overallGenerating || isAnyVideoInFlight;
   const anyPromptPreview = results.find((r) => r.promptPreview)?.promptPreview;
   // Phase A.14: いずれかの結果が透かし入りなら訴求バナーを表示
   const anyPreview = results.some((r) => r.isPreview === true);
@@ -480,12 +496,12 @@ export function IroncladGenerateScreen({
         <button
           type="button"
           onClick={generateAll}
-          disabled={overallGenerating}
+          disabled={isProcessing}
           className="flex items-center gap-2 px-8 py-4 rounded-xl text-white font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-red-500 hover:opacity-90 disabled:opacity-40 shadow-xl hover:scale-[1.02] transition-transform"
         >
-          <Sparkles className={`w-5 h-5 ${overallGenerating ? 'animate-pulse' : ''}`} />
-          {overallGenerating
-            ? `生成中… ${completedCount + 1}/${totalCount}`
+          <Sparkles className={`w-5 h-5 ${isProcessing ? 'animate-pulse' : ''}`} />
+          {isProcessing
+            ? `生成中… ${allCompletedCount}/${allTotalCount}`
             : hasAttempted
               ? 'すべて再生成する'
               : '生成開始する'}
@@ -537,11 +553,13 @@ export function IroncladGenerateScreen({
           <button
             type="button"
             onClick={generateAll}
-            disabled={overallGenerating}
+            disabled={isProcessing}
             className="flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-red-500 hover:opacity-90 disabled:opacity-40 shadow-lg transition"
           >
-            <Sparkles className={`w-4 h-4 ${overallGenerating ? 'animate-pulse' : ''}`} />
-            {overallGenerating ? `生成中… ${completedCount + 1}/${totalCount}` : 'すべて再生成する'}
+            <Sparkles className={`w-4 h-4 ${isProcessing ? 'animate-pulse' : ''}`} />
+            {isProcessing
+              ? `生成中… ${allCompletedCount}/${allTotalCount}`
+              : 'すべて再生成する'}
           </button>
         )}
       </div>
