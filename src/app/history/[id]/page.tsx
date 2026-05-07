@@ -25,7 +25,10 @@ export default async function HistoryDetailPage({
   const prisma = getPrisma();
   const generation = await prisma.generation.findUnique({
     where: { id },
-    include: { images: true },
+    include: {
+      images: true,
+      generationVideos: { orderBy: { createdAt: 'desc' } },
+    },
   });
   if (!generation) notFound();
   if (generation.userId !== user.userId) notFound();
@@ -62,6 +65,18 @@ export default async function HistoryDetailPage({
               isFavorite: img.isFavorite,
               favoritedAt: img.favoritedAt?.toISOString() ?? null,
               createdAt: img.createdAt.toISOString(),
+            })),
+            videos: generation.generationVideos.map((v) => ({
+              id: v.id,
+              status: v.status,
+              provider: v.provider,
+              aspectRatio: v.aspectRatio,
+              durationSeconds: v.durationSeconds,
+              blobUrl: v.blobUrl,
+              inputImageUrl: v.inputImageUrl,
+              errorMessage: v.errorMessage,
+              createdAt: v.createdAt.toISOString(),
+              completedAt: v.completedAt?.toISOString() ?? null,
             })),
           }}
         />

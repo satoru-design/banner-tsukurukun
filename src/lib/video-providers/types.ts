@@ -29,6 +29,9 @@ export interface VideoStartParams {
   aspectRatio: VideoAspectRatio;
   durationSeconds: VideoDurationSeconds;
   generateAudio?: boolean; // Veo Lite のみ意味あり
+  /// Phase B.3: テキスト/字幕/ロゴ等を抑制する negativePrompt
+  /// 推奨例: "subtitles, captions, watermark, text overlays, logos, signs, labels, written text"
+  negativePrompt?: string;
   /// 一意な追跡 ID (DB の GenerationVideo.id を渡す)
   trackingId: string;
 }
