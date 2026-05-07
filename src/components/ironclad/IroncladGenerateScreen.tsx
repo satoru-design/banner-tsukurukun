@@ -142,6 +142,9 @@ export function IroncladGenerateScreen({
   // 対応する位置にプログレスバーを inline 表示する。
   const [videoCogenItems, setVideoCogenItems] = useState<VideoCogenItem[]>([]);
   const [videoStatuses, setVideoStatuses] = useState<Record<string, VideoStatusDto>>({});
+  // Phase B.11: queue-cogen-videos 呼び出し中の (pattern, size) キー集合。
+  // この間 placeholder ではなく「動画を準備中…」を表示する。
+  const [videoQueueingKeys, setVideoQueueingKeys] = useState<Set<string>>(new Set());
   const isVideoCogenEnabled =
     user.plan === 'admin' && (videoAspectRatios?.length ?? 0) > 0;
 
@@ -268,6 +271,8 @@ export function IroncladGenerateScreen({
       // Phase B.7: 静止画完成後に動画 co-gen を別 API で非同期投入。
       // /api/queue-cogen-videos が clean image + Sonnet prompt + GenerationVideo pending を作る。
       // ここは fire-and-forget (await しない) して static の UI 描画はブロックしない。
+      // Phase B.11: 呼び出し中は videoQueueingKeys に (pattern, size) を入れて
+      // 動画 placeholder を「準備中…」表示にする。
       if (
         isVideoCogenEnabled &&
         typeof json.generationId === 'string' &&
@@ -286,6 +291,12 @@ export function IroncladGenerateScreen({
               ? videoNarrationScript.trim()
               : undefined,
         };
+        const queueKey = `${pattern}__${size}`;
+        setVideoQueueingKeys((prev) => {
+          const next = new Set(prev);
+          next.add(queueKey);
+          return next;
+        });
         void fetch('/api/queue-cogen-videos', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -320,6 +331,13 @@ export function IroncladGenerateScreen({
           })
           .catch((err) => {
             console.error('[queue-cogen-videos] network error:', err);
+          })
+          .finally(() => {
+            setVideoQueueingKeys((prev) => {
+              const next = new Set(prev);
+              next.delete(queueKey);
+              return next;
+            });
           });
       }
     } catch (e) {
@@ -532,6 +550,7 @@ export function IroncladGenerateScreen({
           videoItems={videoCogenItems.filter((v) => v.pattern === pattern)}
           videoStatuses={videoStatuses}
           videoAspectRatios={isVideoCogenEnabled ? videoAspectRatios : undefined}
+          videoQueueingKeys={videoQueueingKeys}
           overallGenerating={overallGenerating}
           plan={user.plan}
           onRegenerate={(size) => generateOne(pattern, size)}
@@ -592,6 +611,7 @@ function PatternSection({
   videoItems,
   videoStatuses,
   videoAspectRatios,
+  videoQueueingKeys,
   overallGenerating,
   plan,
   onRegenerate,
@@ -604,6 +624,8 @@ function PatternSection({
   videoStatuses: Record<string, VideoStatusDto>;
   /** Phase B.5: 動画 co-gen が有効な場合の AR 一覧。idle プレースホルダー描画に使う */
   videoAspectRatios?: ('9:16' | '16:9')[];
+  /** Phase B.11: queue-cogen-videos 呼び出し中の (pattern, size) キー集合 */
+  videoQueueingKeys: Set<string>;
   overallGenerating: boolean;
   plan: string;
   onRegenerate: (size: IroncladSize) => void;
@@ -715,6 +737,7 @@ function PatternSection({
               idle プレースホルダー、投入後はステータスポーリング結果を反映) */}
           {(videoAspectRatios ?? []).map((ar) => {
             const item = videoItems.find((v) => v.size === r.size && v.aspectRatio === ar);
+            const isQueueing = !item && videoQueueingKeys.has(`${pattern}__${r.size}`);
             return (
               <VideoInlineCard
                 key={item?.id ?? `idle-${r.size}-${ar}`}
@@ -722,6 +745,7 @@ function PatternSection({
                 bannerSize={r.size}
                 status={item ? videoStatuses[item.id] : undefined}
                 isPlaceholder={!item}
+                isQueueing={isQueueing}
               />
             );
           })}
@@ -742,11 +766,15 @@ function VideoInlineCard({
   bannerSize,
   status,
   isPlaceholder,
+  isQueueing,
 }: {
   aspectRatio: '9:16' | '16:9';
   bannerSize: IroncladSize;
   status: VideoStatusDto | undefined;
   isPlaceholder: boolean;
+  /** Phase B.11: queue-cogen-videos 呼び出し中で、まだ DB に GenerationVideo が
+   *  作られていない状態。この間 placeholder ではなく「動画を準備中…」表示。 */
+  isQueueing?: boolean;
 }) {
   const ESTIMATED_SECONDS = 130;
   const isDone = status?.status === 'done' && !!status.blobUrl;
@@ -764,7 +792,15 @@ function VideoInlineCard({
         </span>
       </div>
       <div className="min-h-[14rem] flex items-center justify-center bg-slate-950 rounded overflow-hidden">
-        {isPlaceholder ? (
+        {isPlaceholder && isQueueing ? (
+          <div className="w-full">
+            <GenerationProgress
+              compact
+              estimatedSeconds={75}
+              label="動画を準備中…"
+            />
+          </div>
+        ) : isPlaceholder ? (
           <div className="text-amber-400/60 text-xs p-3 text-center">
             生成ボタンを押すと
             <br />
