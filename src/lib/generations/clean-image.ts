@@ -1,7 +1,7 @@
 /**
  * Phase B.3: 動画化用「文字なしクリーン素材」の生成 + GenerationVideo 投入。
  *
- * メイン静止画 (gpt-image-1 で文字焼き込み) と並行して、Imagen 4 Ultra で
+ * メイン静止画 (gpt-image-2 で文字焼き込み) と並行して、Imagen 4 Ultra で
  * "同じ商品・同じ被写体" を文字なしで生成し、Veo I2V の入力として保存する。
  *
  * Vibe Coding 六条:
