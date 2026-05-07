@@ -57,8 +57,13 @@ function buildCleanPrompt(m: IroncladMaterials, aspectRatio: VeoAspectRatio): st
   ].join('\n');
 }
 
+export interface CogenVideoMeta {
+  id: string;
+  aspectRatio: VeoAspectRatio;
+}
+
 interface CleanImageResult {
-  videoIds: string[];
+  videos: CogenVideoMeta[];
   totalEstimatedCostUsd: number;
 }
 
@@ -140,12 +145,12 @@ export async function generateCleanImageAndQueueVideo(args: {
         },
         select: { id: true },
       });
-      return { videoId: video.id, costUsd: costPerVideo };
+      return { id: video.id, aspectRatio: veoAspect, costUsd: costPerVideo };
     }),
   );
 
   return {
-    videoIds: results.map((r) => r.videoId),
+    videos: results.map((r) => ({ id: r.id, aspectRatio: r.aspectRatio })),
     totalEstimatedCostUsd: +results.reduce((s, r) => s + r.costUsd, 0).toFixed(4),
   };
 }

@@ -285,8 +285,7 @@ export async function POST(req: Request) {
     }
 
     // Phase B.5: admin かつ videoAspectRatios.length>=1 で、各 AR で 1 本ずつ動画 pending 投入
-    let videoIds: string[] = [];
-    let videoTotalEstimatedCostUsd: number | undefined;
+    let videos: { id: string; aspectRatio: '9:16' | '16:9' }[] = [];
     const requestedARs = videoCogen.videoAspectRatios ?? [];
     if (requestedARs.length > 0 && currentUser.userId && generationId) {
       if (updatedPlan !== 'admin') {
@@ -305,8 +304,7 @@ export async function POST(req: Request) {
             materials,
             options: opts,
           });
-          videoIds = cogen.videoIds;
-          videoTotalEstimatedCostUsd = cogen.totalEstimatedCostUsd;
+          videos = cogen.videos;
         } catch (err) {
           console.error('[ironclad-generate] video co-gen failed:', err);
           // ベストエフォート: 静止画は成功扱いのまま、UI 側でエラーを別途表示
@@ -323,8 +321,7 @@ export async function POST(req: Request) {
       usageCount: newUsageCount,
       generationId,
       isPreview,
-      videoIds,
-      videoTotalEstimatedCostUsd,
+      videos,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
