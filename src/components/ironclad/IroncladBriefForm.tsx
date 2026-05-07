@@ -560,13 +560,7 @@ function VideoCogenSection({
     }
   };
 
-  // Veo 3.1 Fast: $0.15/sec * 8s = $1.20 動画
-  // + Imagen クリーン素材: $0.04
-  // + Sonnet prompt: ~$0.01
-  // ≒ $1.25/本 で見積
-  const COST_PER_VIDEO = 1.25;
   const totalVideos = patternCount * sizeCount * selected.length;
-  const totalCost = (totalVideos * COST_PER_VIDEO).toFixed(2);
 
   return (
     <div className="p-4 rounded-xl border border-amber-400/30 bg-amber-500/[0.04] space-y-3">
@@ -576,7 +570,7 @@ function VideoCogenSection({
         </h3>
         {selected.length > 0 && (
           <span className="text-[11px] text-amber-200/80 tabular-nums">
-            動画 {totalVideos} 本 (約 ${totalCost})
+            動画 {totalVideos} 本
           </span>
         )}
       </div>
