@@ -205,26 +205,8 @@ export function IroncladGenerateScreen({
     // Phase A.16: ループごとに pattern を差し替えて API に渡す
     const materials: IroncladMaterials = { ...baseMaterials, pattern, size };
 
-    // Phase B.5: お題画面で選んだ AR ごとに動画 co-gen。admin かつ AR が 1+ ある時のみ。
-    // Phase B.6: narrationEnabled なら provider を Lite に切り替え (音声+リップシンク)
-    const requestBody: IroncladMaterials & {
-      videoAspectRatios?: VideoCogenAspectRatio[];
-      videoProvider?: 'veo-3.1-fast' | 'veo-3.1-lite';
-      videoDurationSeconds?: 4 | 6 | 8;
-      videoNarrationEnabled?: boolean;
-      videoNarrationScript?: string;
-    } = { ...materials };
-    if (isVideoCogenEnabled) {
-      requestBody.videoAspectRatios = videoAspectRatios;
-      requestBody.videoProvider = videoNarrationEnabled ? 'veo-3.1-lite' : 'veo-3.1-fast';
-      requestBody.videoDurationSeconds = 8;
-      if (videoNarrationEnabled) {
-        requestBody.videoNarrationEnabled = true;
-        if (videoNarrationScript && videoNarrationScript.trim()) {
-          requestBody.videoNarrationScript = videoNarrationScript.trim();
-        }
-      }
-    }
+    // Phase B.7: 動画 co-gen は別 API (/api/queue-cogen-videos) に分離済。
+    // 静止画 API は materials のみを送る。
 
     // Phase A.11.2 hotfix: クライアント側タイムアウト 320s（サーバ maxDuration=300s + 余裕 20s）。
     const controller = new AbortController();
@@ -234,7 +216,7 @@ export function IroncladGenerateScreen({
       const res = await fetch('/api/ironclad-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(materials),
         signal: controller.signal,
       });
 
@@ -283,25 +265,62 @@ export function IroncladGenerateScreen({
         setToastInfo({ generationId: json.generationId });
       }
 
-      // Phase B.5: 動画 co-gen の videos (各 AR 1 件) を pattern × size に紐付けてストック
-      if (Array.isArray(json.videos)) {
-        const validated = (json.videos as unknown[]).filter(
-          (v): v is { id: string; aspectRatio: '9:16' | '16:9' } =>
-            !!v &&
-            typeof v === 'object' &&
-            typeof (v as { id?: unknown }).id === 'string' &&
-            ((v as { aspectRatio?: unknown }).aspectRatio === '9:16' ||
-              (v as { aspectRatio?: unknown }).aspectRatio === '16:9'),
-        );
-        const newItems: VideoCogenItem[] = validated.map((v) => ({
-          id: v.id,
-          pattern,
-          size,
-          aspectRatio: v.aspectRatio,
-        }));
-        if (newItems.length > 0) {
-          setVideoCogenItems((prev) => [...prev, ...newItems]);
-        }
+      // Phase B.7: 静止画完成後に動画 co-gen を別 API で非同期投入。
+      // /api/queue-cogen-videos が clean image + Sonnet prompt + GenerationVideo pending を作る。
+      // ここは fire-and-forget (await しない) して static の UI 描画はブロックしない。
+      if (
+        isVideoCogenEnabled &&
+        typeof json.generationId === 'string' &&
+        videoAspectRatios &&
+        videoAspectRatios.length > 0
+      ) {
+        const cogenBody = {
+          generationId: json.generationId,
+          materials,
+          videoAspectRatios,
+          videoProvider: videoNarrationEnabled ? 'veo-3.1-lite' : 'veo-3.1-fast',
+          videoDurationSeconds: 8,
+          videoNarrationEnabled: videoNarrationEnabled === true,
+          videoNarrationScript:
+            videoNarrationEnabled && videoNarrationScript?.trim()
+              ? videoNarrationScript.trim()
+              : undefined,
+        };
+        void fetch('/api/queue-cogen-videos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cogenBody),
+        })
+          .then(async (r) => {
+            if (!r.ok) {
+              console.error('[queue-cogen-videos] failed:', await r.text().catch(() => ''));
+              return;
+            }
+            const j = (await r.json().catch(() => null)) as {
+              videos?: unknown;
+            } | null;
+            if (!j || !Array.isArray(j.videos)) return;
+            const validated = (j.videos as unknown[]).filter(
+              (v): v is { id: string; aspectRatio: '9:16' | '16:9' } =>
+                !!v &&
+                typeof v === 'object' &&
+                typeof (v as { id?: unknown }).id === 'string' &&
+                ((v as { aspectRatio?: unknown }).aspectRatio === '9:16' ||
+                  (v as { aspectRatio?: unknown }).aspectRatio === '16:9'),
+            );
+            const newItems: VideoCogenItem[] = validated.map((v) => ({
+              id: v.id,
+              pattern,
+              size,
+              aspectRatio: v.aspectRatio,
+            }));
+            if (newItems.length > 0) {
+              setVideoCogenItems((prev) => [...prev, ...newItems]);
+            }
+          })
+          .catch((err) => {
+            console.error('[queue-cogen-videos] network error:', err);
+          });
       }
     } catch (e) {
       const isAbort = e instanceof DOMException && e.name === 'AbortError';
