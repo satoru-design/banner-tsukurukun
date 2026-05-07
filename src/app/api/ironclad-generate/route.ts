@@ -18,47 +18,18 @@ import {
 import { uploadGenerationImage } from '@/lib/generations/blob-client';
 import { applyPreviewWatermark } from '@/lib/image-providers/watermark';
 import { sendMeteredUsage } from '@/lib/billing/usage-records';
-import {
-  generateCleanImageAndQueueVideo,
-  type CoVideoOptions,
-} from '@/lib/generations/clean-image';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 /**
- * Phase B.5/B.6: admin 同時動画生成のリクエスト拡張部分。
- * videoAspectRatios の各 AR で 1 本ずつ動画 pending 作成 (cron が拾う)。
- * narrationEnabled=true なら provider='veo-3.1-lite' で音声+リップシンク。
+ * Phase B.7: 動画 co-gen は別エンドポイント (/api/queue-cogen-videos) に分離済。
+ * このエンドポイントは静止画生成のみを担当し、5 分タイムアウトを回避する。
  */
-interface VideoCogenRequest {
-  videoAspectRatios?: ('9:16' | '16:9')[];
-  videoProvider?: 'veo-3.1-fast' | 'veo-3.1-lite';
-  videoDurationSeconds?: 4 | 6 | 8;
-  videoPromptJa?: string;
-  videoNarrationEnabled?: boolean;
-  videoNarrationScript?: string;
-}
 
 export async function POST(req: Request) {
   try {
-    const rawBody = (await req.json()) as IroncladMaterials & VideoCogenRequest;
-    const materials = rawBody;
-    const videoCogen: VideoCogenRequest = {
-      videoAspectRatios: Array.isArray(rawBody.videoAspectRatios)
-        ? rawBody.videoAspectRatios.filter((x): x is '9:16' | '16:9' =>
-            x === '9:16' || x === '16:9',
-          )
-        : undefined,
-      videoProvider: rawBody.videoProvider,
-      videoDurationSeconds: rawBody.videoDurationSeconds,
-      videoPromptJa: rawBody.videoPromptJa,
-      videoNarrationEnabled: rawBody.videoNarrationEnabled === true,
-      videoNarrationScript:
-        typeof rawBody.videoNarrationScript === 'string'
-          ? rawBody.videoNarrationScript.slice(0, 200)
-          : undefined,
-    };
+    const materials = (await req.json()) as IroncladMaterials;
 
     // 最低限バリデーション
     if (!materials.product || !materials.target || !materials.purpose) {
@@ -292,36 +263,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // Phase B.5: admin かつ videoAspectRatios.length>=1 で、各 AR で 1 本ずつ動画 pending 投入
-    let videos: { id: string; aspectRatio: '9:16' | '16:9' }[] = [];
-    const requestedARs = videoCogen.videoAspectRatios ?? [];
-    if (requestedARs.length > 0 && currentUser.userId && generationId) {
-      if (updatedPlan !== 'admin') {
-        console.warn('[ironclad-generate] video co-gen requested by non-admin, ignored');
-      } else {
-        try {
-          const opts: CoVideoOptions = {
-            provider: videoCogen.videoProvider,
-            durationSeconds: videoCogen.videoDurationSeconds,
-            promptJa: videoCogen.videoPromptJa,
-            aspectRatios: requestedARs,
-            narrationEnabled: videoCogen.videoNarrationEnabled,
-            narrationScript: videoCogen.videoNarrationScript,
-          };
-          const cogen = await generateCleanImageAndQueueVideo({
-            userId: currentUser.userId,
-            generationId,
-            materials,
-            options: opts,
-          });
-          videos = cogen.videos;
-        } catch (err) {
-          console.error('[ironclad-generate] video co-gen failed:', err);
-          // ベストエフォート: 静止画は成功扱いのまま、UI 側でエラーを別途表示
-        }
-      }
-    }
-
     return NextResponse.json({
       imageUrl: finalBase64,
       provider: result.providerId,
@@ -331,7 +272,6 @@ export async function POST(req: Request) {
       usageCount: newUsageCount,
       generationId,
       isPreview,
-      videos,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
