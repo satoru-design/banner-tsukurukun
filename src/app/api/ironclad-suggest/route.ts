@@ -1,14 +1,50 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import type { IroncladPattern } from '@/lib/prompts/ironclad-banner';
 import { getPrisma } from '@/lib/prisma';
 import { buildWinningPatternInjection } from '@/lib/winning-banner/prompt-injection';
 import type { AnalysisAbstract } from '@/lib/winning-banner/types';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+// Phase B.4: structured output + 1回リトライ用に余裕を持たせる
+// (Gemini 2.5 Pro 1 回 ≒ 30-50 秒。2 回連投で 100s 想定 → 120s に設定)
+export const maxDuration = 120;
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+/**
+ * Phase B.4: Gemini structured output 用 responseSchema。
+ * これを渡すと Gemini が schema に厳密に合致した JSON を返すため、
+ * "配列長ずれ・フィールド欠落・余計なネスト" 系のエラーが理論上ほぼ消える。
+ *
+ * 文字数制限 (コピー1=20字、コピー2=35字 等) は schema レベルでは表現できないので、
+ * 引き続き system prompt の自然言語ルールで制御する。
+ */
+const STRING_ARRAY_4 = {
+  type: Type.ARRAY,
+  minItems: '4',
+  maxItems: '4',
+  items: { type: Type.STRING },
+} as const;
+
+const NESTED_4x4 = {
+  type: Type.ARRAY,
+  minItems: '4',
+  maxItems: '4',
+  items: STRING_ARRAY_4,
+} as const;
+
+const RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  required: ['copies', 'designRequirements', 'ctas', 'tones', 'cautions'],
+  properties: {
+    copies: NESTED_4x4,
+    designRequirements: NESTED_4x4,
+    ctas: STRING_ARRAY_4,
+    tones: STRING_ARRAY_4,
+    cautions: STRING_ARRAY_4,
+  },
+} as const;
 
 interface ReqBody {
   pattern: IroncladPattern;
@@ -183,49 +219,84 @@ export async function POST(req: Request) {
     // gemini-2.5-pro: 本プロジェクトで実績ある安定モデル（analyze-lp / analyze-banner / generate-copy と同じ）。
     // gemini-3.1-flash-lite-preview / gemini-3.1-pro-preview は現行 Gemini API で JSON レスポンスが
     // 不安定な場合があり、パース失敗の事故があったため 2.5-pro に統一。
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-pro',
-      contents: [systemPrompt + '\n\n' + userPrompt + winningInjection],
-      config: {
-        responseMimeType: 'application/json',
-        temperature: 0.85,
-      },
-    });
+    //
+    // Phase B.4: responseSchema (structured output) で配列長/フィールドを Gemini 側に強制。
+    //   1 回目: temperature 0.85 で多様性を出す。
+    //   失敗時は 1 回だけ temperature 0.3 に下げて再試行 (低温は schema 適合率が高い)。
+    //   過去の 3 回ループは maxDuration=60 を超えて 504 を起こしたので 1 回に抑制。
+    const fullPrompt = systemPrompt + '\n\n' + userPrompt + winningInjection;
 
-    const outputText = response.text;
-    if (!outputText) {
-      return NextResponse.json({ error: 'Empty Gemini response' }, { status: 500 });
-    }
+    type CallResult = {
+      ok: true;
+      suggestions: IroncladSuggestions;
+    } | {
+      ok: false;
+      reason: 'empty' | 'parse' | 'schema';
+      raw: string;
+    };
 
-    try {
-      const cleaned = outputText.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleaned) as IroncladSuggestions;
+    async function callOnce(temperature: number): Promise<CallResult> {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: [fullPrompt],
+        config: {
+          responseMimeType: 'application/json',
+          // structured output: Gemini は schema に厳密に合致した JSON を返す
+          responseSchema: RESPONSE_SCHEMA,
+          temperature,
+        },
+      });
+      const outputText = response.text ?? '';
+      if (!outputText) return { ok: false, reason: 'empty', raw: '' };
 
-      // 形式バリデーション（最低限）
-      if (
-        !Array.isArray(parsed.copies) ||
-        parsed.copies.length !== 4 ||
-        !Array.isArray(parsed.designRequirements) ||
-        parsed.designRequirements.length !== 4 ||
-        !Array.isArray(parsed.ctas) ||
-        !Array.isArray(parsed.tones) ||
-        !Array.isArray(parsed.cautions)
-      ) {
-        console.error('Ironclad suggest schema mismatch:', parsed);
-        return NextResponse.json(
-          { error: 'AI出力のスキーマが期待と異なります', raw: outputText },
-          { status: 500 },
-        );
+      let parsed: unknown;
+      try {
+        const cleaned = outputText.replace(/```json/g, '').replace(/```/g, '').trim();
+        parsed = JSON.parse(cleaned);
+      } catch {
+        return { ok: false, reason: 'parse', raw: outputText };
       }
 
-      return NextResponse.json({ suggestions: parsed });
-    } catch (parseErr) {
-      console.error('Failed to parse Gemini output:', outputText, parseErr);
-      return NextResponse.json(
-        { error: 'AI出力のJSONパースに失敗しました', raw: outputText },
-        { status: 500 },
-      );
+      // schema チェック (responseSchema があるので普通失敗しないが念のため)
+      const p = parsed as Partial<IroncladSuggestions>;
+      const ok =
+        Array.isArray(p.copies) &&
+        p.copies.length === 4 &&
+        p.copies.every((arr) => Array.isArray(arr) && arr.length === 4) &&
+        Array.isArray(p.designRequirements) &&
+        p.designRequirements.length === 4 &&
+        p.designRequirements.every((arr) => Array.isArray(arr) && arr.length === 4) &&
+        Array.isArray(p.ctas) &&
+        Array.isArray(p.tones) &&
+        Array.isArray(p.cautions);
+      if (!ok) return { ok: false, reason: 'schema', raw: outputText };
+
+      return { ok: true, suggestions: parsed as IroncladSuggestions };
     }
+
+    let result = await callOnce(0.85);
+    if (!result.ok) {
+      console.warn(
+        `[ironclad-suggest] 1st attempt failed (reason=${result.reason}). Retrying with temperature=0.3`,
+      );
+      result = await callOnce(0.3);
+    }
+
+    if (!result.ok) {
+      console.error('[ironclad-suggest] both attempts failed', {
+        reason: result.reason,
+        rawSnippet: result.raw.slice(0, 400),
+      });
+      const userMsg =
+        result.reason === 'empty'
+          ? 'AIが空の応答を返しました。再生成してください'
+          : result.reason === 'parse'
+            ? 'AI出力のJSONパースに失敗しました。再生成してください'
+            : 'AI出力のスキーマが期待と異なります。再生成してください';
+      return NextResponse.json({ error: userMsg }, { status: 500 });
+    }
+
+    return NextResponse.json({ suggestions: result.suggestions });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
     console.error('ironclad-suggest error:', error);
