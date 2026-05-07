@@ -13,6 +13,7 @@ import type {
   IroncladSize,
 } from '@/lib/prompts/ironclad-banner';
 import { GenerationProgress } from '@/components/ui/GenerationProgress';
+import { VideoCogenProgress } from '@/components/ironclad/VideoCogenProgress';
 import { Toast } from '@/components/ui/Toast';
 import { sessionToCurrentUser } from '@/lib/auth/session-to-current-user';
 import { isUsageLimitReached } from '@/lib/plans/usage-check';
@@ -364,17 +365,21 @@ export function IroncladGenerateScreen({ baseMaterials, patterns, sizes, onBack 
             <span>
               動画も同時生成する
               <span className="ml-2 text-xs text-amber-300/70">
-                (admin 限定 β / Veo 3.1 Fast 8秒 / 約 $0.96/本)
+                (admin 限定 β)
               </span>
             </span>
           </label>
           {videoCogenIds.length > 0 && (
             <p className="text-xs text-amber-200/80">
-              動画 {videoCogenIds.length} 本を pending で投入しました。
-              生成完了は履歴ページで確認できます (約 1〜2 分)。
+              動画 {videoCogenIds.length} 本を生成キューに投入しました。下に進捗が表示されます。
             </p>
           )}
         </div>
+      )}
+
+      {/* Phase B.3: 動画 co-gen の進捗パネル (admin かつ生成投入後のみ表示) */}
+      {user.plan === 'admin' && videoCogenIds.length > 0 && (
+        <VideoCogenProgress videoIds={videoCogenIds} />
       )}
 
       <div className="flex items-center justify-center gap-3 flex-wrap">
