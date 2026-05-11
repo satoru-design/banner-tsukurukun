@@ -3,6 +3,7 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { getPrisma } from '@/lib/prisma';
 import { authConfig } from './auth.config';
 import { sendMetaCompleteRegistrationEvent } from '@/lib/billing/meta-capi';
+import { notifyNewUserToSlack } from '@/lib/slack/notify-new-user';
 
 const prisma = getPrisma();
 
@@ -125,6 +126,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         } catch (e) {
           // CAPI 失敗で signIn 自体は止めない
           console.error('[auth] CompleteRegistration CAPI failed (non-fatal):', e);
+        }
+
+        // 新規登録 Slack 通知（fire-and-forget 不可なので await）
+        try {
+          await notifyNewUserToSlack({
+            email: user.email,
+            name: user.name,
+            provider: 'google',
+            isAdminEmail: adminEmails.includes(user.email),
+          });
+        } catch (e) {
+          console.error('[auth] Slack new-user notify failed (non-fatal):', e);
         }
       }
     },
