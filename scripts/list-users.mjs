@@ -6,6 +6,7 @@
  *   node scripts/list-users.mjs --prod     # 本番 DB (PROD_DATABASE_URL)
  *   node scripts/list-users.mjs --json     # 機械可読 JSON 出力
  *   node scripts/list-users.mjs --prod --json
+ *   node scripts/list-users.mjs --prod --slack  # Slack に同チャンネル投稿（要 SLACK_WEBHOOK_URL_NEW_USER）
  *
  * 出力:
  *   1. 直近登録順のユーザー一覧（email, name, plan, createdAt, usage, provider）
@@ -20,6 +21,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 const args = new Set(process.argv.slice(2));
 const useProd = args.has('--prod');
 const asJson = args.has('--json');
+const toSlack = args.has('--slack');
 
 const connectionString = useProd
   ? process.env.PROD_DATABASE_URL
@@ -136,5 +138,41 @@ console.log(`  直近 24h 登録:     ${cnt24h}`);
 console.log(`  直近 7d 登録:      ${cnt7d}`);
 console.log(`  直近 30d 登録:     ${cnt30d}`);
 console.log('');
+
+if (toSlack) {
+  const webhook = process.env.SLACK_WEBHOOK_URL_NEW_USER;
+  if (!webhook) {
+    console.error('[ERROR] --slack 指定だが SLACK_WEBHOOK_URL_NEW_USER 未設定');
+    await prisma.$disconnect();
+    process.exit(1);
+  }
+
+  const planEmoji = (p) =>
+    p === 'admin' ? ':crown:' : p === 'business' ? ':office:' : p === 'pro' ? ':star:' : p === 'starter' ? ':seedling:' : ':bust_in_silhouette:';
+  const lines = users.map((u) => {
+    const dn = (u.nameOverride || u.name || '').trim() || '(no name)';
+    return `• ${planEmoji(u.plan)} \`${u.email}\` — ${dn} _(${u.plan}, ${fmtDate(u.createdAt)})_`;
+  });
+
+  const planSummary = Object.entries(planCounts)
+    .sort()
+    .map(([p, n]) => `${p}=${n}`)
+    .join(' / ');
+
+  const text = [
+    `:clipboard: *autobanner.jp 登録ユーザー一覧* (${useProd ? 'PROD' : 'DEV'} DB)`,
+    `計 *${users.length} 名* — ${planSummary}`,
+    `直近 24h: ${cnt24h} / 7d: ${cnt7d} / 30d: ${cnt30d}`,
+    '',
+    ...lines,
+  ].join('\n');
+
+  const res = await fetch(webhook, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  console.log(`Slack post: status=${res.status} body=${await res.text()}`);
+}
 
 await prisma.$disconnect();
