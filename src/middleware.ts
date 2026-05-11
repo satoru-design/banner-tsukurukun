@@ -12,6 +12,7 @@ const PUBLIC_PATHS = [
   '/api/billing/webhook',  // Phase A.12: Stripe からの POST。署名検証で正当性を担保するため auth 不要。
   '/api/admin/kpi',  // Phase A.17.0: GAS から呼ばれる KPI 集計 API。Bearer ADMIN_KPI_SECRET で認証。
   '/api/admin/batch-generate',  // Phase 2: meta-ads-autopilot からの Bearer API Key 認証エンドポイント
+  '/api/admin/batch-reject',    // Phase 4: 拒否理由を受け取って次回 prompt に注入する用
   '/api/cron/check-business-upgrade',  // Phase A.17.0: Vercel Cron。Bearer CRON_SECRET で認証。
   '/api/cron/process-video-jobs',  // Phase B.1: Vercel Cron。Bearer CRON_SECRET で認証。
 ];

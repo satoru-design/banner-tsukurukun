@@ -8,6 +8,7 @@ import {
   type IroncladMaterials,
 } from '@/lib/prompts/ironclad-banner';
 import { generateWithFallback } from '@/lib/image-providers';
+import { getRecentRejectReasons } from '@/lib/batch-generate/rejects';
 import { getPrisma } from '@/lib/prisma';
 import { buildBriefSnapshot } from '@/lib/generations/snapshot';
 import { uploadGenerationImage } from '@/lib/generations/blob-client';
@@ -71,6 +72,21 @@ export async function POST(req: Request): Promise<Response> {
 
   // 5. 順次生成
   const prisma = getPrisma();
+
+  // Phase 4: 最近の拒否理由を取得して prompt prefix に追記
+  let avoidList: string[] = [];
+  try {
+    avoidList = await getRecentRejectReasons();
+    if (avoidList.length > 0) {
+      console.log(`[batch-generate ${requestId}] injecting ${avoidList.length} avoid hints`);
+    }
+  } catch (e) {
+    console.warn(`[batch-generate ${requestId}] getRecentRejectReasons failed (continuing):`, e);
+  }
+  const avoidPrefix = avoidList.length > 0
+    ? `\n\n# 避ける要素（過去の拒否理由から自動抽出）\n` + avoidList.map((r) => `- ${r}`).join('\n') + '\n'
+    : '';
+
   for (let i = 0; i < materials.length; i++) {
     const mat = materials[i] as IroncladMaterials;
 
@@ -98,7 +114,7 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     try {
-      const finalPrompt = buildIroncladImagePromptWithPrefix(mat);
+      const finalPrompt = buildIroncladImagePromptWithPrefix(mat) + avoidPrefix;
       const referenceImageUrls = [
         mat.productImageUrl,
         mat.badgeImageUrl1,

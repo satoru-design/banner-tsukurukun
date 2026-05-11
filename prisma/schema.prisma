@@ -307,6 +307,20 @@ model GenerationVideo {
   @@index([isFavorite, favoritedAt])
 }
 
+/// Phase 4: meta-ads-autopilot が生成したバナーの拒否理由を蓄積する。
+/// 次回 batch-generate 時に直近 N 件の reason を prompt に注入し、同様の失敗を防ぐ。
+/// Slack 承認 UI（Phase 3a 拡張）からも投稿される予定。
+model BatchReject {
+  id           String   @id @default(cuid())
+  reason       String   // 自由記述。Slack 承認 UI（Phase 3a 拡張）からも投稿される予定
+  materials    Json     // 拒否された IroncladMaterials のスナップショット
+  generationId String?  // banner-tsukurukun Generation.id への参照（オプション）
+  adId         String?  // Meta Ad ID（あれば）
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 /// Phase A.12: Stripe Webhook idempotency 用
 /// id は Stripe event.id をそのまま使い、重複処理を防ぐ
 model WebhookEvent {
