@@ -7,6 +7,18 @@
     {
       "path": "/api/cron/process-video-jobs",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/kpi-daily",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/kpi-weekly",
+      "schedule": "0 0 * * 1"
+    },
+    {
+      "path": "/api/cron/kpi-monthly",
+      "schedule": "0 0 1 * *"
     }
   ]
 }
