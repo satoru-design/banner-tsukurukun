@@ -2,7 +2,15 @@ import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { verifyBatchGenerateAuth } from '@/lib/batch-generate/auth';
 import { getBatchGenerateAdminUser } from '@/lib/batch-generate/admin-user';
-import type { IroncladMaterials } from '@/lib/prompts/ironclad-banner';
+import {
+  buildIroncladImagePromptWithPrefix,
+  getIroncladSizeMeta,
+  type IroncladMaterials,
+} from '@/lib/prompts/ironclad-banner';
+import { generateWithFallback } from '@/lib/image-providers';
+import { getPrisma } from '@/lib/prisma';
+import { buildBriefSnapshot } from '@/lib/generations/snapshot';
+import { uploadGenerationImage } from '@/lib/generations/blob-client';
 
 export const runtime = 'nodejs';
 // 順次生成で最大 20 本 × 各 ~30s = ~10min を想定。Vercel Pro 上限 800s 以内に収める。
@@ -61,14 +69,99 @@ export async function POST(req: Request): Promise<Response> {
   const requestId = randomUUID();
   const results: BatchResult[] = [];
 
-  // 5. TODO Task 6: 順次生成ループをここに追加
-  // 一旦は materials.length 分の placeholder を返して骨組みの動作確認
+  // 5. 順次生成
+  const prisma = getPrisma();
   for (let i = 0; i < materials.length; i++) {
-    results.push({
-      index: i,
-      ok: false,
-      error: 'not_implemented_yet (Task 6 で実装)',
-    });
+    const mat = materials[i] as IroncladMaterials;
+
+    // 個別バリデーション
+    if (!mat.product || !mat.target || !mat.purpose) {
+      results.push({
+        index: i,
+        ok: false,
+        error: 'product, target, purpose are required',
+      });
+      continue;
+    }
+    if (!Array.isArray(mat.copies) || mat.copies.length !== 4) {
+      results.push({ index: i, ok: false, error: 'copies must be 4-tuple' });
+      continue;
+    }
+    if (!Array.isArray(mat.designRequirements) || mat.designRequirements.length !== 4) {
+      results.push({ index: i, ok: false, error: 'designRequirements must be 4-tuple' });
+      continue;
+    }
+    const sizeMeta = getIroncladSizeMeta(mat.size);
+    if (!sizeMeta) {
+      results.push({ index: i, ok: false, error: `Unknown size: ${mat.size}` });
+      continue;
+    }
+
+    try {
+      const finalPrompt = buildIroncladImagePromptWithPrefix(mat);
+      const referenceImageUrls = [
+        mat.productImageUrl,
+        mat.badgeImageUrl1,
+        mat.badgeImageUrl2,
+      ].filter((u): u is string => Boolean(u && u.trim()));
+      const copyBundle = {
+        mainCopy: mat.copies[0],
+        subCopy: mat.copies[1],
+        ctaText: mat.cta,
+        primaryBadgeText: mat.copies[2],
+        secondaryBadgeText: mat.copies[3],
+      };
+
+      console.log(`[batch-generate ${requestId}] generating index=${i} size=${mat.size}`);
+      const result = await generateWithFallback('gpt-image', {
+        prompt: finalPrompt,
+        aspectRatio: sizeMeta.aspectRatio,
+        apiSizeOverride: sizeMeta.apiSize,
+        referenceImageUrls: referenceImageUrls.length > 0 ? referenceImageUrls : undefined,
+        referenceMode: 'composite',
+        copyBundle,
+      });
+
+      // Generation + GenerationImage を admin user 名義で保存（usage 増分なし・透かしなし）
+      const snapshot = buildBriefSnapshot(mat);
+      const generation = await prisma.generation.create({
+        data: {
+          userId: adminUser.id,
+          briefSnapshot: snapshot as unknown as object,
+          isPreview: false,
+        },
+      });
+      const blobUrl = await uploadGenerationImage(
+        adminUser.id,
+        generation.id,
+        mat.size,
+        result.base64,
+      );
+      await prisma.generationImage.create({
+        data: {
+          generationId: generation.id,
+          size: mat.size,
+          blobUrl,
+          provider: result.providerId,
+          providerMetadata: result.providerMetadata as unknown as object,
+        },
+      });
+
+      results.push({
+        index: i,
+        ok: true,
+        imageUrl: blobUrl,
+        generationId: generation.id,
+        provider: result.providerId,
+      });
+    } catch (e) {
+      console.error(`[batch-generate ${requestId}] index=${i} failed:`, e);
+      results.push({
+        index: i,
+        ok: false,
+        error: (e as Error).message,
+      });
+    }
   }
 
   const succeeded = results.filter((r) => r.ok).length;
@@ -77,7 +170,6 @@ export async function POST(req: Request): Promise<Response> {
   return NextResponse.json({
     success: succeeded > 0,
     requestId,
-    adminUserId: adminUser.id,  // デバッグ用。Task 6 でレスポンスから削除予定
     results,
     summary: { total: materials.length, succeeded, failed },
   });
