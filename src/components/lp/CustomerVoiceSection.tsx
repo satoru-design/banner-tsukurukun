@@ -17,6 +17,7 @@ const VOICES = [
     avatarRing: 'ring-rose-400/40',
     role: 'Web マーケター',
     demographic: '20代女性',
+    proofBadge: 'AB テスト施策数を大幅増',
     catchphrase:
       'PDCA のスピードが劇的に向上！マーケターが自らクリエイティブを動かせる強み',
     before:
@@ -30,6 +31,7 @@ const VOICES = [
     avatarRing: 'ring-sky-400/40',
     role: 'デザイナー',
     demographic: '30代男性',
+    proofBadge: '上流工程に時間を投下',
     catchphrase:
       '単純作業からの解放。本来のクリエイティビティを発揮できる環境へ',
     before:
@@ -43,6 +45,7 @@ const VOICES = [
     avatarRing: 'ring-amber-400/40',
     role: '物販事業経営者',
     demographic: '30代女性',
+    proofBadge: '外注コスト・納期から解放',
     catchphrase:
       '外注コストと納期に縛られない。少数精鋭の事業運営に欠かせない武器',
     before:
@@ -57,10 +60,10 @@ export const CustomerVoiceSection = () => {
     <section className="bg-slate-900 border-y border-slate-800">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
         <h2 className="text-3xl sm:text-4xl font-black text-slate-50 text-center">
-          利用者の声
+          導入後に起きた、現場のリアルな変化
         </h2>
         <p className="text-slate-400 text-center mt-3">
-          実際に「勝ちバナー作る君」を導入して変わった現場の声
+          マーケター・デザイナー・経営者、それぞれの「止まりごと」を解いた事例
         </p>
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
           {VOICES.map((v) => (
@@ -81,6 +84,7 @@ function VoiceCard({
   avatarRing,
   role,
   demographic,
+  proofBadge,
   catchphrase,
   before,
   after,
@@ -106,6 +110,14 @@ function VoiceCard({
           </div>
         </div>
       </header>
+
+      {/* Proof badge */}
+      <div className="flex items-center gap-2 -mt-1">
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-full">
+          <span aria-hidden>✨</span>
+          {proofBadge}
+        </span>
+      </div>
 
       {/* Catchphrase */}
       <p className="text-base font-bold text-emerald-300 leading-relaxed">
