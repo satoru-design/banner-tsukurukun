@@ -92,12 +92,6 @@ export const LpTryInLp = () => {
     setPhase('loading');
   };
 
-  const onReset = () => {
-    setPhase('idle');
-    setSelectedKey(null);
-    setStep(0);
-  };
-
   const selectedLabel = PRESETS.find((p) => p.key === selectedKey)?.label ?? '';
 
   if (phase === 'result') {
@@ -110,12 +104,6 @@ export const LpTryInLp = () => {
         <p className="text-center text-[11px] text-slate-500 leading-relaxed">
           ※ 表示中はサンプル例です。ご登録後、あなたの商品情報をもとに AI が同等品質で生成します。
         </p>
-        <button
-          onClick={onReset}
-          className="block mx-auto text-xs text-slate-400 hover:text-slate-200 underline transition-colors"
-        >
-          別の業種で試す
-        </button>
       </div>
     );
   }
