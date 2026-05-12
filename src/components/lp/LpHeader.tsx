@@ -13,9 +13,12 @@ export const LpHeader = ({ compact = false }: Props) => {
   return (
     <header className="sticky top-0 z-30 backdrop-blur-md bg-slate-950/80 border-b border-slate-800">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 group">
-          <span className="text-xl">🏆</span>
-          <span className="font-bold text-slate-100 group-hover:text-emerald-300 transition-colors">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <span
+            aria-hidden
+            className="inline-block w-1.5 h-5 bg-emerald-400 rounded-sm group-hover:bg-emerald-300 transition-colors"
+          />
+          <span className="font-bold text-slate-100 group-hover:text-emerald-300 transition-colors tracking-tight">
             勝ちバナー作る君
           </span>
         </Link>

@@ -8,6 +8,7 @@ import { SolutionSection } from '@/components/lp/SolutionSection';
 import { FeaturesSection } from '@/components/lp/FeaturesSection';
 import { LpInlineCta } from '@/components/lp/LpInlineCta';
 import { ComparisonSection } from '@/components/lp/ComparisonSection';
+import { LpAboutOperator } from '@/components/lp/LpAboutOperator';
 import { CustomerVoiceSection } from '@/components/lp/CustomerVoiceSection';
 import { FaqSection } from '@/components/lp/FaqSection';
 import { FinalCta } from '@/components/lp/FinalCta';
@@ -50,6 +51,7 @@ export default function Lp01Page() {
         <FeaturesSection />
         <LpInlineCta href="/signin?from=lp01_inline" />
         <ComparisonSection />
+        <LpAboutOperator />
         <CustomerVoiceSection />
         <FaqSection />
         <FinalCta

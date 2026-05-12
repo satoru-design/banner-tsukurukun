@@ -65,7 +65,7 @@ const PLANS = [
       '複数スタイル並列生成',
       '上限 3,000 枚',
       '一括 ZIP DL',
-      '🔜 クライアント別フォルダ・拡張 Brand Kit（順次提供）',
+      'クライアント別フォルダ・拡張 Brand Kit（順次提供）',
     ],
     cta: { type: 'paid' as const, priceId: BUSINESS_PRICE_ID, label: 'Business にする' },
     isNew: true,

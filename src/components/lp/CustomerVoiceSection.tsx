@@ -113,8 +113,7 @@ function VoiceCard({
 
       {/* Proof badge */}
       <div className="flex items-center gap-2 -mt-1">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-full">
-          <span aria-hidden>✨</span>
+        <span className="inline-flex items-center text-xs font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-full">
           {proofBadge}
         </span>
       </div>

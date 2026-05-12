@@ -3,32 +3,32 @@
  */
 const FEATURES = [
   {
-    icon: '🎯',
+    num: '01',
     title: '17 サイズ一括生成',
     desc: 'Instagram / Display / リワード / バナー広告... 主要 17 サイズを一度に出力。サイズ違いの追加発注ゼロ。',
   },
   {
-    icon: '🏆',
+    num: '02',
     title: '勝ちバナー学習',
     desc: '過去に成果が出たバナーをアップロードすると、AI が勝ちパターンを抽出し新しい生成に反映。',
   },
   {
-    icon: '🎨',
+    num: '03',
     title: 'Brand Kit 対応',
     desc: 'ロゴ・カラー・フォントの3要素を保存。生成バナー全体に統一感を担保。',
   },
   {
-    icon: '🔍',
+    num: '04',
     title: 'プロンプト閲覧（Pro）',
     desc: 'AI がどう考えてバナーを生成したかを完全公開。ナレッジを社内に蓄積できる。',
   },
   {
-    icon: '📁',
+    num: '05',
     title: '履歴管理',
     desc: '過去のすべての生成履歴を保存。再生成・コピー・ZIP 一括 DL も可能。',
   },
   {
-    icon: '⭐',
+    num: '06',
     title: 'お気に入り保護',
     desc: '勝ちバナーは「お気に入り」に登録すれば、月次の履歴ローテーションで消えない。',
   },
@@ -50,8 +50,10 @@ export const FeaturesSection = () => {
               key={f.title}
               className="bg-slate-950 border border-slate-800 rounded-xl p-6 hover:border-emerald-500/40 transition-colors"
             >
-              <div className="text-3xl mb-3">{f.icon}</div>
-              <h3 className="text-base font-bold text-slate-100">{f.title}</h3>
+              <div className="text-emerald-400/80 font-mono text-sm font-bold tabular-nums">
+                {f.num}
+              </div>
+              <h3 className="text-base font-bold text-slate-100 mt-2">{f.title}</h3>
               <p className="text-sm text-slate-400 mt-2 leading-relaxed">{f.desc}</p>
             </div>
           ))}

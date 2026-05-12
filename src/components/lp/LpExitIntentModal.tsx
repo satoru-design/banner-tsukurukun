@@ -58,9 +58,6 @@ export const LpExitIntentModal = ({
           ×
         </button>
         <div className="text-center">
-          <div className="text-4xl mb-3" aria-hidden>
-            👋
-          </div>
           <h3
             id="lp-exit-modal-title"
             className="text-xl font-black text-slate-50 mb-2"

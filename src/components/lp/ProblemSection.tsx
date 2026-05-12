@@ -3,17 +3,17 @@
  */
 const PROBLEMS = [
   {
-    icon: '⏳',
+    num: '01',
     title: 'テンプレ作成に半日',
     desc: 'バナー1枚作るのに、ベース構成・配置・コピー検討で 4〜6 時間。検証回数を増やせない。',
   },
   {
-    icon: '📐',
+    num: '02',
     title: 'サイズ違いを毎回追い発注',
     desc: 'Instagram / Display / リワード広告... サイズが違うたびにデザイナーへ依頼。納期が伸びる。',
   },
   {
-    icon: '🔬',
+    num: '03',
     title: '勝ちパターンが社内に蓄積されない',
     desc: '広告で成果が出たバナーがあっても、なぜ勝ったのか言語化できず再現できない。',
   },
@@ -35,10 +35,12 @@ export const ProblemSection = () => {
           {PROBLEMS.map((p) => (
             <div
               key={p.title}
-              className="bg-slate-950 border border-slate-800 rounded-xl p-6"
+              className="bg-slate-950 border border-slate-800 rounded-xl p-6 border-l-4 border-l-emerald-500/50"
             >
-              <div className="text-4xl mb-3">{p.icon}</div>
-              <h3 className="text-lg font-bold text-slate-100">{p.title}</h3>
+              <div className="text-emerald-400/80 font-mono text-sm font-bold tabular-nums">
+                {p.num}
+              </div>
+              <h3 className="text-lg font-bold text-slate-100 mt-2">{p.title}</h3>
               <p className="text-sm text-slate-400 mt-2 leading-relaxed">{p.desc}</p>
             </div>
           ))}

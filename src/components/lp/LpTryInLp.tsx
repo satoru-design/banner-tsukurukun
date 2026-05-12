@@ -15,42 +15,36 @@ import { useState, useEffect } from 'react';
 const PRESETS = [
   {
     key: 'cosmetics',
-    emoji: '🧴',
     label: '化粧品・スキンケア',
     headline: '敏感肌のための保湿美容液',
     sub: '30 日返金保証',
   },
   {
     key: 'supplement',
-    emoji: '💊',
     label: '健康食品・サプリ',
     headline: '腸活サプリ Five Point',
     sub: '初回 50% OFF',
   },
   {
     key: 'apparel',
-    emoji: '👕',
     label: 'アパレル D2C',
     headline: '夏限定・涼感 T シャツ',
     sub: '3 枚で送料無料',
   },
   {
     key: 'saas',
-    emoji: '💻',
     label: 'サブスク・SaaS',
     headline: '月額 980 円〜の新しいツール',
     sub: '無料トライアル受付中',
   },
   {
     key: 'food',
-    emoji: '🍽️',
     label: '食品・グルメ',
     headline: 'シェフ監修ミールキット',
     sub: '2 食 1,000 円',
   },
   {
     key: 'education',
-    emoji: '🎓',
     label: '教育・スクール',
     headline: '子ども向けプログラミング',
     sub: '無料体験申込受付中',
@@ -98,7 +92,7 @@ export const LpTryInLp = () => {
     return (
       <div className="w-full max-w-md mx-auto space-y-4">
         <div className="text-center text-sm text-emerald-300 font-bold">
-          ✨ 生成完了：{selectedLabel}
+          生成完了：{selectedLabel}
         </div>
         <MaskedPreview />
         <p className="text-center text-[11px] text-slate-500 leading-relaxed">
@@ -135,28 +129,31 @@ export const LpTryInLp = () => {
     <div className="w-full max-w-md mx-auto">
       <div className="text-center mb-4">
         <div className="text-sm font-bold text-emerald-300">
-          🎯 業種を選ぶだけで、いますぐ体験
+          業種を選ぶだけで、いますぐ体験
         </div>
         <div className="text-xs text-slate-400 mt-1">
           17 サイズ・勝ちパターン学習を、その場でプレビュー
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        {PRESETS.map((preset) => (
+        {PRESETS.map((preset, i) => (
           <button
             key={preset.key}
             onClick={() => onSelect(preset.key)}
             className="text-left rounded-lg border border-slate-700/60 bg-slate-900/60 hover:bg-slate-800 hover:border-emerald-500/60 px-3 py-3 transition-all group cursor-pointer"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-2xl shrink-0" aria-hidden>
-                {preset.emoji}
+            <div className="flex items-start gap-2.5">
+              <span
+                className="shrink-0 text-[10px] font-mono font-bold text-emerald-400/70 mt-0.5 tabular-nums"
+                aria-hidden
+              >
+                {String(i + 1).padStart(2, '0')}
               </span>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold text-slate-100 truncate">
                   {preset.label}
                 </div>
-                <div className="text-[10px] text-slate-500 truncate">
+                <div className="text-[10px] text-slate-500 truncate mt-0.5">
                   {preset.headline}
                 </div>
               </div>
@@ -235,9 +232,21 @@ const MaskedPreview = () => {
       </div>
       {/* ぼかしマスク + 中央 CTA */}
       <div className="absolute inset-0 backdrop-blur-md bg-slate-950/40 rounded-xl flex flex-col items-center justify-center gap-4 p-6">
-        <div className="text-4xl" aria-hidden>
-          🔒
-        </div>
+        <svg
+          aria-hidden
+          width="40"
+          height="40"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-slate-200"
+        >
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
         <div className="text-sm text-slate-100 text-center font-bold leading-relaxed">
           全 17 サイズの完成バナーを
           <br />

@@ -6,6 +6,7 @@ import { ProblemSection } from '@/components/lp/ProblemSection';
 import { SolutionSection } from '@/components/lp/SolutionSection';
 import { FeaturesSection } from '@/components/lp/FeaturesSection';
 import { ComparisonSection } from '@/components/lp/ComparisonSection';
+import { LpAboutOperator } from '@/components/lp/LpAboutOperator';
 import { CustomerVoiceSection } from '@/components/lp/CustomerVoiceSection';
 import { PricingSection } from '@/components/lp/PricingSection';
 import { FaqSection } from '@/components/lp/FaqSection';
@@ -44,6 +45,7 @@ export default function Lp01LegacyPage() {
         <SolutionSection />
         <FeaturesSection />
         <ComparisonSection />
+        <LpAboutOperator />
         <CustomerVoiceSection />
         <PricingSection />
         <FaqSection />
