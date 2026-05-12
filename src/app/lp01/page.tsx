@@ -14,6 +14,7 @@ import { FinalCta } from '@/components/lp/FinalCta';
 import { LpFooter } from '@/components/lp/LpFooter';
 import { LpFloatingCta } from '@/components/lp/LpFloatingCta';
 import { LpExitIntentModal } from '@/components/lp/LpExitIntentModal';
+import { LpAbTracker } from '@/components/lp/LpAbTracker';
 
 /**
  * Phase A.16: /lp01 = In-LP Try 体験型 LP（CVR 2-3x 狙い）
@@ -28,6 +29,7 @@ export default function Lp01Page() {
   const hasDemoVideo = Boolean(process.env.NEXT_PUBLIC_DEMO_VIDEO_URL);
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      <LpAbTracker variant="a" />
       <LpHeader compact />
       <main className="flex-1 pb-24 sm:pb-20">
         <LpHero
