@@ -1,4 +1,5 @@
 import NextAuth from 'next-auth';
+import { NextResponse, type NextRequest } from 'next/server';
 import { authConfig } from '@/lib/auth/auth.config';
 
 const { auth } = NextAuth(authConfig);
@@ -6,6 +7,7 @@ const { auth } = NextAuth(authConfig);
 const PUBLIC_PATHS = [
   '/signin',
   '/lp01',  // Phase A.15: 機能訴求 LP（公開）
+  '/lp01-legacy',  // Phase A.16: lp01 A/B B バリアント（公開）
   '/lp02',  // Phase A.15: 時短訴求 LP（公開）
   '/lp03',
   '/contact',  // Phase A.15: Plan C 個別商談 問合せページ
@@ -23,19 +25,75 @@ const PUBLIC_PATH_PREFIXES = [
   '/legal',  // Phase A.15: 特商法 / 利用規約 / プライバシーポリシー
 ];
 
+const AB_LP01_COOKIE = 'ab_lp01';
+const AB_LP01_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+
+type Variant = 'a' | 'b';
+
+/**
+ * Phase A.16: lp01 の A/B 振り分け
+ *
+ * - `?v=a` or `?v=b` クエリで強制
+ * - cookie `ab_lp01` があれば尊重（30 日固定）
+ * - 無ければ 50/50 ランダム
+ * - variant=b は `/lp01-legacy` に rewrite
+ * - variant=a なら現行 `/lp01` のまま
+ *
+ * 戻り値: rewrite/passthrough のレスポンス（必ず cookie をセットする）
+ */
+function handleLp01Ab(req: NextRequest): NextResponse {
+  const url = req.nextUrl;
+  const forced = url.searchParams.get('v');
+  const cookieVal = req.cookies.get(AB_LP01_COOKIE)?.value;
+
+  let variant: Variant;
+  if (forced === 'a' || forced === 'b') {
+    variant = forced;
+  } else if (cookieVal === 'a' || cookieVal === 'b') {
+    variant = cookieVal;
+  } else {
+    variant = Math.random() < 0.5 ? 'a' : 'b';
+  }
+
+  const targetPath = variant === 'b' ? '/lp01-legacy' : '/lp01';
+  const incomingPath = url.pathname;
+
+  let response: NextResponse;
+  if (incomingPath !== targetPath) {
+    const target = new URL(targetPath, req.url);
+    url.searchParams.forEach((value, key) => {
+      if (key !== 'v') target.searchParams.set(key, value);
+    });
+    response = NextResponse.rewrite(target);
+  } else {
+    response = NextResponse.next();
+  }
+
+  response.cookies.set(AB_LP01_COOKIE, variant, {
+    maxAge: AB_LP01_MAX_AGE,
+    sameSite: 'lax',
+    path: '/',
+  });
+  response.headers.set('x-ab-lp01', variant);
+  return response;
+}
+
 /**
  * Phase A.10: NextAuth.js v5 ベース認証 middleware。
- * 既存 Basic Auth は完全廃止。
+ * Phase A.16: lp01 A/B 振り分けロジックを追加。
  *
  * - /signin, /lp** はログイン不要
+ * - /lp01 と /lp01-legacy には A/B 振り分けを適用（cookie 30 日固定）
  * - /api/auth/** は NextAuth 自身のエンドポイントなので素通し
  * - それ以外は session 必須、未ログインなら /signin へリダイレクト
- *
- * ALLOWED_EMAILS のホワイトリスト判定は auth.config.ts の signIn callback 側。
- * ここでは単純に「セッションがあるかないか」のみチェック。
  */
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+
+  // A/B: lp01 系列はここで振り分け（PUBLIC_PATHS 判定より前に処理）
+  if (pathname === '/lp01' || pathname === '/lp01-legacy') {
+    return handleLp01Ab(req);
+  }
 
   // 完全一致 public パス
   if (PUBLIC_PATHS.includes(pathname)) {

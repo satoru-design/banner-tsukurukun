@@ -25,7 +25,7 @@ const FEATURES = [
   {
     icon: '📁',
     title: '履歴管理',
-    desc: '過去のすべての生成セッションを保存。再生成・コピー・ZIP 一括 DL も可能。',
+    desc: '過去のすべての生成履歴を保存。再生成・コピー・ZIP 一括 DL も可能。',
   },
   {
     icon: '⭐',
@@ -36,7 +36,7 @@ const FEATURES = [
 
 export const FeaturesSection = () => {
   return (
-    <section className="bg-slate-900 border-y border-slate-800">
+    <section id="features" className="bg-slate-900 border-y border-slate-800 scroll-mt-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
         <h2 className="text-3xl sm:text-4xl font-black text-slate-50 text-center">
           機能ハイライト

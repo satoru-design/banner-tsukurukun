@@ -24,10 +24,12 @@ export const ProblemSection = () => {
     <section className="bg-slate-900 border-y border-slate-800">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16">
         <h2 className="text-3xl sm:text-4xl font-black text-slate-50 text-center">
-          こんな経験、ありませんか？
+          あなたの広告クリエイティブ、
+          <br className="md:hidden" />
+          ここで止まっていませんか？
         </h2>
         <p className="text-slate-400 text-center mt-3">
-          EC のバナー制作、こんな悩みが現場の常識になっていませんか
+          EC・代理店の現場で繰り返される、3 つの停滞
         </p>
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
           {PROBLEMS.map((p) => (
