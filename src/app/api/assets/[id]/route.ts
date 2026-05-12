@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
-import { deleteAssetBlob } from '@/lib/assets/blob-client';
 import { auth } from '@/lib/auth/auth';
 
 export const runtime = 'nodejs';
@@ -42,12 +41,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    try {
-      await deleteAssetBlob(asset.blobUrl);
-    } catch (blobErr) {
-      console.warn('Failed to delete blob (continuing):', blobErr);
-    }
-
+    // Blob 実体は意図的に残す。
+    // 過去 Generation の briefSnapshot に絶対 URL が焼き込まれているため、
+    // Blob を消すと再生成/再試行で 404 → gpt-image-2 が全体エラーになるゾンビ化が発生する。
+    // 孤立 Blob はライブラリから不可視 (Asset レコードのみ削除) でユーザー影響なし。
+    // 将来的にコスト面で気になれば、参照棚卸し付きの GC ジョブを別途用意する。
     await prisma.asset.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {

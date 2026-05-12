@@ -12,6 +12,7 @@ import { getRecentRejectReasons } from '@/lib/batch-generate/rejects';
 import { getPrisma } from '@/lib/prisma';
 import { buildBriefSnapshot } from '@/lib/generations/snapshot';
 import { uploadGenerationImage } from '@/lib/generations/blob-client';
+import { filterAvailableUrls } from '@/lib/assets/url-availability';
 
 export const runtime = 'nodejs';
 // 順次生成で最大 20 本 × 各 ~30s = ~10min を想定。Vercel Pro 上限 800s 以内に収める。
@@ -115,11 +116,12 @@ export async function POST(req: Request): Promise<Response> {
 
     try {
       const finalPrompt = buildIroncladImagePromptWithPrefix(mat) + avoidPrefix;
-      const referenceImageUrls = [
+      // Asset 削除済み等で 404 になる URL を事前にドロップする (ironclad-generate と同じ防御策)。
+      const { available: referenceImageUrls } = await filterAvailableUrls([
         mat.productImageUrl,
         mat.badgeImageUrl1,
         mat.badgeImageUrl2,
-      ].filter((u): u is string => Boolean(u && u.trim()));
+      ]);
       const copyBundle = {
         mainCopy: mat.copies[0],
         subCopy: mat.copies[1],

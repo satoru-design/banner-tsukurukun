@@ -18,6 +18,7 @@ import {
 import { uploadGenerationImage } from '@/lib/generations/blob-client';
 import { applyPreviewWatermark } from '@/lib/image-providers/watermark';
 import { sendMeteredUsage } from '@/lib/billing/usage-records';
+import { filterAvailableUrls } from '@/lib/assets/url-availability';
 
 export const runtime = 'nodejs';
 // Phase B.8: gpt-image-2 のレイテンシが時間帯により非常に高くなる現象に対応
@@ -118,12 +119,18 @@ export async function POST(req: Request) {
 
     const finalPrompt = buildIroncladImagePromptWithPrefix(materials);
 
-    // 参考画像URLを集約（商品画像・バッジ1・バッジ2）
-    const referenceImageUrls = [
+    // 参考画像URLを集約（商品画像・バッジ1・バッジ2）。
+    // Asset 削除や Blob 障害で死んでいる URL は事前にドロップする。
+    // gpt-image-2 (images.edit / Responses API) は参照URLの 404 で全体を 400 にするため、
+    // 死んだ URL を含むと「再試行しても永久に失敗するゾンビ Generation」が生まれる。
+    const { available: referenceImageUrls, dropped: droppedRefs } = await filterAvailableUrls([
       materials.productImageUrl,
       materials.badgeImageUrl1,
       materials.badgeImageUrl2,
-    ].filter((u): u is string => Boolean(u && u.trim()));
+    ]);
+    if (droppedRefs.length > 0) {
+      ts(`dropped ${droppedRefs.length} dead reference URL(s)`);
+    }
 
     // copyBundle: buildBakeTextInstruction 用。鉄板プロンプト本体にも同じ情報が入っているが
     // テキスト描画の強制力を高めるため二重で渡す。
