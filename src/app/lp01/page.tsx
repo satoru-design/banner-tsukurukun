@@ -25,6 +25,7 @@ import { LpExitIntentModal } from '@/components/lp/LpExitIntentModal';
  * - ヘッダー CTA は外し、Floating Footer CTA + Exit Intent に集約
  */
 export default function Lp01Page() {
+  const hasDemoVideo = Boolean(process.env.NEXT_PUBLIC_DEMO_VIDEO_URL);
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       <LpHeader compact />
@@ -33,9 +34,9 @@ export default function Lp01Page() {
           h1="EC バナーが 90 秒で 17 サイズ。明日の広告に、まだ間に合う。"
           h2="デザイナー不要。業種を選ぶだけで、勝ちパターンを学習した AI が広告で実証されたバナーを 17 サイズに自動展開します。"
           ctaPrimaryLabel="いますぐ無料で試してみる"
-          ctaSecondaryLabel="動画で 30 秒デモを見る"
+          ctaSecondaryLabel={hasDemoVideo ? '動画で 30 秒デモを見る' : '機能をすべて見る'}
           ctaPrimaryHref="/signin?from=lp01_hero"
-          ctaSecondaryHref="#demo"
+          ctaSecondaryHref={hasDemoVideo ? '#demo' : '#features'}
           visualSlot={<LpTryInLp />}
         />
         <NumericProofSection />
