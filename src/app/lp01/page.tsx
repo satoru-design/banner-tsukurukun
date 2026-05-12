@@ -1,10 +1,12 @@
 import { LpHeader } from '@/components/lp/LpHeader';
 import { LpHero } from '@/components/lp/LpHero';
 import { LpTryInLp } from '@/components/lp/LpTryInLp';
+import { NumericProofSection } from '@/components/lp/NumericProofSection';
 import { LpDemoVideo } from '@/components/lp/LpDemoVideo';
 import { ProblemSection } from '@/components/lp/ProblemSection';
 import { SolutionSection } from '@/components/lp/SolutionSection';
 import { FeaturesSection } from '@/components/lp/FeaturesSection';
+import { LpInlineCta } from '@/components/lp/LpInlineCta';
 import { ComparisonSection } from '@/components/lp/ComparisonSection';
 import { CustomerVoiceSection } from '@/components/lp/CustomerVoiceSection';
 import { FaqSection } from '@/components/lp/FaqSection';
@@ -36,12 +38,14 @@ export default function Lp01Page() {
           ctaSecondaryHref="#demo"
           visualSlot={<LpTryInLp />}
         />
+        <NumericProofSection />
         <div id="demo">
           <LpDemoVideo />
         </div>
         <ProblemSection />
         <SolutionSection />
         <FeaturesSection />
+        <LpInlineCta href="/signin?from=lp01_inline" />
         <ComparisonSection />
         <CustomerVoiceSection />
         <FaqSection />
