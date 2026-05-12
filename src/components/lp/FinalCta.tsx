@@ -1,9 +1,21 @@
 import Link from 'next/link';
 
 /**
- * Phase A.15: Final CTA セクション
+ * Phase A.15-16: Final CTA セクション
+ * - primaryHref: 主 CTA。lp01 では `from=lp01_final` 等を付与して計測
+ * - showSecondary: lp01 では pricing セクション撤去のため非表示にもできる
  */
-export const FinalCta = () => {
+interface Props {
+  primaryHref?: string;
+  secondaryHref?: string;
+  showSecondary?: boolean;
+}
+
+export const FinalCta = ({
+  primaryHref = '/signin?from=lp_final',
+  secondaryHref = '#pricing',
+  showSecondary = true,
+}: Props = {}) => {
   return (
     <section className="relative bg-slate-900 border-t border-slate-800 overflow-hidden">
       <div
@@ -12,24 +24,26 @@ export const FinalCta = () => {
       />
       <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center">
         <h2 className="text-3xl sm:text-5xl font-black text-slate-50 leading-tight">
-          まずは <span className="text-emerald-400">3 セッション無料</span> で試してみる
+          まずは <span className="text-emerald-400">3 本まで無料</span> で試してみる
         </h2>
         <p className="mt-5 text-lg text-slate-300">
           クレカ不要 / Google アカウントで 1 クリック開始 / 効果を試してから有料化
         </p>
         <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">
           <Link
-            href="/signin"
+            href={primaryHref}
             className="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-8 py-4 rounded-lg shadow-xl shadow-emerald-500/30 transition-all hover:scale-[1.02]"
           >
-            今すぐ無料で試す
+            いますぐ無料で試してみる
           </Link>
-          <Link
-            href="#pricing"
-            className="inline-flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold px-8 py-4 rounded-lg border border-slate-700 transition-all"
-          >
-            料金プランを見る
-          </Link>
+          {showSecondary && (
+            <Link
+              href={secondaryHref}
+              className="inline-flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold px-8 py-4 rounded-lg border border-slate-700 transition-all"
+            >
+              料金プランを見る
+            </Link>
+          )}
         </div>
       </div>
     </section>

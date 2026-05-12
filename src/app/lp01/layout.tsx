@@ -1,21 +1,21 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '勝ちバナー作る君 — 1 ブリーフで 17 サイズ一括生成 | autobanner.jp',
+  title: '勝ちバナー作る君 — EC バナーが 90 秒で 17 サイズ | autobanner.jp',
   description:
-    'EC サイトのバナー制作時間を 1/10 に。AI が勝ちバナーを学習し、17 サイズを 90 秒で一括生成します。3 セッション無料体験。',
+    'デザイナー不要。業種を選ぶだけで、AI が勝ちパターンを学習したバナーを 17 サイズに自動展開。クレカ不要・3 本まで無料で試せます。',
   openGraph: {
-    title: '勝ちバナー作る君 — 1 ブリーフで 17 サイズ一括生成',
+    title: '勝ちバナー作る君 — EC バナーが 90 秒で 17 サイズ',
     description:
-      'AI が勝ちバナーを学習し、17 サイズを 90 秒で一括生成。EC のバナー制作時間を 1/10 に。',
+      'デザイナー不要。業種を選ぶだけで、AI が勝ちバナーを 17 サイズに自動展開。EC のバナー制作時間を 1/10 に。',
     url: 'https://autobanner.jp/lp01',
     images: ['/og-image.png'],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: '勝ちバナー作る君 — 1 ブリーフで 17 サイズ一括生成',
-    description: 'AI バナー一括生成ツール。3 セッション無料体験。',
+    title: '勝ちバナー作る君 — EC バナーが 90 秒で 17 サイズ',
+    description: 'AI バナー一括生成ツール。クレカ不要・3 本まで無料で体験。',
     images: ['/og-image.png'],
   },
 };

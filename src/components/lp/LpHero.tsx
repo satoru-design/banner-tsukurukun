@@ -31,13 +31,24 @@ export const LpHero = ({
         aria-hidden
         className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.20),_transparent_60%)]"
       />
-      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-20 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
         <div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-50 leading-tight">
             {h1}
           </h1>
           <p className="mt-6 text-lg text-slate-300 leading-relaxed">{h2}</p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-3">
+          <div className="mt-6 flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+              ✓ クレカ不要
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+              ✓ Google ワンクリック
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+              ✓ いつでも解約
+            </span>
+          </div>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <Link
               href={ctaPrimaryHref}
               className="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-4 rounded-lg shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02]"
@@ -51,11 +62,10 @@ export const LpHero = ({
               {ctaSecondaryLabel}
             </Link>
           </div>
-          <p className="mt-4 text-xs text-slate-500">
-            クレジットカード登録不要 / Google アカウントで 1 クリック開始
-          </p>
         </div>
-        <div className="hidden lg:block">{visualSlot}</div>
+        {visualSlot && (
+          <div className="w-full">{visualSlot}</div>
+        )}
       </div>
     </section>
   );
