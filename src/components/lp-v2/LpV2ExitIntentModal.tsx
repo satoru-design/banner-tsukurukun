@@ -52,13 +52,7 @@ export const LpV2ExitIntentModal = ({
           ×
         </button>
         <div className="text-center">
-          <h3
-            id="lp-exit-modal-title"
-            className="text-xl font-black text-slate-900 mb-3"
-          >
-            離脱する前に、もう 1 ステップ
-          </h3>
-          <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+          <p id="lp-exit-modal-title" className="text-sm text-slate-600 mb-6 leading-relaxed">
             業種を選ぶだけで、AI 生成バナーが見られます。
             <br />
             <span className="text-emerald-800 font-bold">
