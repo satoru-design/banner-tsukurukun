@@ -92,15 +92,15 @@ export const LpV2TryInLp = () => {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto bg-stone-50 border border-slate-200 rounded-2xl p-6">
-      <div className="text-center mb-5">
-        <div className="text-xs font-bold text-emerald-800 tracking-[0.18em] uppercase">
+    <div className="w-full max-w-md mx-auto bg-stone-50 border border-slate-200 rounded-2xl p-4 sm:p-6">
+      <div className="text-center mb-4">
+        <div className="text-[10px] sm:text-xs font-bold text-emerald-800 tracking-[0.18em] uppercase">
           Live Preview
         </div>
-        <div className="text-base font-bold text-slate-900 mt-2">
-          業種を選ぶだけで、いますぐ体験
+        <div className="text-sm sm:text-base font-bold text-slate-900 mt-1.5">
+          業種を選んで 30 秒体験
         </div>
-        <div className="text-xs text-slate-500 mt-1">
+        <div className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
           17 サイズ・勝ちパターン学習を、その場でプレビュー
         </div>
       </div>
@@ -109,7 +109,7 @@ export const LpV2TryInLp = () => {
           <button
             key={preset.key}
             onClick={() => onSelect(preset.key)}
-            className="text-left rounded-lg border border-slate-200 bg-white hover:border-emerald-700/50 hover:bg-emerald-700/5 px-3 py-3 transition-all cursor-pointer"
+            className="text-left rounded-lg border border-slate-200 bg-white hover:border-emerald-700/50 hover:bg-emerald-700/5 px-2.5 py-2.5 transition-all cursor-pointer"
           >
             <div className="flex items-start gap-2.5">
               <span
