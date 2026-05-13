@@ -1,67 +1,59 @@
-import { LpHeader } from '@/components/lp/LpHeader';
-import { LpHero } from '@/components/lp/LpHero';
-import { LpTryInLp } from '@/components/lp/LpTryInLp';
-import { NumericProofSection } from '@/components/lp/NumericProofSection';
-import { LpDemoVideo } from '@/components/lp/LpDemoVideo';
-import { ProblemSection } from '@/components/lp/ProblemSection';
-import { SolutionSection } from '@/components/lp/SolutionSection';
-import { FeaturesSection } from '@/components/lp/FeaturesSection';
-import { LpInlineCta } from '@/components/lp/LpInlineCta';
-import { ComparisonSection } from '@/components/lp/ComparisonSection';
-import { LpAboutOperator } from '@/components/lp/LpAboutOperator';
-import { CustomerVoiceSection } from '@/components/lp/CustomerVoiceSection';
-import { FaqSection } from '@/components/lp/FaqSection';
-import { FinalCta } from '@/components/lp/FinalCta';
-import { LpFooter } from '@/components/lp/LpFooter';
-import { LpFloatingCta } from '@/components/lp/LpFloatingCta';
-import { LpExitIntentModal } from '@/components/lp/LpExitIntentModal';
+import { LpV2Header } from '@/components/lp-v2/LpV2Header';
+import { LpV2Hero } from '@/components/lp-v2/LpV2Hero';
+import { LpV2TryInLp } from '@/components/lp-v2/LpV2TryInLp';
+import { LpV2NumericProof } from '@/components/lp-v2/LpV2NumericProof';
+import { LpV2Problem } from '@/components/lp-v2/LpV2Problem';
+import { LpV2Solution } from '@/components/lp-v2/LpV2Solution';
+import { LpV2Features } from '@/components/lp-v2/LpV2Features';
+import { LpV2InlineCta } from '@/components/lp-v2/LpV2InlineCta';
+import { LpV2Comparison } from '@/components/lp-v2/LpV2Comparison';
+import { LpV2AboutOperator } from '@/components/lp-v2/LpV2AboutOperator';
+import { LpV2CustomerVoice } from '@/components/lp-v2/LpV2CustomerVoice';
+import { LpV2Faq } from '@/components/lp-v2/LpV2Faq';
+import { LpV2FinalCta } from '@/components/lp-v2/LpV2FinalCta';
+import { LpV2Footer } from '@/components/lp-v2/LpV2Footer';
+import { LpV2FloatingCta } from '@/components/lp-v2/LpV2FloatingCta';
+import { LpV2ExitIntentModal } from '@/components/lp-v2/LpV2ExitIntentModal';
 import { LpAbTracker } from '@/components/lp/LpAbTracker';
 
 /**
- * Phase A.16: /lp01 = In-LP Try 体験型 LP（CVR 2-3x 狙い）
+ * Phase A.17: /lp01 = V2 ホワイトテーマ（Point Pharma 風）
  *
- * 主な改修:
- * - Hero に Preset 選択 → 疑似ローディング 2s → マスク付きプレビュー
- * - FV ヘッドラインを便益+時間軸に転換
- * - 価格セクション撤去（検討疲れ回避・無料導線に集中）
- * - ヘッダー CTA は外し、Floating Footer CTA + Exit Intent に集約
+ * 主要変更点:
+ * - 白基調・深緑アクセント・余白広め
+ * - 装飾絵文字・グロー削減、Section ラベル + 大見出しの定型構造
+ * - 信頼バッジ・運営背景を前面に
+ * - lp02 / lp01-legacy のダーク基調は維持（共有コンポーネントには手を加えない）
  */
 export default function Lp01Page() {
-  const hasDemoVideo = Boolean(process.env.NEXT_PUBLIC_DEMO_VIDEO_URL);
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-white text-slate-900 flex flex-col">
       <LpAbTracker variant="a" />
-      <LpHeader compact />
+      <LpV2Header />
       <main className="flex-1 pb-24 sm:pb-20">
-        <LpHero
+        <LpV2Hero
           h1="EC バナーが 90 秒で 17 サイズ。明日の広告に、まだ間に合う。"
           h2="デザイナー不要。業種を選ぶだけで、勝ちパターンを学習した AI が広告で実証されたバナーを 17 サイズに自動展開します。"
           ctaPrimaryLabel="いますぐ無料で試してみる"
-          ctaSecondaryLabel={hasDemoVideo ? '動画で 30 秒デモを見る' : '機能をすべて見る'}
+          ctaSecondaryLabel="機能をすべて見る"
           ctaPrimaryHref="/signin?from=lp01_hero"
-          ctaSecondaryHref={hasDemoVideo ? '#demo' : '#features'}
-          visualSlot={<LpTryInLp />}
+          ctaSecondaryHref="#features"
+          visualSlot={<LpV2TryInLp />}
         />
-        <NumericProofSection />
-        <div id="demo">
-          <LpDemoVideo />
-        </div>
-        <ProblemSection />
-        <SolutionSection />
-        <FeaturesSection />
-        <LpInlineCta href="/signin?from=lp01_inline" />
-        <ComparisonSection />
-        <LpAboutOperator />
-        <CustomerVoiceSection />
-        <FaqSection />
-        <FinalCta
-          primaryHref="/signin?from=lp01_final"
-          showSecondary={false}
-        />
+        <LpV2NumericProof />
+        <LpV2Problem />
+        <LpV2Solution />
+        <LpV2Features />
+        <LpV2InlineCta href="/signin?from=lp01_inline" />
+        <LpV2Comparison />
+        <LpV2AboutOperator />
+        <LpV2CustomerVoice />
+        <LpV2Faq />
+        <LpV2FinalCta primaryHref="/signin?from=lp01_final" />
       </main>
-      <LpFooter />
-      <LpFloatingCta href="/signin?from=lp01_floating" />
-      <LpExitIntentModal href="/signin?from=lp01_exit" />
+      <LpV2Footer />
+      <LpV2FloatingCta href="/signin?from=lp01_floating" />
+      <LpV2ExitIntentModal href="/signin?from=lp01_exit" />
     </div>
   );
 }
