@@ -31,15 +31,15 @@ const AB_LP01_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 type Variant = 'a' | 'b';
 
 /**
- * Phase A.16: lp01 の A/B 振り分け
+ * Phase A.17: lp01 の振り分け
  *
- * - `?v=a` or `?v=b` クエリで強制
- * - cookie `ab_lp01` があれば尊重（30 日固定）
- * - 無ければ 50/50 ランダム
+ * 新デザイン (V2) を全面ロールアウト。
+ * - `?v=a` or `?v=b` クエリで強制（保守確認用）
+ * - cookie `ab_lp01` が **b** の場合のみ尊重（旧版を継続して見たいユーザー）
+ * - それ以外（cookie なし / cookie=a / 不正値）はすべて variant=a (V2) を返す
  * - variant=b は `/lp01-legacy` に rewrite
- * - variant=a なら現行 `/lp01` のまま
  *
- * 戻り値: rewrite/passthrough のレスポンス（必ず cookie をセットする）
+ * 戻り値: rewrite/passthrough のレスポンス（cookie を再確定する）
  */
 function handleLp01Ab(req: NextRequest): NextResponse {
   const url = req.nextUrl;
@@ -49,10 +49,12 @@ function handleLp01Ab(req: NextRequest): NextResponse {
   let variant: Variant;
   if (forced === 'a' || forced === 'b') {
     variant = forced;
-  } else if (cookieVal === 'a' || cookieVal === 'b') {
-    variant = cookieVal;
+  } else if (cookieVal === 'b') {
+    // 明示的に旧版を選んでいたユーザーには b を継続提供
+    variant = 'b';
   } else {
-    variant = Math.random() < 0.5 ? 'a' : 'b';
+    // 新規 / cookie=a / 不正値はすべて V2
+    variant = 'a';
   }
 
   const targetPath = variant === 'b' ? '/lp01-legacy' : '/lp01';
