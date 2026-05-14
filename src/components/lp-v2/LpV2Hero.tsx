@@ -46,6 +46,26 @@ export const LpV2Hero = ({
             />
             累計 100 社・運用 3 億円の知見を基に開発
           </div>
+          {/* 代表バッジ: 人間が作っているサービスだと 0.5 秒で伝える */}
+          <div className="mt-3 flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/lp/avatars/koike-satoru.jpg"
+              alt="代表 小池 慧"
+              className="w-9 h-9 rounded-full object-cover border border-slate-300"
+              loading="eager"
+              decoding="async"
+              width={36}
+              height={36}
+            />
+            <div className="text-[11px] leading-tight">
+              <span className="text-slate-500">開発・運営　</span>
+              <span className="font-bold text-slate-900">小池 慧</span>
+              <span className="block text-slate-500 mt-0.5">
+                株式会社 4th Avenue Lab 代表取締役
+              </span>
+            </div>
+          </div>
           <h1 className="mt-5 font-serif text-[1.7rem] sm:text-4xl lg:text-[3rem] font-black text-slate-900 leading-[1.35] tracking-tight">
             {h1}
           </h1>
