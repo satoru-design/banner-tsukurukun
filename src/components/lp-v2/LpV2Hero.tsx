@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 interface Props {
-  h1: string;
+  h1: ReactNode;
   h2: string;
   ctaPrimaryLabel: string;
   ctaSecondaryLabel: string;
@@ -46,28 +46,8 @@ export const LpV2Hero = ({
             />
             EC 広告バナーを、量産する SaaS です
           </div>
-          <h1 className="mt-5 font-serif text-3xl sm:text-4xl lg:text-[3.25rem] font-black text-slate-900 leading-[1.2] tracking-tight">
-            <span className="relative inline-block">
-              <span className="relative z-10">{h1.split('。')[0]}。</span>
-              {/* 手書き風下線 SVG */}
-              <svg
-                aria-hidden
-                className="absolute left-0 -bottom-1 w-full h-2 text-emerald-600/70"
-                viewBox="0 0 300 8"
-                preserveAspectRatio="none"
-              >
-                <path
-                  d="M2 5 C 80 1, 160 7, 298 3"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  fill="none"
-                />
-              </svg>
-            </span>
-            {h1.includes('。') && h1.split('。').length > 1 && (
-              <span className="block mt-2">{h1.split('。').slice(1).join('。')}</span>
-            )}
+          <h1 className="mt-5 font-serif text-[1.7rem] sm:text-4xl lg:text-[3rem] font-black text-slate-900 leading-[1.35] tracking-tight">
+            {h1}
           </h1>
           <p className="mt-5 sm:mt-6 text-sm sm:text-lg text-slate-700 leading-[1.85]">
             {h2}
