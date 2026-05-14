@@ -41,7 +41,7 @@ export const LpV2ExitIntentModal = ({
       aria-labelledby="lp-exit-modal-title"
     >
       <div
-        className="relative bg-white border border-slate-200 rounded-2xl max-w-md w-full p-8 shadow-2xl"
+        className="relative bg-white border border-slate-300 rounded-[22px] max-w-md w-full p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -52,17 +52,23 @@ export const LpV2ExitIntentModal = ({
           ×
         </button>
         <div className="text-center">
-          <p id="lp-exit-modal-title" className="text-sm text-slate-600 mb-6 leading-relaxed">
+          <h3
+            id="lp-exit-modal-title"
+            className="font-serif text-xl font-black text-slate-900 mb-3"
+          >
+            離れる前に、もう 1 ステップ。
+          </h3>
+          <p className="text-sm text-slate-700 mb-6 leading-relaxed">
             業種を選ぶだけで、AI 生成バナーが見られます。
             <br />
-            <span className="text-emerald-800 font-bold">
+            <span className="text-emerald-900 font-bold">
               クレカ不要・Google ワンクリック
             </span>
             。
           </p>
           <Link
             href={href}
-            className="block bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-4 rounded-md shadow-sm transition-all"
+            className="block bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-6 py-4 rounded-[10px] transition-colors"
           >
             いますぐ無料で試してみる
           </Link>

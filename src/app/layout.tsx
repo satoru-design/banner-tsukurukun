@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Fraunces, Noto_Serif_JP, Noto_Sans_JP } from "next/font/google";
 import Script from "next/script";
 import { SessionProvider } from "next-auth/react";
 import { auth } from "@/lib/auth/auth";
@@ -38,6 +38,29 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Phase A.18: LP 用の Editorial × Modern フォント
+// Anthropic 公式 frontend-design skill 推奨 (Fraunces=Editorial serif)
+const fraunces = Fraunces({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "900"],
+  display: "swap",
+});
+
+const notoSerifJP = Noto_Serif_JP({
+  variable: "--font-display-jp",
+  subsets: ["latin"],
+  weight: ["500", "700", "900"],
+  display: "swap",
+});
+
+const notoSansJP = Noto_Sans_JP({
+  variable: "--font-body-jp",
+  subsets: ["latin"],
+  weight: ["400", "500", "700", "900"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://autobanner.jp'),
   title: {
@@ -74,7 +97,7 @@ export default async function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} ${notoSerifJP.variable} ${notoSansJP.variable} h-full antialiased`}
     >
       {GTM_ID ? (
         <Script id="gtm-init" strategy="afterInteractive">

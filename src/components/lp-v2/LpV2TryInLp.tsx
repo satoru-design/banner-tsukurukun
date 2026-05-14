@@ -4,10 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 
 /**
- * Phase A.17: V2 ホワイトテーマ TryInLp
- *
- * 業種選択 → 2s 疑似ローディング → ぼかしマスク + CTA。
- * Point Pharma 風: 白基調・深緑アクセント・絵文字なし・余白広め。
+ * Phase A.18: V3 TryInLp（白基調・Editorial・手作り感）
  */
 const PRESETS = [
   { key: 'cosmetics', label: '化粧品・スキンケア', headline: '敏感肌のための保湿美容液' },
@@ -58,7 +55,7 @@ export const LpV2TryInLp = () => {
   if (phase === 'result') {
     return (
       <div className="w-full max-w-md mx-auto space-y-4">
-        <div className="text-center text-sm text-emerald-800 font-bold">
+        <div className="text-center text-sm text-emerald-900 font-bold">
           生成完了：{selectedLabel}
         </div>
         <MaskedPreview />
@@ -73,17 +70,17 @@ export const LpV2TryInLp = () => {
     const progress = Math.min(((step + 1) / LOADING_STEPS.length) * 100, 100);
     return (
       <div className="w-full max-w-md mx-auto py-16 space-y-6">
-        <div className="text-center text-sm text-emerald-800 font-bold">
+        <div className="text-center text-sm text-emerald-900 font-bold">
           {selectedLabel} 向けに生成中
         </div>
         <div className="space-y-3 max-w-xs mx-auto">
-          <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
             <div
               className="h-full bg-emerald-700 transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="text-sm text-slate-600 text-center min-h-[1.5em]">
+          <div className="text-sm text-slate-700 text-center min-h-[1.5em]">
             {LOADING_STEPS[step]}
           </div>
         </div>
@@ -92,15 +89,15 @@ export const LpV2TryInLp = () => {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto bg-stone-50 border border-slate-200 rounded-2xl p-4 sm:p-6">
+    <div className="w-full max-w-md mx-auto bg-stone-50 border border-slate-300 rounded-[22px] p-4 sm:p-6">
       <div className="text-center mb-4">
-        <div className="text-[10px] sm:text-xs font-bold text-emerald-800 tracking-[0.18em] uppercase">
-          Live Preview
+        <div className="font-serif text-xs sm:text-sm italic text-emerald-900">
+          ためしに、ここで作ってみる
         </div>
         <div className="text-sm sm:text-base font-bold text-slate-900 mt-1.5">
           業種を選んで 30 秒体験
         </div>
-        <div className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+        <div className="text-[11px] sm:text-xs text-slate-600 mt-0.5">
           17 サイズ・勝ちパターン学習を、その場でプレビュー
         </div>
       </div>
@@ -109,11 +106,11 @@ export const LpV2TryInLp = () => {
           <button
             key={preset.key}
             onClick={() => onSelect(preset.key)}
-            className="text-left rounded-lg border border-slate-200 bg-white hover:border-emerald-700/50 hover:bg-emerald-700/5 px-2.5 py-2.5 transition-all cursor-pointer"
+            className="text-left rounded-[12px] border border-slate-300 bg-white hover:border-emerald-700 hover:bg-emerald-50/40 px-2.5 py-2.5 transition-colors cursor-pointer"
           >
             <div className="flex items-start gap-2.5">
               <span
-                className="shrink-0 text-[10px] font-mono font-bold text-emerald-700/70 mt-0.5 tabular-nums"
+                className="shrink-0 font-serif text-[11px] italic font-bold text-emerald-800 mt-0.5"
                 aria-hidden
               >
                 {String(i + 1).padStart(2, '0')}
@@ -140,32 +137,32 @@ const MaskedPreview = () => {
     <div className="relative">
       <div className="space-y-3">
         <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-2 aspect-square rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+          <div className="col-span-2 aspect-square rounded-[18px] overflow-hidden border border-slate-300">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`${BANNER_BASE}/instagram-1080.png`} alt="" aria-hidden className="w-full h-full object-cover" loading="lazy" decoding="async" />
           </div>
           <div className="col-span-1 flex flex-col gap-3 justify-center">
-            <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+            <div className="rounded-[14px] overflow-hidden border border-slate-300">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={`${BANNER_BASE}/yda-600x314.png`} alt="" aria-hidden className="w-full h-auto block" loading="lazy" decoding="async" />
             </div>
-            <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+            <div className="rounded-[14px] overflow-hidden border border-slate-300">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={`${BANNER_BASE}/display-336x280.png`} alt="" aria-hidden className="w-full h-auto block" loading="lazy" decoding="async" />
             </div>
           </div>
         </div>
-        <div className="rounded-lg overflow-hidden border border-slate-200 shadow-sm">
+        <div className="rounded-[12px] overflow-hidden border border-slate-300">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`${BANNER_BASE}/display-pc-728x90.png`} alt="" aria-hidden className="w-full h-auto block" loading="lazy" decoding="async" />
         </div>
-        <div className="rounded-lg overflow-hidden border border-slate-200 shadow-sm">
+        <div className="rounded-[12px] overflow-hidden border border-slate-300">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`${BANNER_BASE}/display-sp-320x100.png`} alt="" aria-hidden className="w-full h-auto block" loading="lazy" decoding="async" />
         </div>
       </div>
-      <div className="absolute inset-0 backdrop-blur-md bg-white/55 rounded-xl flex flex-col items-center justify-center gap-4 p-6">
-        <svg aria-hidden width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-800">
+      <div className="absolute inset-0 backdrop-blur-md bg-white/55 rounded-[18px] flex flex-col items-center justify-center gap-4 p-6">
+        <svg aria-hidden width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-900">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
           <path d="M7 11V7a5 5 0 0 1 10 0v4" />
         </svg>
@@ -175,7 +172,7 @@ const MaskedPreview = () => {
         </div>
         <Link
           href="/signin?from=lp01_try"
-          className="inline-flex items-center justify-center bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-3 rounded-md shadow-sm transition-all"
+          className="inline-flex items-center justify-center bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-6 py-3 rounded-[10px] transition-colors"
         >
           いますぐ無料で試してみる
         </Link>

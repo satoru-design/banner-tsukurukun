@@ -18,14 +18,14 @@ const FAQS = [
 export const LpV2Faq = () => {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   return (
-    <section className="bg-white">
+    <section className="bg-stone-50 border-y border-slate-300/70">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-20 sm:py-24">
-        <div className="text-center mb-12">
-          <div className="text-xs font-bold text-emerald-800 tracking-[0.18em] uppercase">
-            FAQ
+        <div className="mb-12">
+          <div className="font-serif italic text-sm text-emerald-900">
+            よくある質問
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mt-3">
-            よくあるご質問
+          <h2 className="font-serif text-3xl sm:text-4xl font-black text-slate-900 mt-2">
+            気になる、を解いておきます。
           </h2>
         </div>
         <div className="space-y-3">
@@ -34,24 +34,26 @@ export const LpV2Faq = () => {
             return (
               <div
                 key={f.q}
-                className="bg-stone-50 border border-slate-200 rounded-lg overflow-hidden"
+                className={`bg-white border border-slate-300 overflow-hidden ${
+                  i % 3 === 0 ? 'rounded-[14px]' : i % 3 === 1 ? 'rounded-[12px]' : 'rounded-[16px]'
+                }`}
               >
                 <button
                   type="button"
                   onClick={() => setOpenIdx(open ? null : i)}
-                  className="w-full text-left px-5 py-4 flex items-center justify-between hover:bg-stone-100 transition-colors"
+                  className="w-full text-left px-5 py-4 flex items-center justify-between hover:bg-stone-50 transition-colors"
                   aria-expanded={open}
                 >
                   <span className="text-slate-900 font-medium">{f.q}</span>
                   <span
-                    className={`text-emerald-700 transition-transform shrink-0 ml-3 ${open ? 'rotate-180' : ''}`}
+                    className={`text-emerald-800 transition-transform shrink-0 ml-3 ${open ? 'rotate-180' : ''}`}
                     aria-hidden
                   >
                     ▼
                   </span>
                 </button>
                 {open && (
-                  <div className="px-5 pb-4 text-sm text-slate-600 leading-relaxed">
+                  <div className="px-5 pb-4 text-sm text-slate-700 leading-[1.85]">
                     {f.a}
                   </div>
                 )}

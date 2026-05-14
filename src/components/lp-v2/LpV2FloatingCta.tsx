@@ -22,19 +22,19 @@ export const LpV2FloatingCta = ({ href = '/signin?from=lp01_floating' }: { href?
       }`}
       aria-hidden={!visible}
     >
-      <div className="bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_24px_rgba(15,23,42,0.08)] px-4 py-3">
+      <div className="bg-white/95 backdrop-blur-md border-t border-slate-300 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
           <div className="hidden sm:block flex-1">
-            <div className="text-sm font-bold text-slate-900">
+            <div className="font-serif text-sm font-bold text-slate-900">
               いますぐ無料で 17 サイズを受け取る
             </div>
-            <div className="text-[10px] text-slate-500">
+            <div className="text-[10px] text-slate-600">
               クレカ不要 / Google アカウントで 1 クリック開始
             </div>
           </div>
           <Link
             href={href}
-            className="flex-1 sm:flex-none text-center bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-3 rounded-md shadow-sm transition-all"
+            className="flex-1 sm:flex-none text-center bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-6 py-3 rounded-[10px] transition-colors"
           >
             いますぐ無料で試してみる
           </Link>

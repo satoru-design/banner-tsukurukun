@@ -10,6 +10,9 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
+  /* Phase A.18: LP V3 用 Editorial フォント (Fraunces + Noto Serif JP) */
+  --font-serif: var(--font-display), var(--font-display-jp), "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif JP", serif;
+  --font-lp-body: var(--font-body-jp), var(--font-geist-sans), system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

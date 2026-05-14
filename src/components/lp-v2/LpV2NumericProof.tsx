@@ -6,17 +6,17 @@ const STATS = [
 
 export const LpV2NumericProof = () => {
   return (
-    <section className="bg-stone-50 border-y border-slate-200">
+    <section className="bg-stone-50 border-y border-slate-300/70">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-6 text-center">
           {STATS.map((s) => (
             <div key={s.label} className="px-4">
               <div className="flex items-baseline justify-center gap-1">
-                <span className="text-5xl sm:text-6xl font-black text-emerald-800 leading-none tracking-tight tabular-nums">
+                <span className="font-serif text-5xl sm:text-6xl font-black text-emerald-900 leading-none tracking-tight">
                   {s.number}
                 </span>
                 {s.suffix && (
-                  <span className="text-xl sm:text-2xl font-black text-emerald-800 leading-none">
+                  <span className="font-serif text-xl sm:text-2xl font-black text-emerald-900 leading-none">
                     {s.suffix}
                   </span>
                 )}
@@ -24,7 +24,7 @@ export const LpV2NumericProof = () => {
               <div className="text-base sm:text-lg font-bold text-slate-900 mt-4">
                 {s.label}
               </div>
-              <div className="text-xs text-slate-500 mt-2 leading-relaxed">
+              <div className="text-xs text-slate-600 mt-2 leading-relaxed">
                 {s.sub}
               </div>
             </div>

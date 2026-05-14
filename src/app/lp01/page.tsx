@@ -27,7 +27,7 @@ import { LpAbTracker } from '@/components/lp/LpAbTracker';
  */
 export default function Lp01Page() {
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-[var(--font-body-jp)]">
       <LpAbTracker variant="a" />
       <LpV2Header />
       <main className="flex-1 pb-24 sm:pb-20">

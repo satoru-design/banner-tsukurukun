@@ -8,33 +8,33 @@ const ROWS = [
 
 export const LpV2Comparison = () => {
   return (
-    <section className="bg-stone-50 border-y border-slate-200">
+    <section className="bg-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-24">
-        <div className="text-center mb-12">
-          <div className="text-xs font-bold text-emerald-800 tracking-[0.18em] uppercase">
-            Comparison
+        <div className="mb-12">
+          <div className="font-serif italic text-sm text-emerald-900">
+            いまの選択肢と比べて
           </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mt-3">
+          <h2 className="font-serif text-3xl sm:text-4xl font-black text-slate-900 mt-2">
             外注 / 内製 / 勝ちバナー作る君
           </h2>
-          <p className="text-sm text-slate-500 mt-4">
-            コスト・時間・再現性を、いまの選択肢と比べてみてください
+          <p className="text-sm text-slate-600 mt-4 max-w-2xl">
+            コスト・時間・再現性のどれも、いまの選択肢では割に合わなくなってきました。
           </p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm bg-white rounded-xl overflow-hidden border border-slate-200">
+          <table className="w-full border-collapse text-sm bg-stone-50 rounded-[18px] overflow-hidden border border-slate-300">
             <thead>
-              <tr className="border-b border-slate-200">
-                <th className="text-left text-slate-600 font-medium py-4 px-4 w-1/4">
+              <tr className="border-b border-slate-300">
+                <th className="text-left text-slate-700 font-medium py-4 px-4 w-1/4">
                   比較項目
                 </th>
-                <th className="text-center text-slate-600 font-medium py-4 px-4 w-1/4">
+                <th className="text-center text-slate-700 font-medium py-4 px-4 w-1/4">
                   外注（制作会社）
                 </th>
-                <th className="text-center text-slate-600 font-medium py-4 px-4 w-1/4">
+                <th className="text-center text-slate-700 font-medium py-4 px-4 w-1/4">
                   内製（テンプレ）
                 </th>
-                <th className="text-center text-emerald-800 font-bold py-4 px-4 w-1/4 bg-emerald-700/5">
+                <th className="text-center text-emerald-900 font-bold py-4 px-4 w-1/4 bg-emerald-900/[0.05]">
                   勝ちバナー作る君
                 </th>
               </tr>
@@ -43,12 +43,12 @@ export const LpV2Comparison = () => {
               {ROWS.map((row, i) => (
                 <tr
                   key={row.label}
-                  className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/50'}
+                  className={i % 2 === 0 ? 'bg-white' : 'bg-stone-50/60'}
                 >
                   <td className="text-slate-900 py-4 px-4 font-medium">{row.label}</td>
-                  <td className="text-center text-slate-500 py-4 px-4">{row.ext}</td>
-                  <td className="text-center text-slate-500 py-4 px-4">{row.int}</td>
-                  <td className="text-center text-emerald-800 py-4 px-4 font-bold bg-emerald-700/5">
+                  <td className="text-center text-slate-600 py-4 px-4">{row.ext}</td>
+                  <td className="text-center text-slate-600 py-4 px-4">{row.int}</td>
+                  <td className="text-center text-emerald-900 py-4 px-4 font-bold bg-emerald-900/[0.05]">
                     {row.ours}
                   </td>
                 </tr>
