@@ -8,8 +8,8 @@ interface Props {
 
 export const LpV2InlineCta = ({
   href = '/signin?from=lp01_inline',
-  headline = 'ここまで読んでくださった方へ、いちばん早い体験を。',
-  sub = '業種を選ぶだけで、2 秒で AI 生成バナーが見られます。',
+  headline = 'ここまで読んだなら、もう作った方が早い。',
+  sub = '業種をタップ →2 秒で完成例 →Google で保存。',
 }: Props = {}) => {
   return (
     <section className="bg-emerald-900/[0.04] border-y border-emerald-800/20">

@@ -46,10 +46,10 @@ export const LpV2CustomerVoice = () => {
             使ってくれた人たちの声
           </div>
           <h2 className="font-serif text-3xl sm:text-4xl font-black text-slate-900 mt-2 leading-snug">
-            導入後に起きた、現場のリアルな変化
+            現場で何が変わったか、3 人に聞きました。
           </h2>
           <p className="text-sm text-slate-600 mt-4 max-w-2xl">
-            マーケター・デザイナー・経営者、それぞれの「止まりごと」を解いた事例です。
+            マーケ・デザイナー・経営者、それぞれの「止まりごと」をどう外したか。
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

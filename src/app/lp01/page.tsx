@@ -34,38 +34,32 @@ export default function Lp01Page() {
         <LpV2Hero
           h1={
             <>
-              <span className="block text-slate-700 text-[1.4rem] sm:text-3xl lg:text-[2.5rem] font-medium italic">
-                「他サイズへの展開が面倒…」
-              </span>
-              <span className="block mt-2 sm:mt-3">
-                その作業、
-                <span className="relative inline-block whitespace-nowrap">
-                  <span className="relative z-10 text-emerald-900">最短 90 秒</span>
-                  {/* 手書き風下線 SVG */}
-                  <svg
-                    aria-hidden
-                    className="absolute left-0 -bottom-1 w-full h-2 text-emerald-600/80"
-                    viewBox="0 0 300 8"
-                    preserveAspectRatio="none"
-                  >
-                    <path
-                      d="M2 5 C 80 1, 160 7, 298 3"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                  </svg>
-                </span>
-                で終わらせます。
+              数時間かかっていた複数サイズのバナー制作が、
+              <span className="relative inline-block whitespace-nowrap mt-2 sm:mt-3">
+                <span className="relative z-10 text-emerald-900">90 秒で。</span>
+                {/* 手書き風下線 SVG */}
+                <svg
+                  aria-hidden
+                  className="absolute left-0 -bottom-1 w-full h-2 text-emerald-600/80"
+                  viewBox="0 0 300 8"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    d="M2 5 C 80 1, 160 7, 298 3"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                </svg>
               </span>
             </>
           }
-          h2="デザイナー不要。業種を選ぶだけで、勝ちパターンを学習した AI が広告で実証されたバナーを 17 サイズに自動展開します。"
+          h2={'あなたは「選ぶ」だけ。勝ちパターンを学習した AI が、画像を一括出力します。'}
           ctaPrimaryLabel="いますぐ無料で試してみる"
-          ctaSecondaryLabel="機能をすべて見る"
+          ctaSecondaryLabel="デモを見る"
           ctaPrimaryHref="/signin?from=lp01_hero"
-          ctaSecondaryHref="#features"
+          ctaSecondaryHref="#demo"
           visualSlot={<LpV2TryInLp />}
         />
         <LpV2NumericProof />

@@ -16,10 +16,10 @@ export const LpV2Features = () => {
             できること
           </div>
           <h2 className="font-serif text-3xl sm:text-4xl font-black text-slate-900 mt-2">
-            バナー制作の面倒を、ひとつに。
+            EC 運用者の「これがあれば」を、6 つ詰めました。
           </h2>
           <p className="text-sm text-slate-600 mt-4 max-w-2xl">
-            私たちが現場で「これがあれば」と感じてきた機能を、ぜんぶ詰めました。
+            私たちが現場で繰り返し感じてきた不足を、ひとつのツールに。
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

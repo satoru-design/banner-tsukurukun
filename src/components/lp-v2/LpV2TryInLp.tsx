@@ -91,13 +91,10 @@ export const LpV2TryInLp = () => {
   return (
     <div className="w-full max-w-md mx-auto bg-stone-50 border border-slate-300 rounded-[22px] p-4 sm:p-6">
       <div className="text-center mb-4">
-        <div className="font-serif text-xs sm:text-sm italic text-emerald-900">
-          ためしに、ここで作ってみる
+        <div className="font-serif text-sm sm:text-base italic text-emerald-900">
+          さくっと 30 秒で始めてみる
         </div>
-        <div className="text-sm sm:text-base font-bold text-slate-900 mt-1.5">
-          業種を選んで 30 秒体験
-        </div>
-        <div className="text-[11px] sm:text-xs text-slate-600 mt-0.5">
+        <div className="text-[11px] sm:text-xs text-slate-600 mt-1.5">
           17 サイズ・勝ちパターン学習を、その場でプレビュー
         </div>
       </div>

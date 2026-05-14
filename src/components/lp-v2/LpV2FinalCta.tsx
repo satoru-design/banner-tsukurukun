@@ -11,10 +11,10 @@ export const LpV2FinalCta = ({
     <section className="bg-white border-t border-slate-300">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-20 sm:py-24 text-center">
         <h2 className="font-serif text-3xl sm:text-5xl font-black text-slate-900 leading-tight">
-          まずは <span className="text-emerald-900 italic">3 本まで無料</span>。
+          まず <span className="text-emerald-900 italic">3 本</span>、作ってみてください。
         </h2>
         <p className="mt-5 text-base sm:text-lg text-slate-700 leading-[1.85]">
-          クレカ不要 / Google アカウントで 1 クリック開始 / 効果を試してから有料化。
+          30 秒で「これは使える」が、分かります。
         </p>
         <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">
           <Link

@@ -14,12 +14,12 @@ export const LpV2Solution = () => {
             使い方は、4 つだけ
           </div>
           <h2 className="font-serif text-3xl sm:text-4xl font-black text-slate-900 mt-2 leading-snug">
-            ブリーフから完成まで
+            4 ステップで、ブリーフから
             <br className="md:hidden" />
-            <span className="text-emerald-900"> 最短 90 秒</span>。
+            <span className="text-emerald-900"> 90 秒</span>。
           </h2>
           <p className="text-sm text-slate-600 mt-4">
-            「テンプレ作成 0 時間」を本気で実現するために、設計しました。
+            お題を書いて、待つ。それだけ。
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

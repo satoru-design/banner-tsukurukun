@@ -15,10 +15,10 @@ export const LpV2Comparison = () => {
             いまの選択肢と比べて
           </div>
           <h2 className="font-serif text-3xl sm:text-4xl font-black text-slate-900 mt-2">
-            外注 / 内製 / 勝ちバナー作る君
+            外注・内製・私たちのツール、どれが割に合うか。
           </h2>
           <p className="text-sm text-slate-600 mt-4 max-w-2xl">
-            コスト・時間・再現性のどれも、いまの選択肢では割に合わなくなってきました。
+            「コスト・時間・再現性」のどれも、3 つで比べると違いが出ます。
           </p>
         </div>
         <div className="overflow-x-auto">

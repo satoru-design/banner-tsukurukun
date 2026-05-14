@@ -44,7 +44,7 @@ export const LpV2Hero = ({
               aria-hidden
               className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-700"
             />
-            EC 広告バナーを、量産する SaaS です
+            累計 100 社・運用 3 億円の知見を基に開発
           </div>
           <h1 className="mt-5 font-serif text-[1.7rem] sm:text-4xl lg:text-[3rem] font-black text-slate-900 leading-[1.35] tracking-tight">
             {h1}
@@ -60,7 +60,7 @@ export const LpV2Hero = ({
               ✓ Google ワンクリック
             </span>
             <span className="inline-flex items-center text-[11px] font-medium text-slate-700 border border-slate-300 px-2.5 py-1 rounded-[20px]">
-              ✓ いつでも解約
+              ✓ いつでも解約可能
             </span>
           </div>
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
