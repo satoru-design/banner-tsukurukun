@@ -56,15 +56,12 @@ export const LpV2ExitIntentModal = ({
             id="lp-exit-modal-title"
             className="font-serif text-xl font-black text-slate-900 mb-3"
           >
-            離れる前に、もう 1 ステップ。
+            無料で試してみませんか？
           </h3>
           <p className="text-sm text-slate-700 mb-6 leading-relaxed">
-            業種を選ぶだけで、AI 生成バナーが見られます。
-            <br />
-            <span className="text-emerald-900 font-bold">
-              クレカ不要・Google ワンクリック
-            </span>
-            。
+            <span className="text-emerald-900 font-bold">クレカ不要</span>・
+            <span className="text-emerald-900 font-bold">Google アカウント</span>
+            があれば使えます。
           </p>
           <Link
             href={href}
