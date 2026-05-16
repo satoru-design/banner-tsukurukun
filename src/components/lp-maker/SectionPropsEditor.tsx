@@ -1,5 +1,7 @@
 'use client';
+import { useState } from 'react';
 import type { LpSection } from '@/lib/lp/types';
+import { RegenerateModal } from './RegenerateModal';
 
 interface Props {
   section: LpSection;
@@ -7,7 +9,9 @@ interface Props {
   lpId: string;
 }
 
-export function SectionPropsEditor({ section, onChange }: Props) {
+export function SectionPropsEditor({ section, onChange, lpId }: Props) {
+  const [showRegenerate, setShowRegenerate] = useState(false);
+
   function updateField(path: string[], value: unknown) {
     const next = structuredClone(section);
     let cursor: Record<string, unknown> | unknown[] = next.props as Record<string, unknown>;
@@ -20,16 +24,31 @@ export function SectionPropsEditor({ section, onChange }: Props) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="text-sm font-bold text-slate-200 mb-3">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-bold text-slate-200">
           {section.type} 編集
         </h3>
+        <button
+          type="button"
+          onClick={() => setShowRegenerate(true)}
+          className="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 px-2 py-1 rounded"
+        >
+          ↻ もう一案
+        </button>
       </div>
       <FieldsRenderer
         node={section.props}
         path={[]}
         onUpdate={updateField}
       />
+      {showRegenerate && (
+        <RegenerateModal
+          lpId={lpId}
+          section={section}
+          onAdopt={(newProps) => onChange({ ...section, props: newProps })}
+          onClose={() => setShowRegenerate(false)}
+        />
+      )}
     </div>
   );
 }
