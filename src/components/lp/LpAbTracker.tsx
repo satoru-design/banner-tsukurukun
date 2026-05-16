@@ -13,14 +13,9 @@ interface Props {
   variant: 'a' | 'b';
 }
 
-type DataLayerEvent = {
-  event: string;
-  ab_lp01_variant: string;
-};
-
 declare global {
   interface Window {
-    dataLayer?: DataLayerEvent[];
+    dataLayer?: Array<Record<string, unknown>>;
   }
 }
 

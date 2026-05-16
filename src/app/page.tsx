@@ -12,6 +12,7 @@ import {
 import { IroncladGenerateScreen } from '@/components/ironclad/IroncladGenerateScreen';
 import { Asset } from '@/components/ironclad/AssetLibrary';
 import type { IroncladBrief, IroncladBaseMaterials } from '@/lib/prompts/ironclad-banner';
+import { LpFunnelTracker } from '@/components/lp/LpFunnelTracker';
 
 type IroncladStep = 1 | 2 | 3;
 
@@ -174,6 +175,8 @@ export default function IroncladPage() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
+      {/* Phase A.19: OAuth 完了直後のダッシュボード初到達なら signed_in を発火 */}
+      <LpFunnelTracker event="signed_in" consumePendingSignin />
       {/* Phase A.11.1: 共有 Header に置換。Step インジケータは中央スロットへ */}
       <Header
         rightSlot={

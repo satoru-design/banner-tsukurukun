@@ -4,14 +4,19 @@ import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { LpFunnelTracker, trackSigninClicked } from '@/components/lp/LpFunnelTracker';
 
 function SignInContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
   const callbackUrl = searchParams.get('callbackUrl') ?? '/';
+  const from = searchParams.get('from') ?? 'direct';
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-4">
+      {/* Phase A.19: signin 到達イベント (from クエリ付き) */}
+      <LpFunnelTracker event="signin_landed" />
+
       <div className="max-w-sm w-full space-y-6 text-center">
         <div>
           <h1 className="text-2xl font-bold">
@@ -40,7 +45,10 @@ function SignInContent() {
 
         <button
           type="button"
-          onClick={() => signIn('google', { callbackUrl })}
+          onClick={() => {
+            trackSigninClicked(from);
+            signIn('google', { callbackUrl });
+          }}
           className="w-full px-6 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-teal-500 to-emerald-600 hover:opacity-90 transition"
         >
           Google アカウントでログイン
