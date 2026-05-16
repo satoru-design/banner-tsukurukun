@@ -21,7 +21,7 @@ interface Props {
 export function EditClient({ lpId, initialTitle, initialSections, initialStatus, initialSlug, userPlan }: Props) {
   const [sections, setSections] = useState<LpSection[]>(initialSections);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
-  const [title] = useState(initialTitle);
+  const [title, setTitle] = useState(initialTitle);
   const [showPublish, setShowPublish] = useState(false);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
 
@@ -34,7 +34,12 @@ export function EditClient({ lpId, initialTitle, initialSections, initialStatus,
             ← 一覧
           </Link>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold truncate max-w-[120px]" title={title}>{title}</h2>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="text-sm font-bold bg-transparent border-b border-slate-700 focus:border-emerald-500 outline-none max-w-[150px] text-slate-100"
+            />
             <button
               type="button"
               onClick={() => setShowPublish(true)}
@@ -51,6 +56,7 @@ export function EditClient({ lpId, initialTitle, initialSections, initialStatus,
           onSelect={setSelectedIdx}
           onChange={setSections}
           lpId={lpId}
+          title={title}
         />
       </aside>
 

@@ -4,14 +4,15 @@ import type { LpSection } from './types';
 interface Args {
   lpId: string;
   sections: LpSection[];
+  title?: string;
 }
 
-export function useAutoSave({ lpId, sections }: Args) {
+export function useAutoSave({ lpId, sections, title }: Args) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSaved = useRef<string>('');
 
   useEffect(() => {
-    const payload = JSON.stringify({ sections });
+    const payload = JSON.stringify({ sections, ...(title !== undefined && { title }) });
     if (payload === lastSaved.current) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
@@ -31,5 +32,5 @@ export function useAutoSave({ lpId, sections }: Args) {
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [lpId, sections]);
+  }, [lpId, sections, title]);
 }

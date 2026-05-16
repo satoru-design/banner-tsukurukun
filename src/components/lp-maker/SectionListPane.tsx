@@ -22,10 +22,11 @@ interface Props {
   onSelect: (idx: number) => void;
   onChange: (sections: LpSection[]) => void;
   lpId: string;
+  title: string;
 }
 
-export function SectionListPane({ sections, selectedIdx, onSelect, onChange, lpId }: Props) {
-  useAutoSave({ lpId, sections });
+export function SectionListPane({ sections, selectedIdx, onSelect, onChange, lpId, title }: Props) {
+  useAutoSave({ lpId, sections, title });
 
   function toggleEnabled(idx: number) {
     const next = [...sections];

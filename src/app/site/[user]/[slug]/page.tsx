@@ -4,6 +4,7 @@ import { getPrisma } from '@/lib/prisma';
 import type { LpSection } from '@/lib/lp/types';
 import { SectionRenderer } from '@/components/lp-maker/SectionRenderer';
 import { AnalyticsInjector } from '@/components/lp-maker/AnalyticsInjector';
+import { LpCookieConsent } from '@/components/lp-maker/LpCookieConsent';
 import { shouldShowWatermark } from '@/lib/lp/watermark';
 
 export const dynamic = 'force-static';
@@ -102,6 +103,7 @@ export default async function PublicLpPage({
           </footer>
         )}
       </main>
+      <LpCookieConsent />
     </>
   );
 }
