@@ -1,6 +1,7 @@
 import { getPrisma } from '@/lib/prisma';
 import type { LpSection } from './types';
 import { generateOgImage } from './og-generator';
+import { notifyNewLpPublished } from '@/lib/slack/notify-new-lp';
 import type { PrismaClient } from '@prisma/client';
 
 /**
@@ -77,6 +78,18 @@ export async function publishLandingPage(args: {
 
   const userSlug = await findUniqueUserSlug(prisma, args.userId);
   const publishedUrl = `https://lpmaker-pro.com/site/${userSlug}/${targetSlug}`;
+
+  // D14: Slack 通知 (fire-and-forget)
+  const userForSlack = await prisma.user.findUnique({
+    where: { id: args.userId },
+    select: { email: true, name: true, plan: true },
+  });
+  if (userForSlack) {
+    notifyNewLpPublished({
+      lp: { id: lp.id, title: lp.title, userId: lp.userId, slug: targetSlug },
+      user: userForSlack,
+    }).catch((e) => console.error('[publish] slack notify failed', e));
+  }
 
   return { slug: targetSlug, ogImageUrl, publishedUrl };
 }
