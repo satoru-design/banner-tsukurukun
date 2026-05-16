@@ -88,12 +88,12 @@ model LandingPage {
   brief           Json     // IroncladMaterials 互換 + LP 固有フィールド
   sections        Json     // [{ type, order, enabled, props }] 配列
   publishedAt     DateTime?
-  customDomain    String?  // Phase 2 用 nullable
   ogImageUrl      String?
   analyticsConfig Json?    // GTM/GA4/Pixel ID
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   generations     LandingPageGeneration[]
+  domain          LandingPageDomain?
   linkedBanners   Generation[]  @relation("LpToBanner")
 
   @@unique([userId, slug])
@@ -112,10 +112,11 @@ model LandingPageGeneration {
 }
 
 model LandingPageDomain {
-  // Phase 2 で追加。Vercel Domains API 連携
-  id              String   @id @default(cuid())
-  landingPageId   String   @unique
-  domain          String   @unique
+  // Phase 2 で追加。Vercel Domains API 連携。LandingPage と 1:1 FK CASCADE。
+  id              String      @id @default(cuid())
+  landingPageId   String      @unique
+  landingPage     LandingPage @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+  domain          String      @unique
   verifiedAt      DateTime?
   vercelDomainId  String?
 }
