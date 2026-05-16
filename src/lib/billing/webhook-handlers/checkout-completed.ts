@@ -1,5 +1,6 @@
 import type Stripe from 'stripe';
 import { getStripeClient } from '../stripe-client';
+import { getPrisma } from '@/lib/prisma';
 import { syncUserPlanFromSubscription, findUserByStripeCustomerId } from '../plan-sync';
 import { sendMetaPurchaseEvent } from '../meta-capi';
 
@@ -10,6 +11,10 @@ import { sendMetaPurchaseEvent } from '../meta-capi';
  *   plan-sync で DB 反映（resetUsage: true）
  *
  * Phase A.15: 完了後に Meta Conversion API へ Purchase イベント送信
+ *
+ * Sprint 3 CR C-4: subscription-updated から「Free → Starter 転換 Slack 通知」を移管。
+ *   checkout.session.completed は「新規契約の確定」を一意に表すので、
+ *   キャンセル予約・metered item 追加等の誤検知が出る subscription.updated よりも信頼性が高い。
  */
 export const handleCheckoutCompleted = async (
   event: Stripe.CheckoutSessionCompletedEvent
@@ -24,10 +29,34 @@ export const handleCheckoutCompleted = async (
     return;
   }
 
+  // C-4: 同期前に「現在の plan」を保持しておく（Free → Starter 転換判定用）
+  const previousPlan = user.plan;
+
   const stripe = getStripeClient();
   const subId = typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
   const subscription = await stripe.subscriptions.retrieve(subId);
   await syncUserPlanFromSubscription(user.id, subscription, { resetUsage: true });
+
+  // C-4: 同期後の plan を再 read → Free → Starter なら Slack 通知
+  const prisma = getPrisma();
+  const userAfter = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { plan: true, email: true },
+  });
+  if (previousPlan === 'free' && userAfter?.plan === 'starter') {
+    const webhook = process.env.SLACK_WEBHOOK_URL_NEW_USER;
+    if (webhook) {
+      fetch(webhook, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          text: `💰 Free → Starter 転換! user=${userAfter.email ?? user.id}`,
+        }),
+      }).catch((e) => {
+        console.error('[checkout-completed] slack notify failed:', e);
+      });
+    }
+  }
 
   // Phase A.15: Meta Conversion API に Purchase 送信
   // event_id に session.id を使い、Pixel 側 fbq('track','Purchase',...,{eventID})

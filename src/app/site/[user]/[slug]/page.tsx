@@ -4,6 +4,8 @@ import { getPrisma } from '@/lib/prisma';
 import type { LpSection } from '@/lib/lp/types';
 import { SectionRenderer } from '@/components/lp-maker/SectionRenderer';
 import { AnalyticsInjector } from '@/components/lp-maker/AnalyticsInjector';
+import { LpCookieConsent } from '@/components/lp-maker/LpCookieConsent';
+import { shouldShowWatermark } from '@/lib/lp/watermark';
 
 export const dynamic = 'force-static';
 export const revalidate = 60;
@@ -74,13 +76,34 @@ export default async function PublicLpPage({
         {sections.map((s, i) => (
           <SectionRenderer key={`${s.type}-${i}`} section={s} />
         ))}
-        <footer className="bg-slate-950 text-slate-500 text-xs text-center py-4">
-          Powered by{' '}
-          <a href="https://lpmaker-pro.com" className="text-emerald-400 hover:underline">
-            LP Maker Pro
-          </a>
-        </footer>
+        {(await shouldShowWatermark(lp)) ? (
+          <footer className="bg-emerald-950 text-emerald-100 text-sm text-center py-6 border-t-2 border-emerald-500">
+            <p className="font-bold">
+              このLPは{' '}
+              <a
+                href="https://lpmaker-pro.com"
+                className="underline"
+                target="_blank"
+                rel="noopener"
+              >
+                LP Maker Pro 2.0
+              </a>{' '}
+              の Free プランで生成されました
+            </p>
+            <p className="text-xs text-emerald-300/80 mt-1">
+              透かしを外すには Starter プラン以上にアップグレード
+            </p>
+          </footer>
+        ) : (
+          <footer className="bg-slate-950 text-slate-500 text-xs text-center py-4">
+            Powered by{' '}
+            <a href="https://lpmaker-pro.com" className="text-emerald-400 hover:underline">
+              LP Maker Pro
+            </a>
+          </footer>
+        )}
       </main>
+      <LpCookieConsent />
     </>
   );
 }

@@ -133,6 +133,11 @@ model User {
 
   /// LP Maker Pro 2.0: LP 生成数の月次カウンタ（autobanner.jp の usageCount と独立）
   currentMonthLpUsageCount  Int       @default(0)
+  /// LP Maker Pro 2.0 C-1 fix: Free ユーザーの lazy reset 用次回リセット日時。
+  /// NULL なら初回生成時にセット、past なら effective usage を 0 と見做す。
+  /// Pro/Starter は payment_succeeded webhook で別経路リセットされるが、
+  /// 一貫性のため同じ仕組みで動かす。
+  lpUsageResetAt            DateTime?
   /// LP Maker Pro 2.0: Pro 超過アラート（21 本目で 1 度のみ表示）の last shown
   /// payment_succeeded webhook で NULL リセット
   proLpOverageNoticeShownAt DateTime?

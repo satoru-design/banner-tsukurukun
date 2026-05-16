@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth/auth';
 import { getPrisma } from '@/lib/prisma';
 import { LpCard } from '@/components/lp-maker/LpCard';
+import { UsageHeader } from '@/components/lp-maker/UsageHeader';
+import { getLpUsageStatus } from '@/lib/lp/limits';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +30,7 @@ export default async function LpMakerDashboardPage() {
     orderBy: { updatedAt: 'desc' },
     take: 50,
   });
+  const usage = await getLpUsageStatus(session.user.id);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-8">
@@ -46,6 +49,13 @@ export default async function LpMakerDashboardPage() {
             ＋ 新規 LP を作る
           </Link>
         </header>
+
+        <UsageHeader
+          plan={usage.plan}
+          currentUsage={usage.currentUsage}
+          softLimit={usage.softLimit}
+          hardCap={usage.hardCap}
+        />
 
         {landingPages.length === 0 ? (
           <div className="text-center py-16 bg-slate-900 rounded-lg">

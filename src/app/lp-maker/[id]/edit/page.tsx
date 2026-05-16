@@ -21,6 +21,12 @@ export default async function LpEditPage({
   });
   if (!lp) notFound();
 
+  const userRecord = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { plan: true },
+  });
+  const userPlan = ((userRecord?.plan ?? 'free') as 'free' | 'starter' | 'pro' | 'admin');
+
   return (
     <EditClient
       lpId={lp.id}
@@ -28,6 +34,7 @@ export default async function LpEditPage({
       initialSections={lp.sections as unknown as LpSection[]}
       initialStatus={lp.status}
       initialSlug={lp.slug}
+      userPlan={userPlan}
     />
   );
 }

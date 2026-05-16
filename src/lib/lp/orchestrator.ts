@@ -11,6 +11,8 @@ import type { LpBrief, LpSection } from './types';
 import { generateSectionCopy } from './copy-generator';
 import { selectSectionsForBrief } from './section-selector';
 import { generateKvImage } from './image-generator';
+import { incrementLpUsage, getLpUsageStatus } from './limits';
+import { sendLpMeteredUsage } from '@/lib/billing/lp-usage-records';
 
 export async function generateLandingPage(args: {
   userId: string;
@@ -76,6 +78,26 @@ export async function generateLandingPage(args: {
         output: s.props as unknown as object,
       })),
     });
+
+    // D11 Task 17: usage 加算 + Pro 超過時メータード課金
+    //   加算は同期で実行（次回 generate の hard cap 判定に反映するため）。
+    //   メータード送信は fire-and-forget（Stripe API 失敗で生成は止めない）。
+    await incrementLpUsage(args.userId);
+    const usageAfter = await getLpUsageStatus(args.userId);
+    if (
+      usageAfter.plan === 'pro' &&
+      usageAfter.currentUsage > usageAfter.softLimit &&
+      usageAfter.stripeCustomerId
+    ) {
+      // C-3 fix: identifier に lp.id + Date.now() を組み合わせ、
+      // 同一 LP の再生成・並列実行で dedupe 衝突しないようにする。
+      sendLpMeteredUsage({
+        stripeCustomerId: usageAfter.stripeCustomerId,
+        identifier: `lp-gen-${lp.id}-${Date.now()}`,
+      }).catch((err) => {
+        console.error('[orchestrator] sendLpMeteredUsage failed', err);
+      });
+    }
 
     return {
       landingPageId: lp.id,

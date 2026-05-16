@@ -6,6 +6,8 @@ import { SectionRenderer } from '@/components/lp-maker/SectionRenderer';
 import { SectionListPane } from '@/components/lp-maker/SectionListPane';
 import { SectionPropsEditor } from '@/components/lp-maker/SectionPropsEditor';
 import { PublishModal } from '@/components/lp-maker/PublishModal';
+import { PreviewWatermarkBanner } from '@/components/lp-maker/PreviewWatermarkBanner';
+import { BannerHandoffButton } from '@/components/lp-maker/BannerHandoffButton';
 
 interface Props {
   lpId: string;
@@ -13,24 +15,31 @@ interface Props {
   initialSections: LpSection[];
   initialStatus: string;
   initialSlug: string;
+  userPlan: 'free' | 'starter' | 'pro' | 'admin';
 }
 
-export function EditClient({ lpId, initialTitle, initialSections, initialSlug }: Props) {
+export function EditClient({ lpId, initialTitle, initialSections, initialStatus, initialSlug, userPlan }: Props) {
   const [sections, setSections] = useState<LpSection[]>(initialSections);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
-  const [title] = useState(initialTitle);
+  const [title, setTitle] = useState(initialTitle);
   const [showPublish, setShowPublish] = useState(false);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 grid grid-cols-1 md:grid-cols-[280px_1fr_320px]">
+      <PreviewWatermarkBanner plan={userPlan} />
       <aside className="border-r border-slate-800 bg-slate-900 p-4 overflow-y-auto max-h-screen">
         <div className="flex items-center justify-between mb-4">
           <Link href="/lp-maker" className="text-xs text-slate-400 hover:text-slate-200">
             ← 一覧
           </Link>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold truncate max-w-[120px]" title={title}>{title}</h2>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="text-sm font-bold bg-transparent border-b border-slate-700 focus:border-emerald-500 outline-none max-w-[150px] text-slate-100"
+            />
             <button
               type="button"
               onClick={() => setShowPublish(true)}
@@ -38,6 +47,7 @@ export function EditClient({ lpId, initialTitle, initialSections, initialSlug }:
             >
               公開
             </button>
+            <BannerHandoffButton lpId={lpId} isPublished={initialStatus === 'published'} />
           </div>
         </div>
         <SectionListPane
@@ -46,6 +56,7 @@ export function EditClient({ lpId, initialTitle, initialSections, initialSlug }:
           onSelect={setSelectedIdx}
           onChange={setSections}
           lpId={lpId}
+          title={title}
         />
       </aside>
 

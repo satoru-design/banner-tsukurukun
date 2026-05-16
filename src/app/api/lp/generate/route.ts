@@ -11,9 +11,9 @@
  */
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/auth';
-import { getPrisma } from '@/lib/prisma';
 import { LpGenerateRequestSchema } from '@/lib/lp/schemas';
 import { generateLandingPage } from '@/lib/lp/orchestrator';
+import { getLpUsageStatus } from '@/lib/lp/limits';
 
 export const runtime = 'nodejs';
 // 9 セクション × Gemini 2.5 Pro 並列 30-50 秒 + DB 書き込み。
@@ -26,21 +26,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // C-2 fix: interim admin-only gate until Sprint 3 D11 (Stripe Meter + usage gate)
-  // Free=1, Starter=5, Pro=20 monthly LP limits will be enforced there.
-  // Until then, restrict to admin to avoid cost runaway (~$0.10-0.13 per LP in OpenAI + Gemini).
-  const prisma = getPrisma();
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { plan: true },
-  });
-  if (user?.plan !== 'admin') {
+  // D11 Task 17: plan ベースの LP 生成ゲート
+  //   Free=1 / Starter=5 / Pro=20 (soft) + Pro 超過は Stripe Meter (orchestrator 側で送信)
+  //   hard cap: Free=1 / Starter=30 / Pro=100 (暴走コスト防止)
+  //   usage 加算は orchestrator 内で実施 (生成成功時のみ)
+  const usage = await getLpUsageStatus(session.user.id);
+  if (usage.isHardBlocked) {
     return NextResponse.json(
       {
-        error: 'LP Maker is in early access. Available to admin users only until Sprint 3 release.',
-        adminOnly: true,
+        error: `今月の LP 生成上限 (${usage.hardCap} 本) に達しました`,
+        plan: usage.plan,
+        currentUsage: usage.currentUsage,
+        hardCap: usage.hardCap,
       },
-      { status: 403 }
+      { status: 429 }
     );
   }
 

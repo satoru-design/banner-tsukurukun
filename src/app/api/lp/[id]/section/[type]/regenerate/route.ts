@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth/auth';
 import { getPrisma } from '@/lib/prisma';
 import { LP_SECTION_TYPES, type LpBrief, type LpSectionType } from '@/lib/lp/types';
 import { generateSectionVariants } from '@/lib/lp/copy-variants';
+import { getLpUsageStatus, incrementLpUsage } from '@/lib/lp/limits';
+import { sendLpMeteredUsage } from '@/lib/billing/lp-usage-records';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -22,13 +24,19 @@ export async function POST(
 
   const prisma = getPrisma();
 
-  // admin gate (Sprint 3 D11 で plan-based に置換)
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { plan: true },
-  });
-  if (user?.plan !== 'admin') {
-    return NextResponse.json({ error: 'Admin only until Sprint 3', adminOnly: true }, { status: 403 });
+  // D11 Task 17: regenerate も LP 生成 1 本としてカウント（コピー生成 + Gemini コスト発生）
+  //   hard cap ブロック判定のみ事前実施。usage 加算は成功時のみ実行する。
+  const usage = await getLpUsageStatus(session.user.id);
+  if (usage.isHardBlocked) {
+    return NextResponse.json(
+      {
+        error: `今月の LP 生成上限 (${usage.hardCap} 本) に達しました`,
+        plan: usage.plan,
+        currentUsage: usage.currentUsage,
+        hardCap: usage.hardCap,
+      },
+      { status: 429 }
+    );
   }
 
   const lp = await prisma.landingPage.findFirst({
@@ -51,6 +59,21 @@ export async function POST(
         output: v as unknown as object,
       })),
     });
+
+    // D11 Task 17: 成功時のみ usage 加算 + Pro 超過時メータード課金 (fire-and-forget)
+    await incrementLpUsage(session.user.id);
+    const usageAfter = await getLpUsageStatus(session.user.id);
+    if (
+      usageAfter.plan === 'pro' &&
+      usageAfter.currentUsage > usageAfter.softLimit &&
+      usageAfter.stripeCustomerId
+    ) {
+      // C-3 fix: regenerate は同一 LP で複数回走り得るので、ts + random で完全 unique 化。
+      sendLpMeteredUsage({
+        stripeCustomerId: usageAfter.stripeCustomerId,
+        identifier: `lp-regen-${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      }).catch((err) => console.error('[regenerate] sendLpMeteredUsage failed', err));
+    }
 
     return NextResponse.json({ variants });
   } catch (err) {

@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/kpi-monthly",
       "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/lp-kpi-daily",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/lp-kpi-weekly",
+      "schedule": "0 0 * * 1"
     }
   ]
 }

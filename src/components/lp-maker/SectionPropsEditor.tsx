@@ -77,6 +77,29 @@ function FieldsRenderer({
       />
     );
   }
+  if (typeof node === 'boolean') {
+    return (
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={node}
+          onChange={(e) => onUpdate(path, e.target.checked)}
+          className="accent-emerald-500"
+        />
+        <span className="text-xs text-slate-300">{node ? 'ON' : 'OFF'}</span>
+      </label>
+    );
+  }
+  if (typeof node === 'number') {
+    return (
+      <input
+        type="number"
+        defaultValue={node}
+        onChange={(e) => onUpdate(path, Number(e.target.value))}
+        className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-slate-100"
+      />
+    );
+  }
   if (Array.isArray(node)) {
     return (
       <div className="space-y-3 pl-2 border-l border-slate-700">

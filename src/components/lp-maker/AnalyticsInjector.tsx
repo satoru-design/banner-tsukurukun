@@ -1,4 +1,19 @@
+'use client';
+import { useEffect, useState } from 'react';
 import Script from 'next/script';
+
+/**
+ * Sprint 3 CR C-5: Cookie consent gate された分析タグインジェクター。
+ *
+ * 仕様:
+ *   - localStorage 'lpmaker-cookie-consent-v1' が 'accepted' になるまで何も render しない。
+ *   - LpCookieConsent が 'accept' を押した瞬間 'lpmaker-consent-changed' CustomEvent を dispatch するので
+ *     リアルタイムで再 render → タグが発火する。
+ *   - 'declined' / NULL の状態では一切タグを発火しない（GDPR / 改正電気通信事業法 16 条の 3 対応）。
+ *
+ * Phase 1 では同意取得記録だけだったので Sprint 3 で本実装に格上げ。
+ */
+const STORAGE_KEY = 'lpmaker-cookie-consent-v1';
 
 interface Props {
   config: {
@@ -21,6 +36,22 @@ function safeId(raw: string | undefined): string | null {
 }
 
 export function AnalyticsInjector({ config }: Props) {
+  const [consented, setConsented] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const c = localStorage.getItem(STORAGE_KEY);
+    if (c === 'accepted') setConsented(true);
+    // accept ボタン押下のリアルタイム反映用
+    function onConsent(e: Event) {
+      if ((e as CustomEvent).detail === 'accepted') setConsented(true);
+    }
+    window.addEventListener('lpmaker-consent-changed', onConsent);
+    return () => window.removeEventListener('lpmaker-consent-changed', onConsent);
+  }, []);
+
+  if (!consented) return null;
+
   const gtmId = safeId(config.gtmId);
   const ga4Id = safeId(config.ga4Id);
   const clarityId = safeId(config.clarityId);

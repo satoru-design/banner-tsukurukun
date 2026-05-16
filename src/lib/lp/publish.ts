@@ -1,6 +1,7 @@
 import { getPrisma } from '@/lib/prisma';
 import type { LpSection } from './types';
 import { generateOgImage } from './og-generator';
+import { notifyNewLpPublished } from '@/lib/slack/notify-new-lp';
 import type { PrismaClient } from '@prisma/client';
 
 /**
@@ -40,40 +41,58 @@ export async function publishLandingPage(args: {
   if (!lp) throw new Error('LP not found');
 
   const targetSlug = args.desiredSlug?.trim() || lp.slug;
-  if (targetSlug !== lp.slug) {
-    const dup = await prisma.landingPage.findFirst({
-      where: {
-        userId: args.userId,
+
+  // I-2 fix: slug + status + analyticsConfig の update を先に実行
+  // uniqueness は DB 制約 @@unique([userId, slug]) で担保、P2002 catch で 409
+  try {
+    await prisma.landingPage.update({
+      where: { id: lp.id },
+      data: {
         slug: targetSlug,
-        NOT: { id: args.landingPageId },
+        status: 'published',
+        publishedAt: new Date(),
+        ...(args.analyticsConfig && {
+          analyticsConfig: args.analyticsConfig as unknown as object,
+        }),
       },
-      select: { id: true },
     });
-    if (dup) throw new Error(`slug "${targetSlug}" は既に使用中`);
+  } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === 'P2002') {
+      throw new Error(`slug "${targetSlug}" は既に使用中`);
+    }
+    throw err;
   }
 
+  // OGP 生成は後 (失敗しても publish は成立、後で再 publish で再生成可能)
   const sections = lp.sections as unknown as LpSection[];
   const heroProps = sections.find((s) => s.type === 'hero')?.props as
     | { headline?: string }
     | undefined;
   const headline = heroProps?.headline ?? lp.title;
-  const { ogImageUrl } = await generateOgImage({
-    landingPageId: lp.id,
-    headline,
-  });
 
-  await prisma.landingPage.update({
-    where: { id: lp.id },
-    data: {
-      slug: targetSlug,
-      status: 'published',
-      publishedAt: new Date(),
-      ogImageUrl,
-      ...(args.analyticsConfig && {
-        analyticsConfig: args.analyticsConfig as unknown as object,
-      }),
-    },
+  let ogImageUrl = '';
+  try {
+    const result = await generateOgImage({ landingPageId: lp.id, headline });
+    ogImageUrl = result.ogImageUrl;
+    await prisma.landingPage.update({
+      where: { id: lp.id },
+      data: { ogImageUrl },
+    });
+  } catch (err) {
+    console.error('[publish] OGP gen failed, continuing without OGP', err);
+  }
+
+  // D14: Slack 通知 (fire-and-forget)
+  const userForSlack = await prisma.user.findUnique({
+    where: { id: args.userId },
+    select: { email: true, name: true, plan: true },
   });
+  if (userForSlack) {
+    notifyNewLpPublished({
+      lp: { id: lp.id, title: lp.title, userId: lp.userId, slug: targetSlug },
+      user: userForSlack,
+    }).catch((e) => console.error('[publish] slack notify failed', e));
+  }
 
   const userSlug = await findUniqueUserSlug(prisma, args.userId);
   const publishedUrl = `https://lpmaker-pro.com/site/${userSlug}/${targetSlug}`;

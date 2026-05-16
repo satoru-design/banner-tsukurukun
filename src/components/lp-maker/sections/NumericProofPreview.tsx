@@ -19,6 +19,9 @@ export function NumericProofPreview({ props }: { props: NumericProofProps }) {
             </div>
           ))}
         </div>
+        <p className="mt-8 text-center text-[10px] text-slate-600">
+          ※ 数値の出典・根拠は本サービス公開者の責任により表示されています
+        </p>
       </div>
     </section>
   );

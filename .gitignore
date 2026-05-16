@@ -45,6 +45,7 @@ next-env.d.ts
 
 # Stripe live mode IDs (contains webhook signing secret)
 scripts/stripe-live-ids.json
+scripts/stripe-live-ids-lp.json
 
 # pre-flight test outputs (large PNGs from generation tests)
 /output/

@@ -25,15 +25,10 @@ export async function PATCH(
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // C-1 fix: admin gate (Sprint 3 D11 で plan-based に置換)
+  // D11 Task 17: admin gate 解除。ownership check (LandingPage.userId == session.user.id)
+  //   で他人の LP 編集は防げる。編集自体は usage 消費しない（生成時に課金済み）ため
+  //   plan ベース gate も不要。
   const prisma = getPrisma();
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { plan: true },
-  });
-  if (user?.plan !== 'admin') {
-    return NextResponse.json({ error: 'Admin only until Sprint 3', adminOnly: true }, { status: 403 });
-  }
 
   const { id } = await params;
 
