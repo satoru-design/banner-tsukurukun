@@ -366,8 +366,6 @@ model LandingPage {
   sections        Json
   /// 公開時刻（status が published になった時に set）
   publishedAt     DateTime?
-  /// Phase 2 用：独自ドメイン CNAME
-  customDomain    String?  @unique
   /// 自動生成された OGP 画像 URL
   ogImageUrl      String?
   /// GTM / GA4 / Clarity / Pixel ID 設定（JSON）
@@ -377,6 +375,7 @@ model LandingPage {
   updatedAt       DateTime @updatedAt
 
   generations     LandingPageGeneration[]
+  domain          LandingPageDomain?
   linkedBanners   Generation[]            @relation("LpToBanner")
 
   @@unique([userId, slug])
@@ -404,13 +403,15 @@ model LandingPageGeneration {
 }
 
 /// LP Maker Pro 2.0 / Phase 2: 独自ドメイン CNAME 連携テーブル
+/// LandingPage と 1:1 FK CASCADE。Phase 2 カスタムドメイン機能の単一情報源。
 model LandingPageDomain {
-  id              String   @id @default(cuid())
-  landingPageId   String   @unique
-  domain          String   @unique
+  id              String      @id @default(cuid())
+  landingPageId   String      @unique
+  landingPage     LandingPage @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+  domain          String      @unique
   verifiedAt      DateTime?
   vercelDomainId  String?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
