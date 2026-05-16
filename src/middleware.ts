@@ -113,6 +113,7 @@ export default auth((req) => {
   const lpMakerAllowedPrefixes = [
     '/site',
     '/lp-maker',
+    '/signin',  // NextAuth signin ページ（lpmaker-pro.com でもログイン必須）
     '/api/lp',
     '/api/auth',
     '/_next',
