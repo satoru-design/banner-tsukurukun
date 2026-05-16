@@ -11,6 +11,7 @@
  */
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/auth';
+import { getPrisma } from '@/lib/prisma';
 import { LpGenerateRequestSchema } from '@/lib/lp/schemas';
 import { generateLandingPage } from '@/lib/lp/orchestrator';
 
@@ -23,6 +24,24 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // C-2 fix: interim admin-only gate until Sprint 3 D11 (Stripe Meter + usage gate)
+  // Free=1, Starter=5, Pro=20 monthly LP limits will be enforced there.
+  // Until then, restrict to admin to avoid cost runaway (~$0.10-0.13 per LP in OpenAI + Gemini).
+  const prisma = getPrisma();
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { plan: true },
+  });
+  if (user?.plan !== 'admin') {
+    return NextResponse.json(
+      {
+        error: 'LP Maker is in early access. Available to admin users only until Sprint 3 release.',
+        adminOnly: true,
+      },
+      { status: 403 }
+    );
   }
 
   let body: unknown;
