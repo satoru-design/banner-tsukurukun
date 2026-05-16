@@ -34,52 +34,63 @@ export async function generateLandingPage(args: {
     },
   });
 
-  // ステップ 3: コピー生成と KV 画像生成を並列実行
-  const [sectionResults, kvResult] = await Promise.all([
-    Promise.all(
-      sectionTypes.map(async (type, idx): Promise<LpSection> => {
-        const props = await generateSectionCopy(args.brief, type);
-        return { type, order: idx, enabled: true, props };
-      })
-    ),
-    generateKvImage({ brief: args.brief, landingPageId: lp.id }),
-  ]);
+  try {
+    // ステップ 3: コピー生成と KV 画像生成を並列実行
+    const [sectionResults, kvResult] = await Promise.all([
+      Promise.all(
+        sectionTypes.map(async (type, idx): Promise<LpSection> => {
+          const props = await generateSectionCopy(args.brief, type);
+          return { type, order: idx, enabled: true, props };
+        })
+      ),
+      generateKvImage({ brief: args.brief, landingPageId: lp.id }),
+    ]);
 
-  // ステップ 4: hero セクションの props に kvImageUrl を注入
-  const finalSections = sectionResults.map((s) =>
-    s.type === 'hero'
-      ? { ...s, props: { ...s.props, imageUrl: kvResult.kvImageUrl } }
-      : s
-  );
+    // ステップ 4: hero セクションの props に kvImageUrl を注入
+    const finalSections = sectionResults.map((s) =>
+      s.type === 'hero'
+        ? { ...s, props: { ...s.props, imageUrl: kvResult.kvImageUrl } }
+        : s
+    );
 
-  const heroProps = finalSections.find((s) => s.type === 'hero')?.props as
-    | { headline?: string }
-    | undefined;
-  const title = heroProps?.headline ?? args.brief.productName;
+    const heroProps = finalSections.find((s) => s.type === 'hero')?.props as
+      | { headline?: string }
+      | undefined;
+    const title = heroProps?.headline ?? args.brief.productName;
 
-  // ステップ 5: LandingPage を更新（最終タイトル + セクション）
-  await prisma.landingPage.update({
-    where: { id: lp.id },
-    data: {
-      title,
-      sections: finalSections as unknown as object,
-    },
-  });
+    // ステップ 5: LandingPage を更新（最終タイトル + セクション）
+    await prisma.landingPage.update({
+      where: { id: lp.id },
+      data: {
+        title,
+        sections: finalSections as unknown as object,
+      },
+    });
 
-  // ステップ 6: 生成履歴保存
-  await prisma.landingPageGeneration.createMany({
-    data: finalSections.map((s) => ({
+    // ステップ 6: 生成履歴保存
+    await prisma.landingPageGeneration.createMany({
+      data: finalSections.map((s) => ({
+        landingPageId: lp.id,
+        sectionType: s.type,
+        prompt: JSON.stringify({ brief: args.brief, sectionType: s.type }),
+        output: s.props as unknown as object,
+      })),
+    });
+
+    return {
       landingPageId: lp.id,
-      sectionType: s.type,
-      prompt: JSON.stringify({ brief: args.brief, sectionType: s.type }),
-      output: s.props as unknown as object,
-    })),
-  });
-
-  return {
-    landingPageId: lp.id,
-    sections: finalSections,
-    title,
-    kvImageUrl: kvResult.kvImageUrl,
-  };
+      sections: finalSections,
+      title,
+      kvImageUrl: kvResult.kvImageUrl,
+    };
+  } catch (err) {
+    // C-1 fix: 生成失敗時の orphan LP クリーンアップ。
+    // ステップ 2 で先に空 LP を作っているため、ステップ 3-6 のいずれかが throw すると
+    // title=productName / sections=[] の空行が残ってしまう。これを削除してから再 throw。
+    console.error('[orchestrator] generation failed, deleting orphan LP', lp.id, err);
+    await prisma.landingPage.delete({ where: { id: lp.id } }).catch((deleteErr) => {
+      console.error('[orchestrator] orphan cleanup failed', deleteErr);
+    });
+    throw err;
+  }
 }
