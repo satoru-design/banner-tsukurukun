@@ -41,14 +41,16 @@ export const handlePaymentSucceeded = async (
 
   // plan-sync 成功後に paymentFailedAt / proOverageNoticeShownAt をクリア
   // Phase A.14: 新月次サイクル開始時に Pro 超過アラート再表示を許可するためリセット
-  if (user.paymentFailedAt || user.proOverageNoticeShownAt) {
-    const prisma = getPrisma();
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        paymentFailedAt: null,
-        proOverageNoticeShownAt: null,
-      },
-    });
-  }
+  // D11 Task 16: LP usage (currentMonthLpUsageCount) と Pro LP overage アラートも月初リセット
+  //   LP usage は必ず毎月リセットが必要なため、常に update を実行する。
+  const prisma = getPrisma();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      paymentFailedAt: null,
+      proOverageNoticeShownAt: null,
+      currentMonthLpUsageCount: 0,
+      proLpOverageNoticeShownAt: null,
+    },
+  });
 };
