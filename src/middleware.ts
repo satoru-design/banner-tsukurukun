@@ -23,6 +23,7 @@ const PUBLIC_PATH_PREFIXES = [
   '/api/auth',  // NextAuth エンドポイント
   '/_next',
   '/legal',  // Phase A.15: 特商法 / 利用規約 / プライバシーポリシー
+  '/site',  // LP Maker Pro 2.0 D10-T14: 公開 LP（/site/[user]/[slug]）。認証なしで閲覧可。
 ];
 
 const AB_LP01_COOKIE = 'ab_lp01';
@@ -91,6 +92,43 @@ function handleLp01Ab(req: NextRequest): NextResponse {
  */
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+
+  // C-2 fix: ホスト分離。autobanner.jp と lpmaker-pro.com で機能を分離する。
+  // - autobanner.jp: 既存機能のみ、/site/*, /lp-maker/*, /api/lp/* は 404
+  // - lpmaker-pro.com: LP Maker 機能のみ、autobanner.jp 固有のルートは 404
+  const host = (req.headers.get('host') ?? '').toLowerCase();
+  const isAutobanner = host.includes('autobanner.jp');
+  const isLpMaker = host.includes('lpmaker-pro.com');
+
+  const isLpRoute =
+    pathname.startsWith('/site') ||
+    pathname.startsWith('/lp-maker') ||
+    pathname.startsWith('/api/lp');
+
+  if (isAutobanner && isLpRoute) {
+    return new NextResponse(null, { status: 404 });
+  }
+
+  // lpmaker-pro.com 側で許可するパス
+  const lpMakerAllowedPrefixes = [
+    '/site',
+    '/lp-maker',
+    '/api/lp',
+    '/api/auth',
+    '/_next',
+    '/favicon',
+    '/legal',  // 利用規約・プライバシー共有
+    '/api/billing/webhook',  // Stripe webhook（共通）
+  ];
+
+  if (isLpMaker && !lpMakerAllowedPrefixes.some((p) => pathname.startsWith(p)) && pathname !== '/') {
+    return new NextResponse(null, { status: 404 });
+  }
+
+  // lpmaker-pro.com の「/」は /lp-maker にリダイレクト
+  if (isLpMaker && pathname === '/') {
+    return NextResponse.redirect(new URL('/lp-maker', req.url));
+  }
 
   // A/B: lp01 系列はここで振り分け（PUBLIC_PATHS 判定より前に処理）
   if (pathname === '/lp01' || pathname === '/lp01-legacy') {

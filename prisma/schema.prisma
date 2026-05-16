@@ -131,6 +131,12 @@ model User {
   /// /account の BusinessUpgradeAccountBanner の再表示制御に使用
   upgradeNoticeShownAt    DateTime?
 
+  /// LP Maker Pro 2.0: LP 生成数の月次カウンタ（autobanner.jp の usageCount と独立）
+  currentMonthLpUsageCount  Int       @default(0)
+  /// LP Maker Pro 2.0: Pro 超過アラート（21 本目で 1 度のみ表示）の last shown
+  /// payment_succeeded webhook で NULL リセット
+  proLpOverageNoticeShownAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -139,6 +145,8 @@ model User {
   assets         Asset[]
   generations    Generation[]
   upgradeNotices UpgradeNotice[]
+  /// LandingPage との一対多リレーション
+  landingPages   LandingPage[]
 
   @@index([stripeCustomerId])
 }
@@ -213,12 +221,17 @@ model Generation {
   /// true なら PREVIEW 透かし入りで保存、UI でアップグレード訴求バナー表示
   isPreview Boolean @default(false)
 
+  /// LP Maker Pro 2.0: この Generation がどの LP の「広告も作る」連携から生成されたか
+  sourceLpId String?
+  sourceLp   LandingPage? @relation("LpToBanner", fields: [sourceLpId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
 
   images           GenerationImage[]
   generationVideos GenerationVideo[]
 
   @@index([userId, createdAt])
+  @@index([sourceLpId])
 }
 
 /// Phase A.11.5: Generation 内の各サイズ画像
@@ -332,4 +345,73 @@ model WebhookEvent {
 
   @@index([type])
   @@index([receivedAt])
+}
+
+/// LP Maker Pro 2.0 (2026-05-16): Brief → セクション組合せ型 LP のメインテーブル
+/// sections は [{ type: string, order: number, enabled: boolean, props: Json }] 配列
+model LandingPage {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// URL 用 slug（user 内ユニーク）
+  slug            String
+  /// "draft" | "published" | "archived"
+  status          String   @default("draft")
+  title           String
+
+  /// IroncladMaterials 互換 + LP 固有フィールド（productName, lpUrl, target, offer, etc）
+  brief           Json
+  /// セクション配列（後述）
+  sections        Json
+  /// 公開時刻（status が published になった時に set）
+  publishedAt     DateTime?
+  /// 自動生成された OGP 画像 URL
+  ogImageUrl      String?
+  /// GTM / GA4 / Clarity / Pixel ID 設定（JSON）
+  analyticsConfig Json?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  generations     LandingPageGeneration[]
+  domain          LandingPageDomain?
+  linkedBanners   Generation[]            @relation("LpToBanner")
+
+  @@unique([userId, slug])
+  @@index([status, publishedAt])
+}
+
+/// LP Maker Pro 2.0: ブロック単位の生成履歴（"もう一案" 履歴 + 巻き戻し用）
+model LandingPageGeneration {
+  id              String      @id @default(cuid())
+  landingPageId   String
+  landingPage     LandingPage @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+
+  /// "hero" | "problem" | "solution" | "features" | "comparison" | "voice" | "pricing" | "faq" | "final_cta" | "numeric_proof" | "inline_cta"
+  sectionType     String
+  /// Gemini に渡したプロンプト全文（デバッグ用）
+  prompt          String      @db.Text
+  /// 生成結果 JSON
+  output          Json
+  /// Free プラン透かし用（透かし入り版か）
+  isPreview       Boolean     @default(false)
+
+  createdAt       DateTime    @default(now())
+
+  @@index([landingPageId, sectionType])
+}
+
+/// LP Maker Pro 2.0 / Phase 2: 独自ドメイン CNAME 連携テーブル
+/// LandingPage と 1:1 FK CASCADE。Phase 2 カスタムドメイン機能の単一情報源。
+model LandingPageDomain {
+  id              String      @id @default(cuid())
+  landingPageId   String      @unique
+  landingPage     LandingPage @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+  domain          String      @unique
+  verifiedAt      DateTime?
+  vercelDomainId  String?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
