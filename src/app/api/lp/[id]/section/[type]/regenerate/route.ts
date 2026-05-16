@@ -68,9 +68,10 @@ export async function POST(
       usageAfter.currentUsage > usageAfter.softLimit &&
       usageAfter.stripeCustomerId
     ) {
+      // C-3 fix: regenerate は同一 LP で複数回走り得るので、ts + random で完全 unique 化。
       sendLpMeteredUsage({
         stripeCustomerId: usageAfter.stripeCustomerId,
-        landingPageId: id,
+        identifier: `lp-regen-${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       }).catch((err) => console.error('[regenerate] sendLpMeteredUsage failed', err));
     }
 

@@ -57,6 +57,12 @@ export const createCheckoutSession = async (input: CreateCheckoutInput): Promise
     lineItems.push({ price: prices.pro.meteredPriceId });
     // metered は quantity 指定不可（usage_records で送る）
   }
+  // Sprint 3 CR C-2: Pro plan は LP metered (lp_generation_overage) も同時 attach。
+  // base (¥固定) + banner metered + LP metered の 3-item subscription を作る。
+  // env 未設定なら skip（dev / 既存環境互換）。
+  if (plan === 'pro' && prices.pro.lpMeteredPriceId) {
+    lineItems.push({ price: prices.pro.lpMeteredPriceId });
+  }
   // Phase A.17.0: Business も base + metered の 2-item subscription
   if (plan === 'business' && prices.business.meteredPriceId) {
     lineItems.push({ price: prices.business.meteredPriceId });

@@ -31,7 +31,7 @@ export function UpgradeLpModal({ currentPlan, onClose }: Props) {
           {currentPlan === 'free' &&
             '月 1 本までの Free プランです。Starter で月 5 本、Pro で月 20 本まで作成できます。'}
           {currentPlan === 'starter' &&
-            '月 5 本までの Starter プランです。Pro で月 20 本 + 超過 ¥980/本のメータード課金で無制限利用が可能です。'}
+            '月 5 本までの Starter プランです。Pro で月 20 本 + 超過分は実質無制限で利用可能です。'}
         </p>
 
         <div className="space-y-2">
@@ -52,7 +52,7 @@ export function UpgradeLpModal({ currentPlan, onClose }: Props) {
         </div>
 
         <p className="text-xs text-slate-500">
-          早割コード LPMAKER_EARLY で 50% OFF（先着 50・60 日有効）
+          早割コード LPMAKER_EARLY 適用可（先着・期間限定）
         </p>
       </div>
     </div>

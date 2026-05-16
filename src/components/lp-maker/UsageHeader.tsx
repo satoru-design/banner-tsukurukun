@@ -52,7 +52,7 @@ export function UsageHeader({ plan, currentUsage, softLimit, hardCap }: Props) {
             <span className="text-slate-500"> / {softLimit} 本</span>
             {isOverSoft && plan === 'pro' && (
               <span className="text-xs text-amber-400 ml-2">
-                （超過分は ¥980/本 メータード）
+                （超過分はメータード課金）
               </span>
             )}
           </span>

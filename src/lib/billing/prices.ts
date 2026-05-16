@@ -10,12 +10,17 @@ export type PlanKey = 'starter' | 'pro' | 'business';
 export interface PlanPriceConfig {
   basePriceId: string;
   meteredPriceId?: string;
+  /// LP Maker Pro 2.0 (Sprint 3 CR C-2): Pro plan の追加 LP metered price。
+  /// 月 20 本までは graduated 0 円、21 本目以降 ¥980/本のメータード課金。
+  /// Pro plan の Checkout で base + metered + lpMetered の 3-item subscription を作る。
+  lpMeteredPriceId?: string;
 }
 
 export const getPlanPrices = (): Record<PlanKey, PlanPriceConfig> => {
   const starter = process.env.STRIPE_PRICE_STARTER;
   const proBase = process.env.STRIPE_PRICE_PRO_BASE;
   const proMetered = process.env.STRIPE_PRICE_PRO_METERED;
+  const proLpMetered = process.env.STRIPE_PRICE_PRO_LP_METERED;
   const businessBase = process.env.STRIPE_PRICE_BUSINESS_BASE;
   const businessMetered = process.env.STRIPE_PRICE_BUSINESS_METERED;
   if (!starter || !proBase) {
@@ -28,7 +33,11 @@ export const getPlanPrices = (): Record<PlanKey, PlanPriceConfig> => {
   }
   return {
     starter: { basePriceId: starter },
-    pro: { basePriceId: proBase, meteredPriceId: proMetered || undefined },
+    pro: {
+      basePriceId: proBase,
+      meteredPriceId: proMetered || undefined,
+      lpMeteredPriceId: proLpMetered || undefined,
+    },
     business: { basePriceId: businessBase, meteredPriceId: businessMetered || undefined },
   };
 };

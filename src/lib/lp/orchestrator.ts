@@ -89,9 +89,11 @@ export async function generateLandingPage(args: {
       usageAfter.currentUsage > usageAfter.softLimit &&
       usageAfter.stripeCustomerId
     ) {
+      // C-3 fix: identifier に lp.id + Date.now() を組み合わせ、
+      // 同一 LP の再生成・並列実行で dedupe 衝突しないようにする。
       sendLpMeteredUsage({
         stripeCustomerId: usageAfter.stripeCustomerId,
-        landingPageId: lp.id,
+        identifier: `lp-gen-${lp.id}-${Date.now()}`,
       }).catch((err) => {
         console.error('[orchestrator] sendLpMeteredUsage failed', err);
       });

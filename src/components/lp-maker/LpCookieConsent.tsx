@@ -15,6 +15,10 @@ export function LpCookieConsent() {
   function accept() {
     localStorage.setItem(STORAGE_KEY, 'accepted');
     setShown(false);
+    // Sprint 3 CR C-5: AnalyticsInjector に同意成立を即時通知してタグを起動する。
+    window.dispatchEvent(
+      new CustomEvent('lpmaker-consent-changed', { detail: 'accepted' })
+    );
   }
 
   function decline() {
@@ -32,7 +36,7 @@ export function LpCookieConsent() {
         <p className="text-xs text-slate-300 flex-1">
           このサイトでは Cookie / アクセス解析タグ (GTM・GA4・Meta Pixel 等) を使用しています。
           これらは米国の事業者にデータが送信される場合があります。
-          利用を続けると同意したものとみなします。
+          下記「同意する」を押すと有効化されます。
         </p>
         <div className="flex gap-2 shrink-0">
           <button

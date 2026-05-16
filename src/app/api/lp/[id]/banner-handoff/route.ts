@@ -37,9 +37,15 @@ export async function POST(
       ? `https://lpmaker-pro.com/site/${userSlug}/${lp.slug}`
       : null;
 
-  const handoffUrl = `https://autobanner.jp/ironclad?prefill=${lp.id}${
-    lpPublicUrl ? `&lp=${encodeURIComponent(lpPublicUrl)}` : ''
-  }`;
+  // I-3 fix: brief 情報を query string に直接乗せて autobanner.jp 側に渡す。
+  //   autobanner.jp 側で読み取る実装は別タスク。今は未対応でも URL は壊れない（無視される）。
+  const handoffUrl =
+    `https://autobanner.jp/ironclad?prefill=${lp.id}` +
+    (lpPublicUrl ? `&lp=${encodeURIComponent(lpPublicUrl)}` : '') +
+    `&product=${encodeURIComponent(brief.productName ?? '')}` +
+    `&target=${encodeURIComponent(brief.target ?? '')}` +
+    `&offer=${encodeURIComponent(brief.offer ?? '')}` +
+    `&headline=${encodeURIComponent(hero?.headline ?? '')}`;
 
   return NextResponse.json({
     handoffUrl,
