@@ -59,7 +59,7 @@ export interface LpGenerationResult {
   /** KV 画像 URL */
   kvImageUrl: string;
   /** OGP 画像 URL */
-  ogImageUrl: string;
+  ogImageUrl?: string;  // D9 (Task 13) で生成、Sprint 1 ではまだ
 }
 
 /** 各セクション型に対応する props の最小スキーマ */

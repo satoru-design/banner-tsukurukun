@@ -203,7 +203,7 @@ export async function generateSectionCopy(
   sectionType: LpSectionType
 ): Promise<Record<string, unknown>> {
   const systemPrompt = buildSystemPrompt(brief);
-  const userPrompt = buildUserPromptForSection(sectionType);
+  const userPrompt = buildUserPromptForSection(sectionType, brief);
   const schema = schemaForSection(sectionType);
 
   for (let attempt = 1; attempt <= 2; attempt++) {

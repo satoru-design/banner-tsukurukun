@@ -22,7 +22,8 @@ export async function generateLandingPage(args: {
   const sectionTypes = await selectSectionsForBrief(args.brief);
 
   // ステップ 2: 仮の LandingPage を作成（KV 画像の Blob path に landingPageId を使うため先に発行）
-  const slug = `lp-${Date.now().toString(36)}`;
+  // I-5 fix: 同一 user 同一 ms の slug 衝突回避にランダムサフィックス
+  const slug = `lp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
   const lp = await prisma.landingPage.create({
     data: {
       userId: args.userId,
@@ -53,10 +54,9 @@ export async function generateLandingPage(args: {
         : s
     );
 
-    const heroProps = finalSections.find((s) => s.type === 'hero')?.props as
-      | { headline?: string }
-      | undefined;
-    const title = heroProps?.headline ?? args.brief.productName;
+    // I-4 fix: title は productName 固定（headline は sections[hero].props.headline に存続）。
+    // 安定した dashboard / sitemap / OGP fallback を保証。
+    const title = args.brief.productName;
 
     // ステップ 5: LandingPage を更新（最終タイトル + セクション）
     await prisma.landingPage.update({

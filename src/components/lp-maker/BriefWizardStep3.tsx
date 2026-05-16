@@ -46,7 +46,7 @@ export function BriefWizardStep3({
       <div className="bg-emerald-500/10 border border-emerald-500/30 rounded p-4 text-sm">
         <p className="font-bold text-emerald-300 mb-1">AI 自動セクション選定</p>
         <p className="text-slate-300">
-          ブリーフから業種・オファー特性を判断し、8 セクションの最適な組合せを自動決定します。
+          ブリーフから業種・オファー特性を判断し、7〜9 セクションの最適な組合せを自動決定します。
           編集画面でいつでも変更可能です。
         </p>
       </div>

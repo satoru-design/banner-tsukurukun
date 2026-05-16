@@ -28,7 +28,11 @@ ${brief.industryTags?.length ? `- 業種タグ: ${brief.industryTags.join(', ')}
 `.trim();
 }
 
-export function buildUserPromptForSection(sectionType: LpSectionType): string {
+export function buildUserPromptForSection(
+  sectionType: LpSectionType,
+  brief: LpBrief
+): string {
+  const productNameOrPlaceholder = brief.productName || '本商品';
   const guides: Record<LpSectionType, string> = {
     hero: `
 ファーストビュー（FV）のコピーを生成してください。
@@ -59,7 +63,7 @@ export function buildUserPromptForSection(sectionType: LpSectionType): string {
 比較表セクションを生成してください。
 - headline: 30 字以内
 - rowLabels: 比較項目 5 つ（例: 制作時間 / 月額費用 / etc）
-- columns: ["商品名", "従来の方法", "他社サービス"] の 3 列、各 rows は rowLabels と同数
+- columns: ["${productNameOrPlaceholder}", "従来の方法", "他社サービス"] の 3 列、各 rows は rowLabels と同数
 `.trim(),
     voice: `
 お客様の声セクションを生成してください。

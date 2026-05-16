@@ -20,7 +20,11 @@ export default async function LpMakerDashboardPage() {
 
   const prisma = getPrisma();
   const landingPages = await prisma.landingPage.findMany({
-    where: { userId: session.user.id },
+    where: {
+      userId: session.user.id,
+      // I-1 fix: orphan/失敗 LP（sections 空配列）を除外
+      NOT: { sections: { equals: [] } },
+    },
     orderBy: { updatedAt: 'desc' },
     take: 50,
   });

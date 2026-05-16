@@ -5,11 +5,9 @@
  * 統合せず、最小実装（スキップ可能）にとどめる。
  */
 'use client';
-import type { LpBrief } from '@/lib/lp/types';
 
 interface Props {
-  brief: Partial<LpBrief>;
-  onChange: (b: Partial<LpBrief>) => void;
+  // brief / onChange は Phase 1 不使用。Phase 2 で素材選択 UI 統合時に復活。
   onBack: () => void;
   onNext: () => void;
 }
