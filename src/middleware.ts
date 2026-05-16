@@ -23,6 +23,7 @@ const PUBLIC_PATH_PREFIXES = [
   '/api/auth',  // NextAuth エンドポイント
   '/_next',
   '/legal',  // Phase A.15: 特商法 / 利用規約 / プライバシーポリシー
+  '/site',  // LP Maker Pro 2.0 D10-T14: 公開 LP（/site/[user]/[slug]）。認証なしで閲覧可。
 ];
 
 const AB_LP01_COOKIE = 'ab_lp01';
