@@ -6,6 +6,7 @@ import { SectionRenderer } from '@/components/lp-maker/SectionRenderer';
 import { SectionListPane } from '@/components/lp-maker/SectionListPane';
 import { SectionPropsEditor } from '@/components/lp-maker/SectionPropsEditor';
 import { PublishModal } from '@/components/lp-maker/PublishModal';
+import { PreviewWatermarkBanner } from '@/components/lp-maker/PreviewWatermarkBanner';
 
 interface Props {
   lpId: string;
@@ -13,9 +14,10 @@ interface Props {
   initialSections: LpSection[];
   initialStatus: string;
   initialSlug: string;
+  userPlan: 'free' | 'starter' | 'pro' | 'admin';
 }
 
-export function EditClient({ lpId, initialTitle, initialSections, initialSlug }: Props) {
+export function EditClient({ lpId, initialTitle, initialSections, initialSlug, userPlan }: Props) {
   const [sections, setSections] = useState<LpSection[]>(initialSections);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [title] = useState(initialTitle);
@@ -24,6 +26,7 @@ export function EditClient({ lpId, initialTitle, initialSections, initialSlug }:
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 grid grid-cols-1 md:grid-cols-[280px_1fr_320px]">
+      <PreviewWatermarkBanner plan={userPlan} />
       <aside className="border-r border-slate-800 bg-slate-900 p-4 overflow-y-auto max-h-screen">
         <div className="flex items-center justify-between mb-4">
           <Link href="/lp-maker" className="text-xs text-slate-400 hover:text-slate-200">
