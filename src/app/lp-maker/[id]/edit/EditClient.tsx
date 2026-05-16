@@ -7,6 +7,7 @@ import { SectionListPane } from '@/components/lp-maker/SectionListPane';
 import { SectionPropsEditor } from '@/components/lp-maker/SectionPropsEditor';
 import { PublishModal } from '@/components/lp-maker/PublishModal';
 import { PreviewWatermarkBanner } from '@/components/lp-maker/PreviewWatermarkBanner';
+import { BannerHandoffButton } from '@/components/lp-maker/BannerHandoffButton';
 
 interface Props {
   lpId: string;
@@ -17,7 +18,7 @@ interface Props {
   userPlan: 'free' | 'starter' | 'pro' | 'admin';
 }
 
-export function EditClient({ lpId, initialTitle, initialSections, initialSlug, userPlan }: Props) {
+export function EditClient({ lpId, initialTitle, initialSections, initialStatus, initialSlug, userPlan }: Props) {
   const [sections, setSections] = useState<LpSection[]>(initialSections);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [title] = useState(initialTitle);
@@ -41,6 +42,7 @@ export function EditClient({ lpId, initialTitle, initialSections, initialSlug, u
             >
               公開
             </button>
+            <BannerHandoffButton lpId={lpId} isPublished={initialStatus === 'published'} />
           </div>
         </div>
         <SectionListPane
