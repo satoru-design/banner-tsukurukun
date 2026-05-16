@@ -10,12 +10,18 @@ export const revalidate = 60;
 
 async function fetchPublishedLp(userSlug: string, lpSlug: string) {
   const prisma = getPrisma();
-  // userSlug = userId 末尾 8 文字（publish.ts と一致）
-  const user = await prisma.user.findFirst({
+  // I-1 fix: endsWith に該当する全 user を取得して、複数いる場合は anti-collision check
+  const users = await prisma.user.findMany({
     where: { id: { endsWith: userSlug } },
     select: { id: true },
   });
-  if (!user) return null;
+  if (users.length === 0) return null;
+  if (users.length > 1) {
+    // 複数該当する場合: publish 時のロジックは「衝突がなくなる最短長」を使ったので、
+    // ここでは「userSlug 長 ≤ 8 だが他に該当ユーザーがいる」ケースは "URL 解決不能" として 404
+    return null;
+  }
+  const user = users[0];
 
   const lp = await prisma.landingPage.findFirst({
     where: { userId: user.id, slug: lpSlug, status: 'published' },

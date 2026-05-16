@@ -1,6 +1,24 @@
 import { getPrisma } from '@/lib/prisma';
 import type { LpSection } from './types';
 import { generateOgImage } from './og-generator';
+import type { PrismaClient } from '@prisma/client';
+
+/**
+ * userId の末尾 N 文字で他 user と衝突しない最短のスラグを返す。
+ */
+async function findUniqueUserSlug(prisma: PrismaClient, userId: string): Promise<string> {
+  for (const len of [8, 12, 16, 24]) {
+    const candidate = userId.slice(-len);
+    const collisions = await prisma.user.count({
+      where: {
+        id: { endsWith: candidate },
+        NOT: { id: userId },
+      },
+    });
+    if (collisions === 0) return candidate;
+  }
+  return userId; // full id fallback
+}
 
 /**
  * LP を公開状態に遷移。
@@ -57,7 +75,7 @@ export async function publishLandingPage(args: {
     },
   });
 
-  const userSlug = args.userId.slice(-8);
+  const userSlug = await findUniqueUserSlug(prisma, args.userId);
   const publishedUrl = `https://lpmaker-pro.com/site/${userSlug}/${targetSlug}`;
 
   return { slug: targetSlug, ogImageUrl, publishedUrl };

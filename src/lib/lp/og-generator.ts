@@ -33,11 +33,18 @@ function buildOgSvg(headline: string, brand: string): string {
     '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;',
   }[c]!));
 
-  const lines: string[] = [];
+  // I-5 fix: grapheme-aware split (surrogate pair / 日本語混在対応)
   const text = esc(headline);
-  const max = 18;
-  for (let i = 0; i < text.length; i += max) {
-    lines.push(text.slice(i, i + max));
+  const chars = Array.from(text);
+  const lines: string[] = [];
+  const max = 14;  // CJK は幅広いので 14 に縮小（旧 18 は Latin 基準）
+  const maxLines = 4;  // 行数上限（630px キャンバス内に収める）
+  for (let i = 0; i < chars.length && lines.length < maxLines; i += max) {
+    lines.push(chars.slice(i, i + max).join(''));
+  }
+  if (lines.length === maxLines && chars.length > maxLines * max) {
+    // 最終行に省略記号
+    lines[maxLines - 1] = lines[maxLines - 1].slice(0, -1) + '…';
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">

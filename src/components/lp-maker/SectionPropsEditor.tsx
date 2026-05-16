@@ -11,6 +11,7 @@ interface Props {
 
 export function SectionPropsEditor({ section, onChange, lpId }: Props) {
   const [showRegenerate, setShowRegenerate] = useState(false);
+  const [renderKey, setRenderKey] = useState(0);
 
   function updateField(path: string[], value: unknown) {
     const next = structuredClone(section);
@@ -37,6 +38,7 @@ export function SectionPropsEditor({ section, onChange, lpId }: Props) {
         </button>
       </div>
       <FieldsRenderer
+        key={renderKey}
         node={section.props}
         path={[]}
         onUpdate={updateField}
@@ -45,7 +47,10 @@ export function SectionPropsEditor({ section, onChange, lpId }: Props) {
         <RegenerateModal
           lpId={lpId}
           section={section}
-          onAdopt={(newProps) => onChange({ ...section, props: newProps })}
+          onAdopt={(newProps) => {
+            onChange({ ...section, props: newProps });
+            setRenderKey((k) => k + 1);
+          }}
           onClose={() => setShowRegenerate(false)}
         />
       )}
@@ -65,7 +70,7 @@ function FieldsRenderer({
   if (typeof node === 'string') {
     return (
       <textarea
-        defaultValue={node}
+        value={node}
         onChange={(e) => onUpdate(path, e.target.value)}
         rows={Math.min(8, Math.max(1, Math.ceil(node.length / 40)))}
         className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-slate-100"
