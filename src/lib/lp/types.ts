@@ -23,6 +23,74 @@ export const LP_SECTION_TYPES = [
 
 export type LpSectionType = typeof LP_SECTION_TYPES[number];
 
+/** 業種カテゴリ（ユーザー入力 select） */
+export const LP_INDUSTRY_CATEGORIES = [
+  'cosmetics',
+  'supplement',
+  'food',
+  'education',
+  'saas',
+  'real_estate',
+  'finance',
+  'health_medical',
+  'apparel',
+  'other',
+] as const;
+export type LpIndustryCategory = typeof LP_INDUSTRY_CATEGORIES[number];
+
+export const LP_INDUSTRY_LABELS: Record<LpIndustryCategory, string> = {
+  cosmetics: 'コスメ',
+  supplement: 'サプリ',
+  food: '食品',
+  education: '教育',
+  saas: 'SaaS',
+  real_estate: '不動産',
+  finance: '金融',
+  health_medical: '健康/医療',
+  apparel: 'アパレル',
+  other: 'その他',
+};
+
+/** CTA タイプ */
+export const LP_CTA_TYPES = [
+  'buy',
+  'apply',
+  'free_trial',
+  'request_material',
+  'inquiry',
+  'see_details',
+] as const;
+export type LpCtaType = typeof LP_CTA_TYPES[number];
+
+export const LP_CTA_LABELS: Record<LpCtaType, string> = {
+  buy: '購入する',
+  apply: '申し込む',
+  free_trial: '無料体験する',
+  request_material: '資料請求する',
+  inquiry: '問い合わせる',
+  see_details: '詳細を見る',
+};
+
+/** ブランドトーン */
+export const LP_TONES = [
+  'trustworthy',
+  'friendly',
+  'luxury',
+  'casual',
+  'professional',
+  'urgent',
+] as const;
+export type LpTone = typeof LP_TONES[number];
+
+export const LP_TONE_LABELS: Record<LpTone, string> = {
+  trustworthy: '信頼感',
+  friendly: '親しみやすい',
+  luxury: '高級感',
+  casual: 'カジュアル',
+  professional: 'プロフェッショナル',
+  urgent: '緊急感',
+};
+
 /** LP の Brief（ユーザー入力） */
 export interface LpBrief {
   /** 商品名 / サービス名 */
@@ -31,8 +99,20 @@ export interface LpBrief {
   lpUrl?: string;
   /** ターゲット記述 */
   target: string;
-  /** オファー（特典 / 価格 / 期間限定など） */
+  /** オファー特典（旧 offer の用途を限定。例: 初回 70% OFF、14日返金保証） */
   offer: string;
+  /** 価格・料金感（例: 月額 980 円、買い切り 1 万円） */
+  price?: string;
+  /** 業種カテゴリ（ユーザー入力 select） */
+  industryCategory?: LpIndustryCategory;
+  /** 強み・USP */
+  usp?: string;
+  /** CTA タイプ */
+  ctaType?: LpCtaType;
+  /** 主な機能・特徴（カンマ区切り or 改行区切り） */
+  features?: string;
+  /** ブランドトーン */
+  tone?: LpTone;
   /** 業種抽象タグ（winning-banner 流用 / AI 補完） */
   industryTags?: string[];
   /** ユーザー添付素材 ID（Asset テーブル ID） */

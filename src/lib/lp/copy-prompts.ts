@@ -5,8 +5,15 @@
  * user prompt:   セクション種別ごとの構造指示
  */
 import type { LpBrief, LpSectionType } from './types';
+import { LP_INDUSTRY_LABELS, LP_CTA_LABELS, LP_TONE_LABELS } from './types';
 
 export function buildSystemPrompt(brief: LpBrief): string {
+  const industryLabel = brief.industryCategory
+    ? LP_INDUSTRY_LABELS[brief.industryCategory]
+    : '未指定';
+  const ctaLabel = brief.ctaType ? LP_CTA_LABELS[brief.ctaType] : '購入する';
+  const toneLabel = brief.tone ? LP_TONE_LABELS[brief.tone] : '信頼感';
+
   return `
 あなたはコンバージョン特化型の LP コピーライターです。
 以下のブリーフをもとに、日本の景表法・薬機法に違反しない範囲で、
@@ -15,14 +22,20 @@ export function buildSystemPrompt(brief: LpBrief): string {
 # 厳守ルール
 - 「絶対」「100%」「必ず治る」等の断定表現は禁止。
 - 数字訴求には必ず「※個人の感想です」「※当社調べ」等の根拠注記を併記。
-- 薬機法カテゴリ（化粧品/サプリ/健康食品）では「治癒・改善・効果」表現を禁止。
+- 業種「${industryLabel}」が薬機法カテゴリ（化粧品/サプリ/食品/健康/医療）の場合、「治癒・改善・効果」表現を厳禁。
 - ターゲットの言葉を使い、過度に専門用語を使わない。
 - 一文は短く、読みやすく。
+- ブランドトーンは「${toneLabel}」を全体に貫く。
+- CTA ボタン文言は「${ctaLabel}」を基準に文脈に応じて調整（短い動詞句）。
 
 # ブリーフ
 - 商品名: ${brief.productName}
+- 業種: ${industryLabel}
+${brief.usp ? `- 強み・USP: ${brief.usp}` : ''}
 - ターゲット: ${brief.target}
+${brief.price ? `- 価格・料金: ${brief.price}` : ''}
 - オファー: ${brief.offer}
+${brief.features ? `- 機能・特徴: ${brief.features}` : ''}
 ${brief.lpUrl ? `- 既存 LP URL（参考）: ${brief.lpUrl}` : ''}
 ${brief.industryTags?.length ? `- 業種タグ: ${brief.industryTags.join(', ')}` : ''}
 `.trim();

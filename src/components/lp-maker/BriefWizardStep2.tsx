@@ -1,29 +1,65 @@
 /**
  * LP Maker Pro 2.0 — Brief ウィザード STEP2（Client Component）。
  *
- * 素材選択 UI。Phase 1 では autobanner.jp /ironclad の Asset 選択画面を
- * 統合せず、最小実装（スキップ可能）にとどめる。
+ * ターゲット / 価格 / オファー特典 を入力する。
+ * 必須項目: target, price, offer。
  */
 'use client';
+import type { LpBrief } from '@/lib/lp/types';
 
 interface Props {
-  // brief / onChange は Phase 1 不使用。Phase 2 で素材選択 UI 統合時に復活。
+  brief: Partial<LpBrief>;
+  onChange: (b: Partial<LpBrief>) => void;
   onBack: () => void;
   onNext: () => void;
 }
 
-export function BriefWizardStep2({ onBack, onNext }: Props) {
+export function BriefWizardStep2({ brief, onChange, onBack, onNext }: Props) {
+  const canNext = !!(brief.target && brief.price && brief.offer);
+
   return (
     <section className="bg-slate-900 rounded-lg p-6 space-y-4">
-      <h2 className="text-xl font-bold mb-2">STEP 2: 素材（任意）</h2>
-      <p className="text-sm text-slate-400">
-        商品画像 / ロゴ / 認証バッジは autobanner.jp の素材ライブラリと共有します。
-        Phase 1 では素材アップロードはスキップ可能です（KV 画像は AI 自動生成）。
-      </p>
-      <p className="text-sm text-emerald-400">
-        ※ Phase 1 では素材選択 UI は最小実装。autobanner.jp /ironclad の Asset 選択画面を
-        Phase 2 で統合予定。
-      </p>
+      <h2 className="text-xl font-bold mb-2">STEP 2: ターゲットとオファー</h2>
+
+      <label className="block">
+        <span className="text-sm text-slate-300">
+          ターゲット <span className="text-red-400">*</span>
+        </span>
+        <textarea
+          value={brief.target ?? ''}
+          onChange={(e) => onChange({ ...brief, target: e.target.value })}
+          placeholder="例: 30〜40代の働く女性、ダイエットに何度も挫折経験あり、即効性と続けやすさを両立した方法を探している"
+          rows={3}
+          className="mt-1 w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"
+        />
+      </label>
+
+      <label className="block">
+        <span className="text-sm text-slate-300">
+          価格・料金 <span className="text-red-400">*</span>
+        </span>
+        <input
+          type="text"
+          value={brief.price ?? ''}
+          onChange={(e) => onChange({ ...brief, price: e.target.value })}
+          placeholder="例: 月額 3,980 円 / 買い切り 12,800 円"
+          className="mt-1 w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"
+        />
+      </label>
+
+      <label className="block">
+        <span className="text-sm text-slate-300">
+          オファー特典 <span className="text-red-400">*</span>
+        </span>
+        <textarea
+          value={brief.offer ?? ''}
+          onChange={(e) => onChange({ ...brief, offer: e.target.value })}
+          placeholder="例: 初回 70% OFF、14日間返金保証、送料無料"
+          rows={2}
+          className="mt-1 w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"
+        />
+      </label>
+
       <div className="flex justify-between pt-4">
         <button
           onClick={onBack}
@@ -33,7 +69,8 @@ export function BriefWizardStep2({ onBack, onNext }: Props) {
         </button>
         <button
           onClick={onNext}
-          className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded"
+          disabled={!canNext}
+          className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded disabled:opacity-30 disabled:cursor-not-allowed"
         >
           次へ →
         </button>

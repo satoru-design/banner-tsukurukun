@@ -1,11 +1,12 @@
 /**
  * LP Maker Pro 2.0 — Brief ウィザード STEP1（Client Component）。
  *
- * 商品名 / 既存 LP URL / ターゲット / オファーを入力する。
- * 必須項目: productName, target, offer。
+ * 商品名 / 業種カテゴリ / USP（強み）を入力する。
+ * 必須項目: productName, industryCategory, usp。
  */
 'use client';
 import type { LpBrief } from '@/lib/lp/types';
+import { LP_INDUSTRY_CATEGORIES, LP_INDUSTRY_LABELS } from '@/lib/lp/types';
 
 interface Props {
   brief: Partial<LpBrief>;
@@ -14,7 +15,7 @@ interface Props {
 }
 
 export function BriefWizardStep1({ brief, onChange, onNext }: Props) {
-  const canNext = !!(brief.productName && brief.target && brief.offer);
+  const canNext = !!(brief.productName && brief.industryCategory && brief.usp);
 
   return (
     <section className="bg-slate-900 rounded-lg p-6 space-y-4">
@@ -47,28 +48,43 @@ export function BriefWizardStep1({ brief, onChange, onNext }: Props) {
 
       <label className="block">
         <span className="text-sm text-slate-300">
-          ターゲット <span className="text-red-400">*</span>
+          業種カテゴリ <span className="text-red-400">*</span>
         </span>
-        <textarea
-          value={brief.target ?? ''}
-          onChange={(e) => onChange({ ...brief, target: e.target.value })}
-          placeholder="例: 30〜40代の働く女性、ダイエットに何度も挫折経験あり、即効性と続けやすさを両立した方法を探している"
-          rows={3}
+        <select
+          value={brief.industryCategory ?? ''}
+          onChange={(e) =>
+            onChange({
+              ...brief,
+              industryCategory:
+                e.target.value === ''
+                  ? undefined
+                  : (e.target.value as typeof LP_INDUSTRY_CATEGORIES[number]),
+            })
+          }
           className="mt-1 w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"
-        />
+        >
+          <option value="">選択してください</option>
+          {LP_INDUSTRY_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {LP_INDUSTRY_LABELS[c]}
+            </option>
+          ))}
+        </select>
+        <span className="text-xs text-slate-500">薬機/景表ガード + セクション選定で利用されます</span>
       </label>
 
       <label className="block">
         <span className="text-sm text-slate-300">
-          オファー <span className="text-red-400">*</span>
+          強み・USP <span className="text-red-400">*</span>
         </span>
         <textarea
-          value={brief.offer ?? ''}
-          onChange={(e) => onChange({ ...brief, offer: e.target.value })}
-          placeholder="例: 初回限定オファー + 14日間返金保証 + 送料無料"
-          rows={2}
+          value={brief.usp ?? ''}
+          onChange={(e) => onChange({ ...brief, usp: e.target.value })}
+          placeholder="例: 業界初の独自処方で従来の3倍速で実感、累計5万本販売、医師監修"
+          rows={3}
           className="mt-1 w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"
         />
+        <span className="text-xs text-slate-500">他社との差別化ポイント</span>
       </label>
 
       <div className="flex justify-end pt-4">

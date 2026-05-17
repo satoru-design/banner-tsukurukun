@@ -61,6 +61,8 @@ export default function NewLpPage() {
         )}
         {step === 2 && (
           <BriefWizardStep2
+            brief={brief}
+            onChange={setBrief}
             onBack={() => setStep(1)}
             onNext={() => setStep(3)}
           />
@@ -68,6 +70,7 @@ export default function NewLpPage() {
         {step === 3 && (
           <BriefWizardStep3
             brief={brief}
+            onChange={setBrief}
             submitting={submitting}
             error={error}
             onBack={() => setStep(2)}
