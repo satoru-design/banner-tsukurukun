@@ -1,8 +1,8 @@
 /**
  * LP Maker Pro 2.0 — Brief ウィザード STEP2（Client Component）。
  *
- * ターゲット / 価格 / オファー特典 を入力する。
- * 必須項目: target, price, offer。
+ * ターゲット / 顧客の悩み を入力する。
+ * 必須項目: target, customerPain。
  */
 'use client';
 import type { LpBrief } from '@/lib/lp/types';
@@ -15,11 +15,11 @@ interface Props {
 }
 
 export function BriefWizardStep2({ brief, onChange, onBack, onNext }: Props) {
-  const canNext = !!(brief.target && brief.price && brief.offer);
+  const canNext = !!(brief.target && brief.customerPain);
 
   return (
     <section className="bg-slate-900 rounded-lg p-6 space-y-4">
-      <h2 className="text-xl font-bold mb-2">STEP 2: ターゲットとオファー</h2>
+      <h2 className="text-xl font-bold mb-2">STEP 2: ターゲットとペイン</h2>
 
       <label className="block">
         <span className="text-sm text-slate-300">
@@ -36,28 +36,16 @@ export function BriefWizardStep2({ brief, onChange, onBack, onNext }: Props) {
 
       <label className="block">
         <span className="text-sm text-slate-300">
-          価格・料金 <span className="text-red-400">*</span>
-        </span>
-        <input
-          type="text"
-          value={brief.price ?? ''}
-          onChange={(e) => onChange({ ...brief, price: e.target.value })}
-          placeholder="例: 月額 3,980 円 / 買い切り 12,800 円"
-          className="mt-1 w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"
-        />
-      </label>
-
-      <label className="block">
-        <span className="text-sm text-slate-300">
-          オファー特典 <span className="text-red-400">*</span>
+          顧客の悩み・購入障壁 <span className="text-red-400">*</span>
         </span>
         <textarea
-          value={brief.offer ?? ''}
-          onChange={(e) => onChange({ ...brief, offer: e.target.value })}
-          placeholder="例: 初回 70% OFF、14日間返金保証、送料無料"
-          rows={2}
+          value={brief.customerPain ?? ''}
+          onChange={(e) => onChange({ ...brief, customerPain: e.target.value })}
+          placeholder="例: 過去のダイエットで体調を崩した経験あり / 高価な商品で失敗したくない / 続けられるか不安 / 効果を実感できるか半信半疑"
+          rows={3}
           className="mt-1 w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"
         />
+        <span className="text-xs text-slate-500">課題セクション・FAQ の精度が劇的に上がります</span>
       </label>
 
       <div className="flex justify-between pt-4">

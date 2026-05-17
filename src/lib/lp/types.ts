@@ -109,7 +109,17 @@ export interface LpBrief {
   usp?: string;
   /** CTA タイプ */
   ctaType?: LpCtaType;
-  /** 主な機能・特徴（カンマ区切り or 改行区切り） */
+  /** 顧客の悩み・購入障壁（problem セクション + reverse FAQ 精度向上） */
+  customerPain?: string;
+  /** リスクリバーサル（返金保証・解約条件・トライアル） */
+  riskReversal?: string;
+  /** 競合・参考 LP URL（改行区切り、最大 5 本） */
+  referenceLpUrls?: string;
+  /** 実績数値・社会的証明（AI 捏造防止のためユーザー入力推奨） */
+  proofMetrics?: string;
+  /** 権威付け（受賞・メディア掲載・監修者） */
+  authority?: string;
+  /** @deprecated usp に統合済。Phase 1 旧データ参照のみ */
   features?: string;
   /** ブランドトーン */
   tone?: LpTone;

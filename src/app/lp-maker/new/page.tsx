@@ -10,11 +10,12 @@ import { useRouter } from 'next/navigation';
 import { BriefWizardStep1 } from '@/components/lp-maker/BriefWizardStep1';
 import { BriefWizardStep2 } from '@/components/lp-maker/BriefWizardStep2';
 import { BriefWizardStep3 } from '@/components/lp-maker/BriefWizardStep3';
+import { BriefWizardStep4 } from '@/components/lp-maker/BriefWizardStep4';
 import type { LpBrief } from '@/lib/lp/types';
 
 export default function NewLpPage() {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [brief, setBrief] = useState<Partial<LpBrief>>({
     productName: '',
     lpUrl: '',
@@ -50,7 +51,7 @@ export default function NewLpPage() {
     <main className="min-h-screen bg-slate-950 text-slate-100 p-8">
       <div className="max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold mb-2">新規 LP を作る</h1>
-        <p className="text-slate-400 text-sm mb-6">STEP {step} / 3</p>
+        <p className="text-slate-400 text-sm mb-6">STEP {step} / 4</p>
 
         {step === 1 && (
           <BriefWizardStep1
@@ -71,9 +72,17 @@ export default function NewLpPage() {
           <BriefWizardStep3
             brief={brief}
             onChange={setBrief}
+            onBack={() => setStep(2)}
+            onNext={() => setStep(4)}
+          />
+        )}
+        {step === 4 && (
+          <BriefWizardStep4
+            brief={brief}
+            onChange={setBrief}
             submitting={submitting}
             error={error}
-            onBack={() => setStep(2)}
+            onBack={() => setStep(3)}
             onSubmit={handleSubmit}
           />
         )}

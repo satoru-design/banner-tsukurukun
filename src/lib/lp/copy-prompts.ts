@@ -33,9 +33,14 @@ export function buildSystemPrompt(brief: LpBrief): string {
 - 業種: ${industryLabel}
 ${brief.usp ? `- 強み・USP: ${brief.usp}` : ''}
 - ターゲット: ${brief.target}
+${brief.customerPain ? `- 顧客の悩み・購入障壁: ${brief.customerPain}` : ''}
 ${brief.price ? `- 価格・料金: ${brief.price}` : ''}
 - オファー: ${brief.offer}
-${brief.features ? `- 機能・特徴: ${brief.features}` : ''}
+${brief.riskReversal ? `- リスクリバーサル（保証）: ${brief.riskReversal}` : ''}
+${brief.referenceLpUrls ? `- 競合・参考 LP（URL）: ${brief.referenceLpUrls}` : ''}
+${brief.proofMetrics ? `- 実績数値・社会的証明: ${brief.proofMetrics}` : ''}
+${brief.authority ? `- 権威付け: ${brief.authority}` : ''}
+${brief.features ? `- 機能・特徴（旧フィールド）: ${brief.features}` : ''}
 ${brief.lpUrl ? `- 既存 LP URL（参考）: ${brief.lpUrl}` : ''}
 ${brief.industryTags?.length ? `- 業種タグ: ${brief.industryTags.join(', ')}` : ''}
 `.trim();
@@ -71,18 +76,22 @@ export function buildUserPromptForSection(
     numeric_proof: `
 数字訴求セクションを生成してください。
 - items: 3 つの数字（number: "97%" 等、label: 30 字以内、note: ※注記 任意）
+- ブリーフの「実績数値・社会的証明」項目に数値があれば、その範囲内のみ使用。AI による数値捏造は厳禁。
+- ブリーフに実績がない場合、抽象的な数字（"3秒で実感" 等）か業界一般値（"※当社調べ" 注記必須）のみ。
 `.trim(),
     comparison: `
 比較表セクションを生成してください。
 - headline: 30 字以内
 - rowLabels: 比較項目 5 つ（例: 制作時間 / 月額費用 / etc）
 - columns: ["${productNameOrPlaceholder}", "従来の方法", "他社サービス"] の 3 列、各 rows は rowLabels と同数
+- ブリーフの「競合・参考 LP URL」に競合がある場合、それを意識した差別化軸を選ぶ（ただし URL を実際に閲覧する機能はないので、業種・USP から推測）。
 `.trim(),
     voice: `
 お客様の声セクションを生成してください。
 - headline: 30 字以内
 - items: 3 つの voice（quote 80 字以内、author 30 字以内、proofBadge: "代理店勤務" 等 任意）
 - ※「個人の感想です」を quote 末尾に付ける
+- ブリーフの「実績数値・社会的証明」に具体的なお客様の声があれば、それを基に。なければ業界一般的な悩み解決ストーリーを抽象的に生成。
 `.trim(),
     pricing: `
 料金セクションを生成してください。
@@ -105,6 +114,7 @@ FAQ セクションを生成してください。
 - headline: 50 字以内、強い行動喚起
 - buttonText: 12 字以内
 - note: 任意（30 字以内、保証・特典等）
+- ブリーフの「リスクリバーサル」項目があれば、note に保証文言を端的に含める（例:「14日間返金保証付き」）。
 `.trim(),
   };
   return guides[sectionType];

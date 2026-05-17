@@ -80,11 +80,11 @@ export function BriefWizardStep1({ brief, onChange, onNext }: Props) {
         <textarea
           value={brief.usp ?? ''}
           onChange={(e) => onChange({ ...brief, usp: e.target.value })}
-          placeholder="例: 業界初の独自処方で従来の3倍速で実感、累計5万本販売、医師監修"
+          placeholder="例: 業界初の独自処方で従来の3倍速で実感&#10;1日5分・専門知識不要・24時間サポート&#10;医師監修&#10;※主な機能・特徴もここに含めてください"
           rows={3}
           className="mt-1 w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100"
         />
-        <span className="text-xs text-slate-500">他社との差別化ポイント</span>
+        <span className="text-xs text-slate-500">他社との差別化ポイント + 主要機能（複数行 OK）</span>
       </label>
 
       <div className="flex justify-end pt-4">
