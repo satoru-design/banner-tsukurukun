@@ -7,12 +7,23 @@ export function InlineCtaPreview({ props }: { props: CtaProps }) {
         <p className="text-lg sm:text-xl font-bold text-slate-100 mb-5">
           {props.headline}
         </p>
-        <button
-          type="button"
-          className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-3 rounded-lg"
-        >
-          {props.buttonText}
-        </button>
+        {props.linkUrl ? (
+          <a
+            href={props.linkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-3 rounded-lg"
+          >
+            {props.buttonText}
+          </a>
+        ) : (
+          <button
+            type="button"
+            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-3 rounded-lg"
+          >
+            {props.buttonText}
+          </button>
+        )}
         {props.note && (
           <p className="mt-3 text-xs text-slate-400">{props.note}</p>
         )}

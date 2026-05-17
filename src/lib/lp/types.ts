@@ -158,6 +158,8 @@ export interface HeroProps {
   subheadline: string;
   ctaText: string;
   imageUrl?: string;
+  /** CTA ボタンのリンク先 URL（編集画面でユーザーが入力。空なら button、URL ありなら <a>） */
+  linkUrl?: string;
 }
 
 export interface ProblemProps {
@@ -199,7 +201,7 @@ export interface VoiceProps {
 
 export interface PricingProps {
   headline: string;
-  plans: { name: string; price: string; features: string[]; ctaText: string }[];
+  plans: { name: string; price: string; features: string[]; ctaText: string; linkUrl?: string }[];
 }
 
 export interface FaqProps {
@@ -211,4 +213,6 @@ export interface CtaProps {
   headline: string;
   buttonText: string;
   note?: string;
+  /** CTA ボタンのリンク先 URL（編集画面でユーザーが入力。空なら button、URL ありなら <a>） */
+  linkUrl?: string;
 }

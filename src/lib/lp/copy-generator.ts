@@ -21,6 +21,7 @@ function schemaForSection(sectionType: LpSectionType) {
           headline: { type: Type.STRING },
           subheadline: { type: Type.STRING },
           ctaText: { type: Type.STRING },
+          linkUrl: { type: Type.STRING },
         },
       };
     case 'problem':
@@ -158,6 +159,7 @@ function schemaForSection(sectionType: LpSectionType) {
                 price: { type: Type.STRING },
                 features: { type: Type.ARRAY, minItems: '4', maxItems: '4', items: { type: Type.STRING } },
                 ctaText: { type: Type.STRING },
+                linkUrl: { type: Type.STRING },
               },
             },
           },
@@ -193,6 +195,7 @@ function schemaForSection(sectionType: LpSectionType) {
           headline: { type: Type.STRING },
           buttonText: { type: Type.STRING },
           note: { type: Type.STRING },
+          linkUrl: { type: Type.STRING },
         },
       };
   }

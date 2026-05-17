@@ -16,12 +16,23 @@ export function HeroPreview({ props }: { props: HeroProps }) {
             {props.subheadline}
           </p>
           <div className="mt-8">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-8 py-4 rounded-lg shadow-lg shadow-emerald-500/20"
-            >
-              {props.ctaText}
-            </button>
+            {props.linkUrl ? (
+              <a
+                href={props.linkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-8 py-4 rounded-lg shadow-lg shadow-emerald-500/20"
+              >
+                {props.ctaText}
+              </a>
+            ) : (
+              <button
+                type="button"
+                className="inline-flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-8 py-4 rounded-lg shadow-lg shadow-emerald-500/20"
+              >
+                {props.ctaText}
+              </button>
+            )}
           </div>
         </div>
         {props.imageUrl && (

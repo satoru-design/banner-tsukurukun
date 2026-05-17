@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { LpSection } from '@/lib/lp/types';
 import { RegenerateModal } from './RegenerateModal';
 
@@ -12,6 +12,26 @@ interface Props {
 export function SectionPropsEditor({ section, onChange, lpId }: Props) {
   const [showRegenerate, setShowRegenerate] = useState(false);
   const [renderKey, setRenderKey] = useState(0);
+
+  // 対象セクションで linkUrl が未定義なら空文字で初期化（既存 LP でも編集 textarea を出すため）
+  useEffect(() => {
+    if (['hero', 'final_cta', 'inline_cta'].includes(section.type)) {
+      const props = section.props as Record<string, unknown>;
+      if (props.linkUrl === undefined) {
+        onChange({ ...section, props: { ...props, linkUrl: '' } });
+      }
+    }
+    if (section.type === 'pricing') {
+      const props = section.props as { plans?: Array<Record<string, unknown>> };
+      if (props.plans && props.plans.some((p) => p.linkUrl === undefined)) {
+        const updatedPlans = props.plans.map((p) =>
+          p.linkUrl === undefined ? { ...p, linkUrl: '' } : p
+        );
+        onChange({ ...section, props: { ...props, plans: updatedPlans } });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section.type]);
 
   function updateField(path: string[], value: unknown) {
     const next = structuredClone(section);

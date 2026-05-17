@@ -32,12 +32,23 @@ export function PricingPreview({ props }: { props: PricingProps }) {
                   </li>
                 ))}
               </ul>
-              <button
-                type="button"
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2 rounded"
-              >
-                {plan.ctaText}
-              </button>
+              {plan.linkUrl ? (
+                <a
+                  href={plan.linkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-center bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2 rounded"
+                >
+                  {plan.ctaText}
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2 rounded"
+                >
+                  {plan.ctaText}
+                </button>
+              )}
             </div>
           ))}
         </div>
