@@ -92,7 +92,7 @@ const PLAN_MAP: Record<Plan, PlanInfo | null> = {
     oneStepDown: 'free',
     losesFeatures: [
       '透かしなし生成（Free は PREVIEW 透かし入り）',
-      '月 30 枚 → 月 3 枚（生涯）',
+      '月 30 枚 → 月 10 枚（生涯）',
       'お気に入り 5 枚 → 不可',
     ],
     savings: '月額 ¥3,980 節約（無料化）',

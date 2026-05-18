@@ -26,7 +26,7 @@ export default function Lp02Page() {
         <LpHero
           h1="テンプレを作る時間、もう要りません"
           h2="ブリーフ → 完成まで 90 秒。1 ブリーフで 17 サイズ一括。あなたは戦略に集中できます。"
-          ctaPrimaryLabel="今すぐ無料で試す（3 セッション無料）"
+          ctaPrimaryLabel="今すぐ無料で試す（10 本まで無料）"
           ctaSecondaryLabel="料金プランを見る"
           ctaPrimaryHref="/signin"
           ctaSecondaryHref="#pricing"

@@ -15,6 +15,11 @@ export const runtime = 'nodejs';
 interface RequestBody {
   basePriceId: string;
   promo?: string; // 'FRIENDS' 等
+  /**
+   * Phase A.19: 'trial_7d' を渡すと Pro の 7 日無料トライアルになる。
+   * 他値や Pro 以外の plan では無視。
+   */
+  offer?: 'trial_7d';
 }
 
 export const POST = async (req: Request): Promise<Response> => {
@@ -40,13 +45,21 @@ export const POST = async (req: Request): Promise<Response> => {
     const promotionCodeId =
       body.promo === 'FRIENDS' ? process.env.STRIPE_PROMO_FRIENDS : undefined;
 
+    // Phase A.19: trial_7d は Pro 系 priceId のみで有効
+    const proBaseId = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE;
+    const trialPeriodDays =
+      body.offer === 'trial_7d' && body.basePriceId === proBaseId
+        ? 7
+        : undefined;
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
     const url = await createCheckoutSession({
       userId: user.userId,
       basePriceId: body.basePriceId,
       promotionCodeId,
-      successUrl: `${appUrl}/account?stripe=success`,
+      trialPeriodDays,
+      successUrl: `${appUrl}/account?stripe=success${trialPeriodDays ? '&trial=1' : ''}`,
       cancelUrl: `${appUrl}/account?stripe=canceled`,
     });
     return NextResponse.json({ url });

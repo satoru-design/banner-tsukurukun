@@ -34,7 +34,7 @@ export default function Lp01LegacyPage() {
         <LpHero
           h1="1 ブリーフで、17 サイズ一括生成"
           h2="勝ちバナーを学習する AI が、EC サイトのバナー制作時間を 1/10 に。テンプレ作成・サイズ違い発注・属人ナレッジから解放されます。"
-          ctaPrimaryLabel="今すぐ無料で試す（3 本まで無料）"
+          ctaPrimaryLabel="今すぐ無料で試す（10 本まで無料）"
           ctaSecondaryLabel="料金プランを見る"
           ctaPrimaryHref="/signin?from=lp01b_hero"
           ctaSecondaryHref="#pricing"

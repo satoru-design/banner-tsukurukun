@@ -9,6 +9,12 @@ interface CreateCheckoutInput {
   promotionCodeId?: string;
   successUrl: string;
   cancelUrl: string;
+  /**
+   * Phase A.19: Pro 7 日無料トライアル用。
+   * Subscription 開始から trialPeriodDays 日間は課金されない。
+   * trial 終了時に自動で初回課金が走る (cancel しなければ)。
+   */
+  trialPeriodDays?: number;
 }
 
 /**
@@ -80,10 +86,17 @@ export const createCheckoutSession = async (input: CreateCheckoutInput): Promise
     customer_update: { address: 'auto', name: 'auto' },
     subscription_data: {
       metadata: { userId: input.userId, plan },
+      ...(input.trialPeriodDays && input.trialPeriodDays > 0
+        ? { trial_period_days: input.trialPeriodDays }
+        : {}),
     },
   };
   if (input.promotionCodeId) {
     params.discounts = [{ promotion_code: input.promotionCodeId }];
+  }
+  // Phase A.19: trial 中は支払い方法収集を必須に（trial 終了後の課金切れ回避）
+  if (input.trialPeriodDays && input.trialPeriodDays > 0) {
+    params.payment_method_collection = 'always';
   }
 
   const session = await stripe.checkout.sessions.create(params);

@@ -12,10 +12,10 @@
 
 /**
  * Phase A.14: 月次生成上限定数
- * - Free: 3 回（4 回目以降は PREVIEW 透かしモード）
+ * - Free: 10 回（11 回目以降は PREVIEW 透かしモード）  ※ A.19 で 3→10 に拡張（リテンション改善）
  * - Pro: 100 回（101 回目以降は Stripe meterEvents で ¥80/回課金）
  */
-export const USAGE_LIMIT_FREE = 3;
+export const USAGE_LIMIT_FREE = 10;
 export const USAGE_LIMIT_PRO = 100;
 
 /**
@@ -28,14 +28,17 @@ export const USAGE_HARDCAP_BUSINESS = 3000;
 
 /**
  * Phase A.15 リスク監査対応: ハードキャップ（コスト暴走防止）
- * - Free: 3 回までは PREVIEW 透かし生成可能、それ以上はブロック（スパム防御）
+ * - Free: 15 回までは PREVIEW 透かし生成可能、それ以上はブロック（スパム防御）  ※ A.19 で 3→15
  * - Pro:  500 回でハードブロック（チャージバック爆弾回避、超過は Plan C 案内）
  *
  * これらはユーザー上限超過時の app-level での絶対 stop 線。
  * USAGE_LIMIT_FREE / USAGE_LIMIT_PRO は「課金/透かしの境界」、
  * USAGE_HARDCAP_* は「絶対に生成させない閾値」という役割分担。
+ *
+ * コスト試算 (gpt-image-2 ≒ ¥30/枚):
+ *   月間アクティブ 100 ユーザー × Free 15 枚 = 1,500 枚 × ¥30 = ¥45,000/月（許容圏内）
  */
-export const USAGE_HARDCAP_FREE = 3; // Free は preview 含めて 3 回までで打ち止め
+export const USAGE_HARDCAP_FREE = 15; // Free は preview 含めて 15 回までで打ち止め
 export const USAGE_HARDCAP_PRO = 500; // Pro は 500 回で打ち止め（500 × ¥80 = ¥40,000 の追加課金が上限）
 
 export const PLAN_USAGE_LIMITS: Record<string, number> = {

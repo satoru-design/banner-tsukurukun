@@ -24,7 +24,7 @@ export const FinalCta = ({
       />
       <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-20 text-center">
         <h2 className="text-3xl sm:text-5xl font-black text-slate-50 leading-tight">
-          まずは <span className="text-emerald-400">3 本まで無料</span> で試してみる
+          まずは <span className="text-emerald-400">10 本まで無料</span> で試してみる
         </h2>
         <p className="mt-5 text-lg text-slate-300">
           クレカ不要 / Google アカウントで 1 クリック開始 / 効果を試してから有料化
