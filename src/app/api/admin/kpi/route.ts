@@ -90,16 +90,33 @@ export const GET = async (req: Request): Promise<Response> => {
       0,
     );
 
-    // generation の plan 別集計（user join 必要）
+    // generation の plan 別集計（user join 必要）+ image 数も同時取得
+    // Phase A.19: admin 除外で「真の外部ユーザー利用」を算出する
     const generationsByPlanRaw = await prisma.generation.findMany({
       where: { createdAt: { gte: start, lt: end } },
-      select: { user: { select: { plan: true } } },
+      select: {
+        user: { select: { plan: true } },
+        images: { select: { id: true } },
+      },
     });
     const generationsByPlan: Record<string, number> = {};
+    const imagesByPlan: Record<string, number> = {};
     for (const g of generationsByPlanRaw) {
       const p = g.user?.plan ?? 'unknown';
       generationsByPlan[p] = (generationsByPlan[p] ?? 0) + 1;
+      imagesByPlan[p] = (imagesByPlan[p] ?? 0) + g.images.length;
     }
+    // Admin 除外集計（business は外部企業契約として外部扱い、admin のみ社内利用）
+    const externalSessions = Object.entries(generationsByPlan)
+      .filter(([plan]) => plan !== 'admin')
+      .reduce((sum, [, count]) => sum + count, 0);
+    const externalImages = Object.entries(imagesByPlan)
+      .filter(([plan]) => plan !== 'admin')
+      .reduce((sum, [, count]) => sum + count, 0);
+    const totalImagesYesterday = Object.values(imagesByPlan).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
 
     return NextResponse.json({
       date: dateLabel,
@@ -110,8 +127,14 @@ export const GET = async (req: Request): Promise<Response> => {
         byPlan,
       },
       generations: {
+        // 全体（admin 含む・後方互換）
         totalYesterday: totalGenerationsYesterday,
+        totalImagesYesterday,
         byPlan: generationsByPlan,
+        imagesByPlan,
+        // 外部ユーザーのみ（admin 除外・真の市場反応）
+        externalSessionsYesterday: externalSessions,
+        externalImagesYesterday: externalImages,
       },
       subscriptions: {
         newPaidYesterday,
