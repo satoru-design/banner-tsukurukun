@@ -65,7 +65,7 @@ async function findTargets(label, hoursStart, hoursEnd) {
       email: true,
       name: true,
       createdAt: true,
-      currentMonthUsageCount: true,
+      usageCount: true,
       _count: { select: { generations: true } },
     },
     orderBy: { createdAt: 'asc' },
@@ -75,7 +75,7 @@ async function findTargets(label, hoursStart, hoursEnd) {
 
 function fmtUserLine(u) {
   const gen = u._count?.generations ?? 0;
-  const use = u.currentMonthUsageCount ?? 0;
+  const use = u.usageCount ?? 0;
   return `• \`${u.email}\` (${u.name ?? '-'}) — 累計生成 ${gen} / 今月使用 ${use}`;
 }
 

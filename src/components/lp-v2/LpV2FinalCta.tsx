@@ -23,7 +23,16 @@ export const LpV2FinalCta = ({
           >
             いますぐ無料で試してみる
           </Link>
+          <Link
+            href="/signin?from=lp01_final_trial&callbackUrl=%2Fupgrade-trial-pro"
+            className="inline-flex items-center justify-center bg-white hover:bg-stone-50 text-emerald-900 font-bold px-10 py-4 rounded-[10px] border-2 border-emerald-800 transition-colors"
+          >
+            Pro を 7 日間 無料で始める
+          </Link>
         </div>
+        <p className="mt-5 text-[11px] text-slate-500">
+          Pro Trial: 月 100 本＋全 17 サイズ＋プロンプト閲覧。7 日後に自動課金（途中解約 OK）。
+        </p>
       </div>
     </section>
   );
