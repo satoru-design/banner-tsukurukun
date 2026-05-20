@@ -18,6 +18,7 @@ const PUBLIC_PATHS = [
   '/api/cron/check-business-upgrade',  // Phase A.17.0: Vercel Cron。Bearer CRON_SECRET で認証。
   '/api/cron/process-video-jobs',  // Phase B.1: Vercel Cron。Bearer CRON_SECRET で認証。
   '/api/cron/notify-retention',  // Phase A.19: D+1/D+3/D+7 Slack 通知。Bearer CRON_SECRET で認証。
+  '/api/cron/daily-kpi-analysis',  // Phase A.19: 毎朝 KPI + Claude 所感 Slack 投稿。Bearer CRON_SECRET で認証。
 ];
 
 const PUBLIC_PATH_PREFIXES = [
