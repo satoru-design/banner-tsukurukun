@@ -52,6 +52,13 @@ export const POST = async (req: Request): Promise<Response> => {
         ? 7
         : undefined;
 
+    // Phase A.19: ホスト判定で LP metered を分離
+    // autobanner.jp 経由 → banner metered のみ (2-item)
+    // lpmaker-pro.com 経由 → banner metered + lp metered (3-item)
+    const host = (req.headers.get('host') ?? '').toLowerCase();
+    const isLpMakerHost = host.includes('lpmaker-pro.com');
+    const includeLpMetered = isLpMakerHost;
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
     const url = await createCheckoutSession({
@@ -59,6 +66,7 @@ export const POST = async (req: Request): Promise<Response> => {
       basePriceId: body.basePriceId,
       promotionCodeId,
       trialPeriodDays,
+      includeLpMetered,
       successUrl: `${appUrl}/account?stripe=success${trialPeriodDays ? '&trial=1' : ''}`,
       cancelUrl: `${appUrl}/account?stripe=canceled`,
     });

@@ -15,6 +15,16 @@ interface CreateCheckoutInput {
    * trial 終了時に自動で初回課金が走る (cancel しなければ)。
    */
   trialPeriodDays?: number;
+  /**
+   * Phase A.19: LP Maker Pro 2.0 の LP metered (lp_generation_overage) を
+   * attach するか。autobanner.jp 経由の購入では false にし、Stripe Checkout の
+   * line item を 2 個 (base + banner metered) に絞る。
+   * lpmaker-pro.com 経由の購入では true。
+   *
+   * 既存挙動互換: 未指定なら true (= LP metered を含める。Sprint 3 CR C-2 の挙動)。
+   * route 側で明示的に false を渡すこと。
+   */
+  includeLpMetered?: boolean;
 }
 
 /**
@@ -63,10 +73,11 @@ export const createCheckoutSession = async (input: CreateCheckoutInput): Promise
     lineItems.push({ price: prices.pro.meteredPriceId });
     // metered は quantity 指定不可（usage_records で送る）
   }
-  // Sprint 3 CR C-2: Pro plan は LP metered (lp_generation_overage) も同時 attach。
-  // base (¥固定) + banner metered + LP metered の 3-item subscription を作る。
-  // env 未設定なら skip（dev / 既存環境互換）。
-  if (plan === 'pro' && prices.pro.lpMeteredPriceId) {
+  // Sprint 3 CR C-2: Pro plan は LP metered (lp_generation_overage) も同時 attach できる。
+  // Phase A.19: autobanner.jp 経由の購入では含めない (2-item に絞る)。
+  // includeLpMetered === undefined の場合は既存互換で含める (LP Maker Pro 2.0 利用前提)。
+  const shouldIncludeLpMetered = input.includeLpMetered !== false;
+  if (plan === 'pro' && prices.pro.lpMeteredPriceId && shouldIncludeLpMetered) {
     lineItems.push({ price: prices.pro.lpMeteredPriceId });
   }
   // Phase A.17.0: Business も base + metered の 2-item subscription
