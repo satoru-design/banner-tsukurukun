@@ -70,7 +70,7 @@ export function UsageLimitModal({
         <div className="space-y-4">
           {plan === 'free' && (
             <div className="border border-gray-600 rounded p-4">
-              <h4 className="font-bold text-base mb-1">Starter ¥3,980/月</h4>
+              <h4 className="font-bold text-base mb-1">Starter ¥4,980/月</h4>
               <p className="text-sm text-slate-400 mb-3">
                 30回/月・5サイズ・お気に入り 5 枚保持
               </p>

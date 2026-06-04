@@ -6,6 +6,7 @@ const { auth } = NextAuth(authConfig);
 
 const PUBLIC_PATHS = [
   '/signin',
+  '/price',  // 公開料金表ページ（Pay.jp 審査・新規訪問者向け／認証不要）
   '/lp01',  // Phase A.15: 機能訴求 LP（公開）
   '/lp01-legacy',  // Phase A.16: lp01 A/B B バリアント（公開）
   '/lp02',  // Phase A.15: 時短訴求 LP（公開）

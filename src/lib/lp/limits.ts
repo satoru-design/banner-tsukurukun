@@ -92,9 +92,26 @@ export async function incrementLpUsage(userId: string): Promise<void> {
   const prisma = getPrisma();
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { lpUsageResetAt: true, currentMonthLpUsageCount: true },
+    select: {
+      lpUsageResetAt: true,
+      currentMonthLpUsageCount: true,
+      stripeSubscriptionId: true,
+      payjpSubscriptionId: true,
+      plan: true,
+    },
   });
   if (!user) return;
+
+  // Pay.jp 移管: subscription 持ち（Pro）は webhook 起点でリセットするため lazy reset しない。
+  // これにより currentMonthLpUsageCount が周期内で累積し、LP 超過課金を正確に算出できる。
+  const hasSubscription = !!user.stripeSubscriptionId || !!user.payjpSubscriptionId;
+  if (hasSubscription && user.plan === 'pro') {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { currentMonthLpUsageCount: { increment: 1 } },
+    });
+    return;
+  }
 
   const now = new Date();
   // C-1 fix: needsReset 時は count=1 + 次月 1 日 0:00 を lpUsageResetAt にセット。

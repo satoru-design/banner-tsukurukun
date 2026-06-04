@@ -3,6 +3,7 @@
 import type { CurrentUser } from '@/lib/auth/get-current-user';
 import { CheckoutButton } from './CheckoutButton';
 import { DowngradeButton } from './DowngradeButton';
+import { clientPaymentProvider } from '@/lib/billing/payment-provider.client';
 
 interface Props {
   user: CurrentUser;
@@ -18,8 +19,9 @@ interface Props {
  * - pro / business: Starter にダウングレード（期末切替）
  */
 export function StarterPlanCard({ user }: Props) {
-  const starterBasePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER;
-  if (!starterBasePriceId) return null;
+  const starterBasePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER ?? '';
+  // Stripe 経路で price 未設定なら非表示（Pay.jp 経路では price 不要なので表示する）
+  if (!starterBasePriceId && clientPaymentProvider() !== 'payjp') return null;
 
   const isStarter = user.plan === 'starter';
 
@@ -33,6 +35,8 @@ export function StarterPlanCard({ user }: Props) {
     return (
       <CheckoutButton
         basePriceId={starterBasePriceId}
+        plan="starter"
+        currentPlan={user.plan}
         label={ctaLabel}
         className="w-full bg-sky-600 hover:bg-sky-700 text-white px-4 py-3 rounded font-bold disabled:opacity-50"
       />
@@ -54,7 +58,7 @@ export function StarterPlanCard({ user }: Props) {
           <p className="text-xs text-slate-400 mt-0.5">個人マーケター・副業・お試し利用向け</p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold text-white">¥3,980</div>
+          <div className="text-2xl font-bold text-white">¥4,980</div>
           <div className="text-xs text-slate-500">/ 月（税込）</div>
         </div>
       </div>

@@ -25,7 +25,7 @@ const PLANS = [
   {
     key: 'starter',
     name: 'Starter',
-    price: '¥3,980',
+    price: '¥4,980',
     period: '/月',
     desc: '個人事業主・スモールチーム向け',
     features: [

@@ -20,7 +20,7 @@ const AUTOBANNER_STRUCTURED_DATA = {
   url: 'https://autobanner.jp/',
   offers: [
     { '@type': 'Offer', name: 'Free', price: '0', priceCurrency: 'JPY' },
-    { '@type': 'Offer', name: 'Starter', price: '3980', priceCurrency: 'JPY' },
+    { '@type': 'Offer', name: 'Starter', price: '4980', priceCurrency: 'JPY' },
     { '@type': 'Offer', name: 'Pro', price: '14800', priceCurrency: 'JPY' },
   ],
   publisher: {

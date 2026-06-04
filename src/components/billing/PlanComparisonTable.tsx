@@ -32,7 +32,7 @@ const PLANS: PlanCol[] = [
     key: 'starter',
     name: 'Starter',
     emoji: '🌱',
-    price: '¥3,980',
+    price: '¥4,980',
     priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_STARTER',
     rank: 1,
     color: 'sky',
@@ -67,7 +67,7 @@ interface Row {
 
 const ROWS: Row[] = [
   // 料金
-  { category: '料金', label: '月額（税込）', values: ['¥3,980', '¥14,800', '¥39,800'] },
+  { category: '料金', label: '月額（税込）', values: ['¥4,980', '¥14,800', '¥39,800'] },
   { label: '超過課金', values: ['なし', '¥80 / 枚', '¥40 / 枚'] },
   { label: '利用上限', values: ['30 枚', '500 枚', '3,000 枚'] },
 

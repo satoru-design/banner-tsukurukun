@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/daily-kpi-analysis",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/payjp-overage-sweep",
+      "schedule": "0 1 * * *"
     }
   ]
 }

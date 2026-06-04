@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { clientPaymentProvider } from '@/lib/billing/payment-provider.client';
 
 /**
  * Phase A.12 / A.17.0: ダウングレード（期末切替予約）ボタン
@@ -39,7 +40,12 @@ export const DowngradeButton = ({ targetPlan, label, confirmMessage }: Props = {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/billing/downgrade', {
+      // Pay.jp は change-plan（next_cycle_plan で期末ダウングレード予約）、Stripe は downgrade
+      const endpoint =
+        clientPaymentProvider() === 'payjp'
+          ? '/api/billing/payjp/change-plan'
+          : '/api/billing/downgrade';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(targetPlan ? { targetPlan } : {}),

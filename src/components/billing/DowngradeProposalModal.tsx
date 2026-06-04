@@ -80,14 +80,14 @@ const PLAN_MAP: Record<Plan, PlanInfo | null> = {
       'お気に入り 50 枚 → 5 枚',
       'メータード課金（超過運用不可、30 枚で固定）',
     ],
-    savings: '月額 ¥10,820 節約（¥14,800 → ¥3,980）',
+    savings: '月額 ¥9,820 節約（¥14,800 → ¥4,980）',
     method: 'downgrade-api',
   },
   starter: {
     name: 'Starter',
     emoji: '🌱',
-    price: '¥3,980',
-    monthlyJpy: 3980,
+    price: '¥4,980',
+    monthlyJpy: 4980,
     limit: '30 枚',
     oneStepDown: 'free',
     losesFeatures: [
@@ -95,7 +95,7 @@ const PLAN_MAP: Record<Plan, PlanInfo | null> = {
       '月 30 枚 → 月 10 枚（生涯）',
       'お気に入り 5 枚 → 不可',
     ],
-    savings: '月額 ¥3,980 節約（無料化）',
+    savings: '月額 ¥4,980 節約（無料化）',
     method: 'portal-cancel',
   },
   free: null, // free からはダウングレードなし
@@ -110,7 +110,7 @@ const DESTINATION_LABEL: Record<Plan, string> = {
 };
 
 const DESTINATION_PRICE: Record<Plan, string> = {
-  starter: '¥3,980 / 月',
+  starter: '¥4,980 / 月',
   pro: '¥14,800 / 月',
   business: '¥39,800 / 月',
   free: '¥0',

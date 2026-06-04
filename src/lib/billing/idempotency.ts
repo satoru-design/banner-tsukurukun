@@ -28,6 +28,28 @@ export const recordEventReceived = async (event: Stripe.Event): Promise<void> =>
   });
 };
 
+/**
+ * Pay.jp 移管: provider 非依存の汎用記録関数。
+ * Pay.jp Event は Stripe.Event 型ではないため、id/type/payload を直接受ける。
+ * isAlreadyProcessed / markEventProcessed は id 文字列ベースなので共用可。
+ */
+export const recordEventReceivedGeneric = async (
+  eventId: string,
+  type: string,
+  payload: unknown
+): Promise<void> => {
+  const prisma = getPrisma();
+  await prisma.webhookEvent.upsert({
+    where: { id: eventId },
+    create: {
+      id: eventId,
+      type,
+      payload: JSON.parse(JSON.stringify(payload)),
+    },
+    update: {},
+  });
+};
+
 export const markEventProcessed = async (eventId: string): Promise<void> => {
   const prisma = getPrisma();
   await prisma.webhookEvent.update({

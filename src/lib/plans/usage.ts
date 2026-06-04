@@ -36,8 +36,13 @@ export async function incrementUsage(userId: string): Promise<void> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return;
 
-  // Stripe subscription 持ち → Stripe 起点（webhook 任せ）。lazy reset しない。
-  if (user.stripeSubscriptionId && (user.plan === 'starter' || user.plan === 'pro')) {
+  // subscription 持ち（Stripe / Pay.jp）→ webhook 起点でリセット。lazy reset しない。
+  // Pay.jp 移管: payjpSubscriptionId も対象。business も含める（超過課金の正確な集計のため
+  // usageCount を周期内で累積させる必要がある）。
+  const hasSubscription = !!user.stripeSubscriptionId || !!user.payjpSubscriptionId;
+  const isPaidPlan =
+    user.plan === 'starter' || user.plan === 'pro' || user.plan === 'business';
+  if (hasSubscription && isPaidPlan) {
     await prisma.user.update({
       where: { id: userId },
       data: { usageCount: { increment: 1 } },

@@ -9,6 +9,7 @@
  */
 import { useState } from 'react';
 import { LogOut } from 'lucide-react';
+import { clientPaymentProvider } from '@/lib/billing/payment-provider.client';
 
 interface Props {
   hasSubscription: boolean;
@@ -79,7 +80,11 @@ export function UnsubscribeButton({ hasSubscription, adminPreview = false, cance
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/billing/cancel', { method: 'POST' });
+      const endpoint =
+        clientPaymentProvider() === 'payjp'
+          ? '/api/billing/payjp/cancel'
+          : '/api/billing/cancel';
+      const res = await fetch(endpoint, { method: 'POST' });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error ?? `HTTP ${res.status}`);

@@ -4,6 +4,7 @@ import type { CurrentUser } from '@/lib/auth/get-current-user';
 import { CheckoutButton } from './CheckoutButton';
 import { USAGE_LIMIT_BUSINESS, USAGE_HARDCAP_BUSINESS } from '@/lib/plans/limits';
 import { getOverageRate } from '@/lib/plans/overage-rates';
+import { clientPaymentProvider } from '@/lib/billing/payment-provider.client';
 
 interface Props {
   user: CurrentUser;
@@ -17,8 +18,8 @@ interface Props {
  * - business: 「現在のプラン」表示（CTA なし、ダウングレードは隣の ProPlanCard で行う）
  */
 export function BusinessPlanCard({ user }: Props) {
-  const businessBasePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_BASE;
-  if (!businessBasePriceId) return null;
+  const businessBasePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS_BASE ?? '';
+  if (!businessBasePriceId && clientPaymentProvider() !== 'payjp') return null;
 
   const isBusiness = user.plan === 'business';
   const overageRate = getOverageRate('business');
@@ -63,6 +64,8 @@ export function BusinessPlanCard({ user }: Props) {
       {!isBusiness && ctaLabel && (
         <CheckoutButton
           basePriceId={businessBasePriceId}
+          plan="business"
+          currentPlan={user.plan}
           label={ctaLabel}
           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded font-bold disabled:opacity-50"
         />

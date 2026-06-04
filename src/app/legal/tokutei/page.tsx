@@ -54,7 +54,7 @@ export default function TokuteiPage() {
           </tr>
           <tr className="border-b border-slate-800/50">
             <td className="py-2 px-3 text-slate-200">Starter</td>
-            <td className="py-2 px-3 text-slate-200">¥3,980</td>
+            <td className="py-2 px-3 text-slate-200">¥4,980</td>
           </tr>
           <tr>
             <td className="py-2 px-3 text-slate-200">Pro</td>
@@ -73,12 +73,15 @@ export default function TokuteiPage() {
       </Section>
 
       <Section title="お支払方法">
-        <p>クレジットカード（Visa / Mastercard / American Express / JCB / Diners Club / Discover）</p>
+        <p>クレジットカード（Visa / Mastercard / American Express / JCB / Diners Club）</p>
+        <p className="text-sm text-slate-400 mt-1">
+          決済代行サービスとして PAY.JP（株式会社PAY）を利用しています。カード情報は同社にて安全に処理され、当社サーバーには保存されません。
+        </p>
       </Section>
 
       <Section title="お支払時期">
         <ul className="list-disc pl-6 space-y-1">
-          <li>初回：お申込み時に Stripe Checkout にて決済</li>
+          <li>初回：お申込み時に決済代行サービス（PAY.JP）にて決済</li>
           <li>2回目以降：毎月、申込日と同日に自動課金</li>
         </ul>
       </Section>
@@ -89,7 +92,7 @@ export default function TokuteiPage() {
 
       <Section title="解約・返金について">
         <ul className="list-disc pl-6 space-y-1">
-          <li>解約はいつでも Customer Portal（マイページ）から行えます。</li>
+          <li>解約はいつでもマイページから行えます。</li>
           <li>解約予約をいただいた場合、当月末までは引き続きご利用いただけます（日割り返金は行いません）。</li>
           <li>デジタルサービスの性質上、お申込み後の返金には原則として応じかねます。</li>
           <li>ただし、当社の責に帰すべき事由（システム障害等）でサービスを提供できなかった場合は、お申し出により対応いたします。</li>

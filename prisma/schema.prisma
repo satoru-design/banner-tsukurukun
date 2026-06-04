@@ -117,6 +117,10 @@ model User {
   stripeCustomerId        String?   @unique
   /// Phase A.11.0: Stripe Subscription ID（A.12 で使用、今は NULL）
   stripeSubscriptionId    String?   @unique
+  /// Pay.jp 移管: Pay.jp Customer ID（cus_xxx）。stripe* は削除せず併存（可逆性確保）。
+  payjpCustomerId         String?   @unique
+  /// Pay.jp 移管: Pay.jp Subscription ID（sub_xxx）
+  payjpSubscriptionId     String?   @unique
   /// Phase A.11.0: 当月使用回数（lazy reset）
   usageCount              Int       @default(0)
   /// Phase A.11.0: 次回リセット日時（NULL なら初回アクセス時にセット）
@@ -152,8 +156,11 @@ model User {
   upgradeNotices UpgradeNotice[]
   /// LandingPage との一対多リレーション
   landingPages   LandingPage[]
+  /// Pay.jp 移管 P5: 超過課金記録
+  overageCharges OverageCharge[]
 
   @@index([stripeCustomerId])
+  @@index([payjpCustomerId])
 }
 
 /// Phase A.17.0: アップグレード推奨履歴
@@ -350,6 +357,29 @@ model WebhookEvent {
 
   @@index([type])
   @@index([receivedAt])
+}
+
+/// Pay.jp 移管 P5: 超過従量課金（自前集計 + 都度課金）の冪等記録
+/// Pay.jp の charges.create には idempotency key が無いため、本テーブルの
+/// @@unique([userId, periodEnd]) でリトライ時の二重課金を防ぐ。
+/// status: 'pending'（課金試行中）| 'succeeded'（課金成功）| 'failed'（要再試行）
+model OverageCharge {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 課金対象の周期境界（= 終了した周期の current_period_end）。冪等キー。
+  periodEnd     DateTime
+  plan          String
+  bannerUnits   Int      @default(0)
+  lpUnits       Int      @default(0)
+  amount        Int
+  payjpChargeId String?
+  status        String   @default("pending")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, periodEnd])
+  @@index([status])
 }
 
 /// LP Maker Pro 2.0 (2026-05-16): Brief → セクション組合せ型 LP のメインテーブル

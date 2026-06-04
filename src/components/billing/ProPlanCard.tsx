@@ -5,6 +5,7 @@ import { CheckoutButton } from './CheckoutButton';
 import { DowngradeButton } from './DowngradeButton';
 import { USAGE_LIMIT_PRO, USAGE_HARDCAP_PRO } from '@/lib/plans/limits';
 import { getOverageRate } from '@/lib/plans/overage-rates';
+import { clientPaymentProvider } from '@/lib/billing/payment-provider.client';
 
 interface Props {
   user: CurrentUser;
@@ -22,8 +23,8 @@ interface Props {
  * - pro: 「現在のプラン」表示 + CTA なし
  */
 export function ProPlanCard({ user }: Props) {
-  const proBasePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE;
-  if (!proBasePriceId) return null;
+  const proBasePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE ?? '';
+  if (!proBasePriceId && clientPaymentProvider() !== 'payjp') return null;
 
   const isPro = user.plan === 'pro';
   const overageRate = getOverageRate('pro');
@@ -39,6 +40,8 @@ export function ProPlanCard({ user }: Props) {
     return (
       <CheckoutButton
         basePriceId={proBasePriceId}
+        plan="pro"
+        currentPlan={user.plan}
         label={ctaLabel}
         className="w-full bg-teal-600 hover:bg-teal-700 text-white px-4 py-3 rounded font-bold disabled:opacity-50"
       />
