@@ -34,4 +34,18 @@ describe('extractTags', () => {
     expect(tags.find((t) => t.dimension === 'ctaTemplateId')).toBeUndefined();
     expect(tags.every((t) => typeof t.value === 'string' && t.value.length > 0)).toBe(true);
   });
+
+  it('brief が非オブジェクト(null/文字列)でも落ちず priceBadge=absent を返す', () => {
+    for (const bad of [null, undefined, 'x', 42, []] as unknown[]) {
+      const tags = extractTags(bad, { size: '1x1', provider: 'flux' });
+      expect(tags).toContainEqual({ dimension: 'priceBadge', value: 'absent' });
+      expect(tags.every((t) => typeof t.value === 'string' && t.value.length > 0)).toBe(true);
+    }
+  });
+
+  it('size/provider が空白のみなら採用しない', () => {
+    const tags = extractTags({}, { size: '   ', provider: '' });
+    expect(tags.find((t) => t.dimension === 'size')).toBeUndefined();
+    expect(tags.find((t) => t.dimension === 'provider')).toBeUndefined();
+  });
 });

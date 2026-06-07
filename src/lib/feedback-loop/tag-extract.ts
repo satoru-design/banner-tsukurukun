@@ -34,11 +34,11 @@ export function extractTags(brief: unknown, image: ImageMeta): TagDim[] {
     !(typeof pb === 'string' && pb.trim().length === 0);
   out.push({ dimension: 'priceBadge', value: hasBadge ? 'present' : 'absent' });
 
-  if (typeof image.size === 'string' && image.size.length > 0) {
-    out.push({ dimension: 'size', value: image.size });
+  if (typeof image.size === 'string' && image.size.trim().length > 0) {
+    out.push({ dimension: 'size', value: image.size.trim() });
   }
-  if (typeof image.provider === 'string' && image.provider.length > 0) {
-    out.push({ dimension: 'provider', value: image.provider });
+  if (typeof image.provider === 'string' && image.provider.trim().length > 0) {
+    out.push({ dimension: 'provider', value: image.provider.trim() });
   }
 
   return out;
