@@ -85,62 +85,60 @@ const COLUMNS = [
   { key: 'memo',                label: 'memo',           auto: false },
 ];
 
-// ===== メイン =====
-function dailyKpiUpdate() {
+// ===== メイン: 1 時間に 1 回呼ばれる。今日と昨日の 2 行を update =====
+function hourlyKpiUpdate() {
   if (!STRIPE_KEY || !KPI_API_URL || !KPI_SECRET || !SHEET_ID) {
     throw new Error('Script Properties 未設定: STRIPE_LIVE_KEY / KPI_API_URL / ADMIN_KPI_SECRET / SHEET_ID');
   }
+  // 昨日 → 今日 の順に update
+  // 昨日 = Stripe webhook 遅延着信の最終取り込み
+  // 今日 = リアルタイム進捗
+  updateRowForDate(getYesterdayJst());
+  updateRowForDate(getTodayJst());
+  Logger.log('[KPI] hourly run done');
+}
 
-  const dateStr = getYesterdayJst();
+// 旧 dailyKpiUpdate 互換（過去の trigger / manualRun から呼ばれる場合のため）
+function dailyKpiUpdate() {
+  hourlyKpiUpdate();
+}
+
+// 指定日付の 1 行を fetch → upsert
+function updateRowForDate(dateStr) {
   Logger.log('[KPI] fetching for date=' + dateStr);
-
   const dbData = fetchKpiApi(dateStr);
   const stripeData = fetchStripeData(dateStr);
-
-  // 行データ組み立て
   const newFree = dbData.users.newSignupsYesterday || 0;
   const newPaid = dbData.subscriptions.newPaidYesterday || 0;
-
   const row = {
     date: dateStr,
     salesTotal: stripeData.chargesTotal,
-    cost: '', // 手動入力
-    roas: '', // 手動入力後 自動計算 (Sheets 数式)
-
+    cost: '', roas: '',
     imp: '', click: '', ctr: '', cpc: '',
     visitsUu: '',
     newFreeSignup: newFree,
-    freeCpa: '', // Cost / newFree (Sheets 数式)
-    freeCvr: '', // newFree / visitsUu
-
+    freeCpa: '', freeCvr: '',
     newPaid: newPaid,
-    paidCpa: '', // Cost / newPaid
+    paidCpa: '',
     paidCvr: newFree > 0 ? newPaid / newFree : 0,
-
     starterSales: stripeData.byPlan.starter.sales,
     starterCv: stripeData.byPlan.starter.count,
     proSales: stripeData.byPlan.pro.sales,
     proCv: stripeData.byPlan.pro.count,
     businessSales: stripeData.byPlan.business.sales,
     businessCv: stripeData.byPlan.business.count,
-
     cancelled: dbData.subscriptions.cancelledYesterday || 0,
-
     cumStarter: dbData.subscriptions.activeByPlan.starter || 0,
     cumPro: dbData.subscriptions.activeByPlan.pro || 0,
     cumBusiness: dbData.subscriptions.activeByPlan.business || 0,
-
     genTotal: dbData.generations.totalYesterday || 0,
     genFree: dbData.generations.byPlan.free || 0,
     genStarter: dbData.generations.byPlan.starter || 0,
     genPro: dbData.generations.byPlan.pro || 0,
     genBusiness: dbData.generations.byPlan.business || 0,
-
     memo: '',
   };
-
   appendRow(row);
-  Logger.log('[KPI] DONE');
 }
 
 // ===== KPI API (autobanner.jp) =====
@@ -338,17 +336,33 @@ function getYesterdayJst() {
   return y + '-' + m + '-' + d;
 }
 
-// ===== トリガー設定 =====
-function setupDailyTrigger() {
+function getTodayJst() {
+  const nowJst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const y = nowJst.getUTCFullYear();
+  const m = String(nowJst.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(nowJst.getUTCDate()).padStart(2, '0');
+  return y + '-' + m + '-' + d;
+}
+
+// ===== トリガー設定: 1 時間に 1 回 hourlyKpiUpdate を実行 =====
+function setupHourlyTrigger() {
   const triggers = ScriptApp.getProjectTriggers();
   for (const t of triggers) {
-    if (t.getHandlerFunction() === 'dailyKpiUpdate') ScriptApp.deleteTrigger(t);
+    const fn = t.getHandlerFunction();
+    if (fn === 'hourlyKpiUpdate' || fn === 'dailyKpiUpdate') {
+      ScriptApp.deleteTrigger(t);
+    }
   }
-  ScriptApp.newTrigger('dailyKpiUpdate').timeBased().atHour(8).everyDays(1).create();
-  Logger.log('[KPI] daily 8:00 trigger created');
+  ScriptApp.newTrigger('hourlyKpiUpdate').timeBased().everyHours(1).create();
+  Logger.log('[KPI] hourly trigger created');
+}
+
+// ===== 旧 setupDailyTrigger 互換（過去の手順踏襲時用） =====
+function setupDailyTrigger() {
+  setupHourlyTrigger();
 }
 
 // ===== 手動テスト用 =====
 function manualRun() {
-  dailyKpiUpdate();
+  hourlyKpiUpdate();
 }

@@ -115,12 +115,22 @@ model WinningPattern {
 
 ## コンポーネント（4つ・各独立してテスト可能）
 
-| # | 役割 | 置き場所 | 入力 → 出力 |
-|---|---|---|---|
-| C1 | 入稿時 ad_id 記録 | meta-ads-autopilot | 入稿APIレスポンス → MetaAd insert |
-| C2 | 日次 Insights 取得 | Vercel Cron | ad単位 Insights → AdPerformanceSnapshot upsert |
-| C3 | 勝ち要因抽出 | Cron（C2後） | briefSnapshot タグ × 成果 → WinningPattern upsert |
-| C4 | プロンプト注入 | batch-generate | 直近 WinningPattern → 生成プロンプトに重み付け |
+| # | 役割 | 頻度 | 置き場所 | 入力 → 出力 |
+|---|---|---|---|---|
+| C1 | 入稿時 ad_id 記録 | 入稿時 | meta-ads-autopilot | 入稿APIレスポンス → MetaAd insert |
+| C2 | 日次 Insights 取得・蓄積 | **日次** | Vercel Cron | ad単位 Insights → AdPerformanceSnapshot upsert |
+| C3 | 勝ち要因抽出 | **週次**（生成直前） | Cron | 直近1週間分集計 → WinningPattern upsert |
+| C4 | プロンプト注入・生成 | **週一** | batch-generate | 直近 WinningPattern → 生成プロンプトに重み付け |
+| C5 | 疲労即停止（任意・独立） | 日次 | Cron | frequency急上昇/CTR急落の広告を pause |
+
+### Cadence の根拠
+
+- **C2 を日次にする理由**: (1) 曜日ノイズ（週末/平日のCTR揺れ）を週次平均で吸収するには日次の粒度が必要。
+  最新値上書きでは曜日ノイズを勝ち要因と誤認するリスク。(2) 疲労の時系列を残せる。
+- **C3+C4 を週一にする理由**: 生成コスト管理と統計的安定性。1週間溜めてから集計すれば adCount/conversions の
+  閾値を満たしやすく、誤学習を防げる。
+- **C5 は C4 と独立**: 生成は週一でよいが、疲労による無駄配信の停止は日次の価値がある（任意実装）。
+- **C4 トリガー**: Vercel Cron の曜日固定 起動を基本とし、人間承認ゲート（確認・承認）を挟む。
 
 ### C3 勝ちスコア定義（CPA主・CTR従）
 
