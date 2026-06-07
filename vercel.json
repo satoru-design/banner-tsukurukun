@@ -39,6 +39,8 @@
     {
       "path": "/api/cron/payjp-overage-sweep",
       "schedule": "0 1 * * *"
-    }
+    },
+    { "path": "/api/cron/ad-insights-daily", "schedule": "0 23 * * *" },
+    { "path": "/api/cron/winning-pattern-weekly", "schedule": "0 0 * * 1" }
   ]
 }
