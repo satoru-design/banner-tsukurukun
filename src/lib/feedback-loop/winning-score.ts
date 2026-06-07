@@ -11,11 +11,13 @@ export interface ScoreOptions {
 /** 高いほど良い metric を返す（CPA は逆数で「高いほど良い」へ統一） */
 function rawMetric(s: AggregatedTagStat, formula: ScoreFormula): number {
   const ctr = s.impressions > 0 ? s.clicks / s.impressions : 0;
-  const cpa = s.conversions > 0 ? s.spend / s.conversions : Infinity;
+  // Fix 1: spend=0 & conversions>0 → cpa=0 → 1/0=Infinity を防ぐため、spend>0 も条件に加える
+  const cpa = s.conversions > 0 && s.spend > 0 ? s.spend / s.conversions : Infinity;
   switch (formula) {
     case 'ctr':
       return ctr;
     case 'roas':
+      // conversions/spend = CV per cost（収益データ未取得のため revenue ベースの ROAS ではなく CV 効率の近似値）
       return s.spend > 0 ? s.conversions / s.spend : 0;
     case 'cpa':
     default:
@@ -36,20 +38,21 @@ export function scorePatterns(
     (s) => s.adCount >= opts.minAdCount && s.conversions >= opts.minConversions,
   );
 
+  // Fix 2: rawMetric を1回だけ計算してキャッシュし、range 導出と最終 map で再利用する
+  const withMetric = eligible.map((s) => ({ stat: s, metric: rawMetric(s, opts.formula) }));
+
   const byDim = new Map<string, number[]>();
-  for (const s of eligible) {
-    const m = rawMetric(s, opts.formula);
-    const arr = byDim.get(s.dimension) ?? [];
-    arr.push(m);
-    byDim.set(s.dimension, arr);
+  for (const { stat, metric } of withMetric) {
+    const arr = byDim.get(stat.dimension) ?? [];
+    arr.push(metric);
+    byDim.set(stat.dimension, arr);
   }
   const range = new Map<string, { min: number; max: number }>();
   for (const [dim, arr] of byDim) {
     range.set(dim, { min: Math.min(...arr), max: Math.max(...arr) });
   }
 
-  return eligible.map((s) => {
-    const m = rawMetric(s, opts.formula);
+  return withMetric.map(({ stat: s, metric: m }) => {
     const { min, max } = range.get(s.dimension)!;
     const score = max === min ? 1 : (m - min) / (max - min);
     return {

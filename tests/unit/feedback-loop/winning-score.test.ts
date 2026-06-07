@@ -49,4 +49,50 @@ describe('scorePatterns (CPA主)', () => {
     const res = scorePatterns(stats, { minAdCount: 3, minConversions: 10, formula: 'cpa' });
     expect(res[0].score).toBeCloseTo(1, 5);
   });
+
+  it('CPA mode: spend=0 & conversions>0 の行は NaN/Infinity にならず score=0（最低評価）', () => {
+    const stats = [
+      base({ value: 'normal', spend: 50000, conversions: 100 }),
+      base({ value: 'zero_spend', spend: 0, conversions: 10 }),
+    ];
+    const res = scorePatterns(stats, { minAdCount: 3, minConversions: 10, formula: 'cpa' });
+    for (const r of res) {
+      expect(Number.isFinite(r.score)).toBe(true);
+      expect(r.score).toBeGreaterThanOrEqual(0);
+      expect(r.score).toBeLessThanOrEqual(1);
+    }
+    const zeroSpendRow = res.find((r) => r.value === 'zero_spend')!;
+    expect(zeroSpendRow.score).toBeCloseTo(0, 5);
+  });
+
+  it('multi-dimension: 各 dimension が独立して min-max 正規化される（それぞれの最良行が score=1）', () => {
+    const stats = [
+      // dimension A: good CPA=500, bad CPA=2000
+      base({ dimension: 'angleId', value: 'a_good', spend: 50000, conversions: 100 }),
+      base({ dimension: 'angleId', value: 'a_bad', spend: 100000, conversions: 50 }),
+      // dimension B: 独自スケール（spend 小さく conversions 多め）
+      base({ dimension: 'urgency', value: 'b_good', spend: 10000, conversions: 200 }),
+      base({ dimension: 'urgency', value: 'b_bad', spend: 30000, conversions: 30 }),
+    ];
+    const res = scorePatterns(stats, { minAdCount: 3, minConversions: 10, formula: 'cpa' });
+    const aGood = res.find((r) => r.value === 'a_good')!;
+    const bGood = res.find((r) => r.value === 'b_good')!;
+    // 各 dimension の best row がそれぞれ 1 になること
+    expect(aGood.score).toBeCloseTo(1, 5);
+    expect(bGood.score).toBeCloseTo(1, 5);
+  });
+
+  it('CTR mode: impressions=0 の行は NaN にならず avgCtr=null', () => {
+    const stats = [
+      base({ value: 'with_imp', impressions: 10000, clicks: 300, conversions: 5 }),
+      base({ value: 'no_imp', impressions: 0, clicks: 0, conversions: 5 }),
+    ];
+    // minConversions=1 で impressions=0 の行もゲートを通過させる
+    const res = scorePatterns(stats, { minAdCount: 3, minConversions: 1, formula: 'ctr' });
+    for (const r of res) {
+      expect(Number.isFinite(r.score)).toBe(true);
+    }
+    const noImpRow = res.find((r) => r.value === 'no_imp')!;
+    expect(noImpRow.avgCtr).toBeNull();
+  });
 });
