@@ -9,6 +9,7 @@ import {
 } from '@/lib/prompts/ironclad-banner';
 import { generateWithFallback } from '@/lib/image-providers';
 import { getRecentRejectReasons } from '@/lib/batch-generate/rejects';
+import { getLatestWinningHints, formatWinningPatternsPrefix } from '@/lib/feedback-loop/prompt-injection';
 import { getPrisma } from '@/lib/prisma';
 import { buildBriefSnapshot } from '@/lib/generations/snapshot';
 import { uploadGenerationImage } from '@/lib/generations/blob-client';
@@ -88,6 +89,19 @@ export async function POST(req: Request): Promise<Response> {
     ? `\n\n# 避ける要素（過去の拒否理由から自動抽出）\n` + avoidList.map((r) => `- ${r}`).join('\n') + '\n'
     : '';
 
+  // C4: 過去配信の勝ち要因をプロンプトへ追記（成果フィードバック）
+  let winningPrefix = '';
+  try {
+    const hints = await getLatestWinningHints();
+    winningPrefix = formatWinningPatternsPrefix(hints);
+    if (winningPrefix) {
+      console.log(`[batch-generate ${requestId}] injecting ${hints.length} winning hints`);
+    }
+  } catch (e) {
+    console.warn(`[batch-generate ${requestId}] winning hints unavailable (continuing):`, e);
+  }
+  const winningSection = winningPrefix ? `\n\n${winningPrefix}` : '';
+
   for (let i = 0; i < materials.length; i++) {
     const mat = materials[i] as IroncladMaterials;
 
@@ -115,7 +129,7 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     try {
-      const finalPrompt = buildIroncladImagePromptWithPrefix(mat) + avoidPrefix;
+      const finalPrompt = buildIroncladImagePromptWithPrefix(mat) + winningSection + avoidPrefix;
       // Asset 削除済み等で 404 になる URL を事前にドロップする (ironclad-generate と同じ防御策)。
       const { available: referenceImageUrls } = await filterAvailableUrls([
         mat.productImageUrl,
