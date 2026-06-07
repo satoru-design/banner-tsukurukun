@@ -40,4 +40,81 @@ describe('normalizeInsightsRow', () => {
     expect(r.conversions).toBe(0);
     expect(r.cpa).toBeNull();
   });
+
+  // --- Fix 3: derivation tests ---
+
+  it('ctr フィールド欠損 + impressions > 0 → clicks/impressions で導出', () => {
+    const row = {
+      ad_id: 'b',
+      date_start: '2026-06-01',
+      impressions: '10000',
+      clicks: '300',
+      spend: '1000',
+      // ctr フィールドなし
+    };
+    const r = normalizeInsightsRow(row, 'offsite_conversion.fb_pixel_purchase');
+    expect(r.ctr).toBeCloseTo(0.03, 6);
+  });
+
+  it('ctr フィールド欠損 + impressions = 0 → ctr === 0 (NaN にならない)', () => {
+    const row = {
+      ad_id: 'c',
+      date_start: '2026-06-01',
+      impressions: '0',
+      clicks: '0',
+      spend: '0',
+    };
+    const r = normalizeInsightsRow(row, 'offsite_conversion.fb_pixel_purchase');
+    expect(r.ctr).toBe(0);
+    expect(Number.isNaN(r.ctr)).toBe(false);
+  });
+
+  it('cpm フィールド欠損 + impressions = 0 → cpm === null', () => {
+    const row = {
+      ad_id: 'd',
+      date_start: '2026-06-01',
+      impressions: '0',
+      clicks: '0',
+      spend: '0',
+    };
+    const r = normalizeInsightsRow(row, 'offsite_conversion.fb_pixel_purchase');
+    expect(r.cpm).toBeNull();
+  });
+
+  it('frequency フィールド欠損 → frequency === null', () => {
+    const row = {
+      ad_id: 'e',
+      date_start: '2026-06-01',
+      impressions: '1000',
+      clicks: '10',
+      spend: '500',
+      // frequency フィールドなし
+    };
+    const r = normalizeInsightsRow(row, 'offsite_conversion.fb_pixel_purchase');
+    expect(r.frequency).toBeNull();
+  });
+
+  it('num() 堅牢性: impressions がオブジェクトや null でも 0 になる (NaN にならない)', () => {
+    const rowObj = {
+      ad_id: 'f',
+      date_start: '2026-06-01',
+      impressions: {} as unknown,
+      clicks: '10',
+      spend: '100',
+    };
+    const r1 = normalizeInsightsRow(rowObj as Record<string, unknown>, 'any');
+    expect(r1.impressions).toBe(0);
+    expect(Number.isNaN(r1.impressions)).toBe(false);
+
+    const rowNull = {
+      ad_id: 'g',
+      date_start: '2026-06-01',
+      impressions: null as unknown,
+      clicks: '10',
+      spend: '100',
+    };
+    const r2 = normalizeInsightsRow(rowNull as Record<string, unknown>, 'any');
+    expect(r2.impressions).toBe(0);
+    expect(Number.isNaN(r2.impressions)).toBe(false);
+  });
 });
