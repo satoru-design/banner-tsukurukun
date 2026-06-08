@@ -96,8 +96,11 @@ export async function aggregateWinningPatterns(opts: AggregateOptions): Promise<
         adCount: p.adCount,
         impressions: p.impressions,
         conversions: p.conversions,
+        clicks: p.clicks,
+        spend: p.spend,
         avgCtr: p.avgCtr ?? undefined,
         avgCpa: p.avgCpa ?? undefined,
+        avgCpc: p.avgCpc ?? undefined,
         score: p.score,
       })),
     });
