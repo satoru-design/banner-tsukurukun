@@ -9,8 +9,8 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const ACCOUNTS = [
-  { slug: 'five-point-detox', name: '5 Point Detox', metaAdAccountId: 'REPLACE_ME' },
-  { slug: 'kokoromil', name: 'ココロミル', metaAdAccountId: 'REPLACE_ME' },
+  { slug: 'five-point-detox', name: '5 Point Detox', metaAdAccountId: '1395445853993363' },
+  { slug: 'kokoromil', name: 'ココロミル', metaAdAccountId: '1968798703568240' },
   // 自社を入れる場合: { slug: 'autobanner', name: 'AutoBanner', metaAdAccountId: '1664983991362612' },
 ];
 
