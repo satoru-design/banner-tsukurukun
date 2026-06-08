@@ -17,7 +17,7 @@ export async function detectFatiguedAds(accountId: string): Promise<FatiguedAd[]
   const prisma = getPrisma();
   const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const ads = await prisma.metaAd.findMany({
-    where: { status: 'active', accountId },
+    where: { status: 'ACTIVE', accountId },
     include: { snapshots: { where: { statDate: { gte: since } }, orderBy: { statDate: 'asc' } } },
   });
   const out: FatiguedAd[] = [];
