@@ -19,6 +19,12 @@ if (!url) {
   console.error('DATABASE_URL required');
   process.exit(1);
 }
+// 安全ガード: プレースホルダのまま実行してゴミ account を seed するのを防ぐ
+const unresolved = ACCOUNTS.filter((a) => a.metaAdAccountId === 'REPLACE_ME').map((a) => a.slug);
+if (unresolved.length > 0) {
+  console.error(`metaAdAccountId が REPLACE_ME のままです: ${unresolved.join(', ')}。実値に差し替えてから実行してください。`);
+  process.exit(1);
+}
 const adapter = new PrismaPg({ connectionString: url });
 const prisma = new PrismaClient({ adapter });
 
