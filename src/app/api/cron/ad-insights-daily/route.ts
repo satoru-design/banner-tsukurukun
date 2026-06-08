@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { fetchAdInsightsForDate, InsightsConfigError } from '@/lib/feedback-loop/insights-client';
 import { upsertSnapshots } from '@/lib/feedback-loop/snapshot-upsert';
 import { getActiveAccounts, getAccountMetaToken, AccountConfigError } from '@/lib/feedback-loop/accounts';
+import { syncAdStatuses } from '@/lib/feedback-loop/ad-status';
 
 export const maxDuration = 120;
 export const runtime = 'nodejs';
@@ -22,6 +23,12 @@ export const GET = async (req: Request) => {
       const rows = await fetchAdInsightsForDate(ymd, { metaAdAccountId: a.metaAdAccountId, token });
       const r = await upsertSnapshots(rows);
       results.push({ slug: a.slug, ok: true, fetched: rows.length, matchedAds: r.matchedAds, skippedNoAd: r.skippedNoAd });
+      try {
+        const sync = await syncAdStatuses({ accountId: a.id, metaAdAccountId: a.metaAdAccountId, token });
+        (results[results.length - 1] as Record<string, unknown>).statusUpdated = sync.updated;
+      } catch (se) {
+        console.warn(`[cron/ad-insights-daily] ${a.slug} status sync failed:`, se);
+      }
     } catch (e) {
       if (e instanceof AccountConfigError || e instanceof InsightsConfigError) {
         console.warn(`[cron/ad-insights-daily] ${a.slug} skipped:`, (e as Error).message);
