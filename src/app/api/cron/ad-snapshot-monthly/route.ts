@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendMonthlyAdSnapshot } from '@/lib/slack/ad-report';
+import { getActiveAccounts } from '@/lib/feedback-loop/accounts';
 
 export const maxDuration = 120;
 export const runtime = 'nodejs';
@@ -10,11 +11,13 @@ export const GET = async (req: Request) => {
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  try {
-    await sendMonthlyAdSnapshot();
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    console.error('[cron/ad-snapshot-monthly] error:', e);
-    return NextResponse.json({ error: 'Internal error', message: String(e) }, { status: 500 });
+  const accounts = await getActiveAccounts();
+  for (const a of accounts) {
+    try {
+      await sendMonthlyAdSnapshot({ id: a.id, slug: a.slug });
+    } catch (e) {
+      console.error(`[ad-snapshot-monthly] ${a.slug} failed:`, e);
+    }
   }
+  return NextResponse.json({ ok: true, accounts: accounts.length });
 };

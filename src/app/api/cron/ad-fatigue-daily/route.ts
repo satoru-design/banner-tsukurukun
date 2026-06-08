@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { detectFatiguedAds } from '@/lib/feedback-loop/fatigue-query';
+import { getActiveAccounts } from '@/lib/feedback-loop/accounts';
 
 export const maxDuration = 120;
 export const runtime = 'nodejs';
@@ -10,11 +11,15 @@ export const GET = async (req: Request) => {
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  try {
-    const fatigued = await detectFatiguedAds();
-    return NextResponse.json({ ok: true, fatiguedCount: fatigued.length, fatigued });
-  } catch (e) {
-    console.error('[cron/ad-fatigue-daily] error:', e);
-    return NextResponse.json({ error: 'Internal error', message: String(e) }, { status: 500 });
+  const accounts = await getActiveAccounts();
+  const out: Array<Record<string, unknown>> = [];
+  for (const a of accounts) {
+    try {
+      const f = await detectFatiguedAds(a.id);
+      out.push({ slug: a.slug, fatiguedCount: f.length, fatigued: f });
+    } catch (e) {
+      console.error(`[ad-fatigue-daily] ${a.slug} failed:`, e);
+    }
   }
+  return NextResponse.json({ ok: true, accounts: out });
 };

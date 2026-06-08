@@ -44,6 +44,7 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: 'body must be object' }, { status: 400 });
   }
   const materials = (body as { materials?: unknown }).materials;
+  const accountId = typeof (body as { accountId?: unknown }).accountId === 'string' ? (body as { accountId: string }).accountId : null;
   if (!Array.isArray(materials)) {
     return NextResponse.json({ error: 'materials must be an array' }, { status: 400 });
   }
@@ -91,14 +92,16 @@ export async function POST(req: Request): Promise<Response> {
 
   // C4: 過去配信の勝ち要因をプロンプトへ追記（成果フィードバック）
   let winningPrefix = '';
-  try {
-    const hints = await getLatestWinningHints();
-    winningPrefix = formatWinningPatternsPrefix(hints);
-    if (winningPrefix) {
-      console.log(`[batch-generate ${requestId}] injecting ${hints.length} winning hints`);
+  if (accountId) {
+    try {
+      const hints = await getLatestWinningHints(accountId);
+      winningPrefix = formatWinningPatternsPrefix(hints);
+      if (winningPrefix) {
+        console.log(`[batch-generate ${requestId}] injecting ${hints.length} winning hints`);
+      }
+    } catch (e) {
+      console.warn(`[batch-generate ${requestId}] winning hints unavailable (continuing):`, e);
     }
-  } catch (e) {
-    console.warn(`[batch-generate ${requestId}] winning hints unavailable (continuing):`, e);
   }
   const winningSection = winningPrefix ? `\n\n${winningPrefix}` : '';
 
@@ -161,6 +164,7 @@ export async function POST(req: Request): Promise<Response> {
           userId: adminUser.id,
           briefSnapshot: snapshot as unknown as object,
           isPreview: false,
+          accountId: accountId ?? null,
         },
       });
       const blobUrl = await uploadGenerationImage(
