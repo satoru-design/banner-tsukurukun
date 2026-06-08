@@ -13,11 +13,11 @@ export interface FatiguedAd {
  * status='active' の MetaAd を直近14日 snapshot から疲労判定する（通知用・自動停止なし）。
  * snapshot 2件未満の広告はスキップ。
  */
-export async function detectFatiguedAds(): Promise<FatiguedAd[]> {
+export async function detectFatiguedAds(accountId: string): Promise<FatiguedAd[]> {
   const prisma = getPrisma();
   const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const ads = await prisma.metaAd.findMany({
-    where: { status: 'active' },
+    where: { status: 'active', accountId },
     include: { snapshots: { where: { statDate: { gte: since } }, orderBy: { statDate: 'asc' } } },
   });
   const out: FatiguedAd[] = [];

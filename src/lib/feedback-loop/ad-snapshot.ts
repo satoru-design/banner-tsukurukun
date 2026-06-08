@@ -78,12 +78,12 @@ export function bucketSnapshots(rows: SnapshotInput[], g: Granularity): Snapshot
 }
 
 /** DB から直近 N 期間ぶん取得しバケット化（新しい順・最大 periods 件） */
-export async function getAdSnapshotRows(g: Granularity, periods: number): Promise<SnapshotBucket[]> {
+export async function getAdSnapshotRows(accountId: string, g: Granularity, periods: number): Promise<SnapshotBucket[]> {
   const prisma = getPrisma();
   const days = g === 'weekly' ? periods * 7 + 7 : periods * 31 + 31;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const snaps = await prisma.adPerformanceSnapshot.findMany({
-    where: { statDate: { gte: since } },
+    where: { statDate: { gte: since }, metaAd: { accountId } },
     select: { statDate: true, impressions: true, clicks: true, spend: true, conversions: true },
   });
   const inputs: SnapshotInput[] = snaps.map((s) => ({

@@ -23,12 +23,12 @@ export function formatWinningPatternsPrefix(hints: WinningHint[]): string {
 }
 
 /** 最新窓の WinningPattern を読み、各 dimension のトップ値を返す */
-export async function getLatestWinningHints(limitPerDim = 1): Promise<WinningHint[]> {
+export async function getLatestWinningHints(accountId: string, limitPerDim = 1): Promise<WinningHint[]> {
   const prisma = getPrisma();
-  const latest = await prisma.winningPattern.findFirst({ orderBy: { windowEnd: 'desc' } });
+  const latest = await prisma.winningPattern.findFirst({ where: { accountId }, orderBy: { windowEnd: 'desc' } });
   if (!latest) return [];
   const rows = await prisma.winningPattern.findMany({
-    where: { windowEnd: latest.windowEnd },
+    where: { accountId, windowEnd: latest.windowEnd },
     orderBy: { score: 'desc' },
   });
   const seen = new Map<string, number>();
