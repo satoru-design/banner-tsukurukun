@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "WinningPattern" ADD COLUMN     "avgCpc" DECIMAL(12,2),
+ADD COLUMN     "clicks" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "spend" DECIMAL(12,2) NOT NULL DEFAULT 0;
+

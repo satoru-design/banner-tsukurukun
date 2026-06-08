@@ -504,8 +504,11 @@ model WinningPattern {
   adCount     Int
   impressions Int
   conversions Int
+  clicks      Int      @default(0)
+  spend       Decimal  @default(0) @db.Decimal(12, 2)
   avgCtr      Decimal? @db.Decimal(8, 4)
   avgCpa      Decimal? @db.Decimal(12, 2)
+  avgCpc      Decimal? @db.Decimal(12, 2)
   score       Decimal  @db.Decimal(8, 4)
   computedAt  DateTime @default(now())
 
