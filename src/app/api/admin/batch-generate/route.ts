@@ -22,7 +22,7 @@ export const maxDuration = 800;
 const MAX_BATCH_SIZE = 20;
 
 type BatchResult =
-  | { index: number; ok: true; imageUrl: string; generationId: string; provider: string }
+  | { index: number; ok: true; imageUrl: string; generationId: string; provider: string; generationImageId: string }
   | { index: number; ok: false; error: string };
 
 export async function POST(req: Request): Promise<Response> {
@@ -173,7 +173,7 @@ export async function POST(req: Request): Promise<Response> {
         mat.size,
         result.base64,
       );
-      await prisma.generationImage.create({
+      const genImage = await prisma.generationImage.create({
         data: {
           generationId: generation.id,
           size: mat.size,
@@ -189,6 +189,7 @@ export async function POST(req: Request): Promise<Response> {
         imageUrl: blobUrl,
         generationId: generation.id,
         provider: result.providerId,
+        generationImageId: genImage.id,
       });
     } catch (e) {
       console.error(`[batch-generate ${requestId}] index=${i} failed:`, e);
