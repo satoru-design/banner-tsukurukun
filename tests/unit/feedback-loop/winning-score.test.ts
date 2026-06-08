@@ -82,6 +82,18 @@ describe('scorePatterns (CPA主)', () => {
     expect(bGood.score).toBeCloseTo(1, 5);
   });
 
+  it('avgCpc = spend/clicks を計算する（clicks 0 で null）', () => {
+    const stats = [
+      base({ value: 'a', spend: 38000, clicks: 1000, conversions: 50, adCount: 5 }),
+      base({ value: 'b', spend: 100, clicks: 0, conversions: 50, adCount: 5 }),
+    ];
+    const res = scorePatterns(stats, { minAdCount: 3, minConversions: 10, formula: 'cpa' });
+    const a = res.find((r) => r.value === 'a')!;
+    const b = res.find((r) => r.value === 'b')!;
+    expect(a.avgCpc).toBeCloseTo(38, 5);
+    expect(b.avgCpc).toBeNull();
+  });
+
   it('CTR mode: impressions=0 の行は NaN にならず avgCtr=null', () => {
     const stats = [
       base({ value: 'with_imp', impressions: 10000, clicks: 300, conversions: 5 }),

@@ -59,6 +59,7 @@ export function scorePatterns(
       ...s,
       avgCtr: s.impressions > 0 ? s.clicks / s.impressions : null,
       avgCpa: s.conversions > 0 ? s.spend / s.conversions : null,
+      avgCpc: s.clicks > 0 ? s.spend / s.clicks : null,
       score,
     };
   });

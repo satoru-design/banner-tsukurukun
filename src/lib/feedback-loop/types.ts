@@ -45,5 +45,6 @@ export interface AggregatedTagStat {
 export interface ScoredPattern extends AggregatedTagStat {
   avgCtr: number | null;
   avgCpa: number | null;
+  avgCpc: number | null;
   score: number; // 0..1（同一 dimension 内 min-max 正規化）
 }
