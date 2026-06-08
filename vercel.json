@@ -42,6 +42,7 @@
     },
     { "path": "/api/cron/ad-insights-daily", "schedule": "0 23 * * *" },
     { "path": "/api/cron/winning-pattern-weekly", "schedule": "0 0 * * 1" },
-    { "path": "/api/cron/ad-fatigue-daily", "schedule": "0 23 * * *" }
+    { "path": "/api/cron/ad-fatigue-daily", "schedule": "0 23 * * *" },
+    { "path": "/api/cron/ad-snapshot-monthly", "schedule": "0 0 1 * *" }
   ]
 }
