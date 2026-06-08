@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { aggregateWinningPatterns, defaultFormula } from '@/lib/feedback-loop/aggregate';
+import { sendWeeklyAdReport } from '@/lib/slack/ad-report';
 
 export const maxDuration = 120;
 export const runtime = 'nodejs';
@@ -22,6 +23,15 @@ export const GET = async (req: Request) => {
       minConversions: Number(process.env.FEEDBACK_MIN_CONVERSIONS ?? '10'),
       formula: defaultFormula(),
     });
+    try {
+      const rangeLabel = `${windowStart.toISOString().slice(5, 10).replace('-', '/')}〜${windowEnd
+        .toISOString()
+        .slice(5, 10)
+        .replace('-', '/')}`;
+      await sendWeeklyAdReport(rangeLabel);
+    } catch (e) {
+      console.error('[cron/winning-pattern-weekly] Slack report failed (continuing):', e);
+    }
     return NextResponse.json({
       ok: true,
       windowStart: windowStart.toISOString().slice(0, 10),
