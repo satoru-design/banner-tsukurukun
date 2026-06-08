@@ -233,6 +233,10 @@ model Generation {
   /// true なら PREVIEW 透かし入りで保存、UI でアップグレード訴求バナー表示
   isPreview Boolean @default(false)
 
+  /// AdLoop マルチテナント: どの AdAccount からの生成か（オプション）
+  accountId  String?
+  account    AdAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
   /// LP Maker Pro 2.0: この Generation がどの LP の「広告も作る」連携から生成されたか
   sourceLpId String?
   sourceLp   LandingPage? @relation("LpToBanner", fields: [sourceLpId], references: [id], onDelete: SetNull)
@@ -244,6 +248,7 @@ model Generation {
 
   @@index([userId, createdAt])
   @@index([sourceLpId])
+  @@index([accountId])
 }
 
 /// Phase A.11.5: Generation 内の各サイズ画像
@@ -457,6 +462,8 @@ model LandingPageDomain {
 model MetaAd {
   id                String   @id @default(cuid())
   adId              String   @unique
+  accountId         String
+  account           AdAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   adSetId           String?
   campaignId        String?
   adName            String?
@@ -470,6 +477,7 @@ model MetaAd {
 
   @@index([generationImageId])
   @@index([status])
+  @@index([accountId])
 }
 
 /// 日次成果スナップショット（疲労検知・期間集計が可能）
@@ -497,6 +505,8 @@ model AdPerformanceSnapshot {
 /// 勝ち要因の集計結果（学習信号・監査ログ兼用）
 model WinningPattern {
   id          String   @id @default(cuid())
+  accountId   String
+  account     AdAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   dimension   String
   value       String
   windowStart DateTime @db.Date
@@ -512,5 +522,21 @@ model WinningPattern {
   score       Decimal  @db.Decimal(8, 4)
   computedAt  DateTime @default(now())
 
-  @@index([dimension, value, windowEnd])
+  @@index([accountId, dimension, value, windowEnd])
+  @@index([accountId, windowEnd])
+}
+
+/// AdLoop マルチテナント: 1 Meta 広告アカウント = 1 AdAccount。token/webhook は env(slug規約)で解決。
+model AdAccount {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name            String
+  metaAdAccountId String
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  metaAds         MetaAd[]
+  winningPatterns WinningPattern[]
+  generations     Generation[]
 }
