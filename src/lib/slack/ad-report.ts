@@ -1,6 +1,7 @@
 import { detectFatiguedAds, type FatiguedAd } from '@/lib/feedback-loop/fatigue-query';
 import { getAdSnapshotRows, type SnapshotBucket } from '@/lib/feedback-loop/ad-snapshot';
 import { getPrisma } from '@/lib/prisma';
+import { getAccountWebhook } from '@/lib/feedback-loop/accounts';
 import { yen, count, ratioPct, fixedTable } from './format';
 
 const MIN_SCORE = 0.5;
@@ -70,32 +71,18 @@ export function formatSnapshotTable(title: string, buckets: SnapshotBucket[]): s
   return `📅 ${title}\n\`\`\`\n${fixedTable(headers, rows, widths)}\n\`\`\``;
 }
 
-function webhookUrl(): string | null {
-  return process.env.SLACK_WEBHOOK_URL_AD_REPORT ?? process.env.SLACK_WEBHOOK_URL_NEW_USER ?? null;
+async function post(text: string, webhookUrl: string | null): Promise<void> {
+  if (!webhookUrl) { console.warn('[ad-report] webhook 未設定のためスキップ'); return; }
+  const res = await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+  if (!res.ok) console.error(`[ad-report] Slack 送信失敗 ${res.status}`);
 }
 
-async function post(text: string): Promise<void> {
-  const url = webhookUrl();
-  if (!url) {
-    console.warn('[ad-report] webhook 未設定のためスキップ');
-    return;
-  }
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
-  });
-  if (!res.ok) {
-    console.error(`[ad-report] Slack 送信失敗 ${res.status}`);
-  }
-}
-
-async function getLatestWinningFull(): Promise<WinningHintFull[]> {
+async function getLatestWinningFull(accountId: string): Promise<WinningHintFull[]> {
   const prisma = getPrisma();
-  const latest = await prisma.winningPattern.findFirst({ orderBy: { windowEnd: 'desc' } });
+  const latest = await prisma.winningPattern.findFirst({ where: { accountId }, orderBy: { windowEnd: 'desc' } });
   if (!latest) return [];
   const rows = await prisma.winningPattern.findMany({
-    where: { windowEnd: latest.windowEnd },
+    where: { accountId, windowEnd: latest.windowEnd },
     orderBy: { score: 'desc' },
   });
   const seen = new Set<string>();
@@ -118,19 +105,19 @@ async function getLatestWinningFull(): Promise<WinningHintFull[]> {
 }
 
 /** 週次: 勝ち要因 + 週次スナップショット(16週) を1メッセージ送信 */
-export async function sendWeeklyAdReport(rangeLabel: string): Promise<void> {
+export async function sendWeeklyAdReport(account: { id: string; slug: string }, rangeLabel: string): Promise<void> {
   const [hints, fatigued, weekly] = await Promise.all([
-    getLatestWinningFull(),
-    detectFatiguedAds(),
-    getAdSnapshotRows('weekly', 16),
+    getLatestWinningFull(account.id),
+    detectFatiguedAds(account.id),
+    getAdSnapshotRows(account.id, 'weekly', 16),
   ]);
   const part1 = formatWinningReport({ rangeLabel, hints, fatigued });
   const part2 = formatSnapshotTable('AdLoop 週次スナップショット 直近16週', weekly);
-  await post(`${part1}\n\n${part2}`);
+  await post(`${part1}\n\n${part2}`, getAccountWebhook(account.slug));
 }
 
 /** 月次: 月次スナップショット(6ヶ月) を送信 */
-export async function sendMonthlyAdSnapshot(): Promise<void> {
-  const monthly = await getAdSnapshotRows('monthly', 6);
-  await post(formatSnapshotTable('AdLoop 月次スナップショット 直近6ヶ月', monthly));
+export async function sendMonthlyAdSnapshot(account: { id: string; slug: string }): Promise<void> {
+  const monthly = await getAdSnapshotRows(account.id, 'monthly', 6);
+  await post(formatSnapshotTable('AdLoop 月次スナップショット 直近6ヶ月', monthly), getAccountWebhook(account.slug));
 }

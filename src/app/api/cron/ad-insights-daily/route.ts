@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fetchAdInsightsForDate, InsightsConfigError } from '@/lib/feedback-loop/insights-client';
 import { upsertSnapshots } from '@/lib/feedback-loop/snapshot-upsert';
+import { getActiveAccounts, getAccountMetaToken, AccountConfigError } from '@/lib/feedback-loop/accounts';
 
 export const maxDuration = 120;
 export const runtime = 'nodejs';
@@ -13,16 +14,23 @@ export const GET = async (req: Request) => {
   }
   const d = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const ymd = d.toISOString().slice(0, 10);
-  try {
-    const rows = await fetchAdInsightsForDate(ymd);
-    const result = await upsertSnapshots(rows);
-    return NextResponse.json({ ok: true, date: ymd, fetched: rows.length, ...result });
-  } catch (e) {
-    if (e instanceof InsightsConfigError) {
-      console.warn('[cron/ad-insights-daily] skipped:', e.message);
-      return NextResponse.json({ ok: true, skipped: true, reason: e.message });
+  const accounts = await getActiveAccounts();
+  const results: Array<Record<string, unknown>> = [];
+  for (const a of accounts) {
+    try {
+      const token = getAccountMetaToken(a.slug);
+      const rows = await fetchAdInsightsForDate(ymd, { metaAdAccountId: a.metaAdAccountId, token });
+      const r = await upsertSnapshots(rows);
+      results.push({ slug: a.slug, ok: true, fetched: rows.length, matchedAds: r.matchedAds, skippedNoAd: r.skippedNoAd });
+    } catch (e) {
+      if (e instanceof AccountConfigError || e instanceof InsightsConfigError) {
+        console.warn(`[cron/ad-insights-daily] ${a.slug} skipped:`, (e as Error).message);
+        results.push({ slug: a.slug, ok: true, skipped: (e as Error).message });
+      } else {
+        console.error(`[cron/ad-insights-daily] ${a.slug} error:`, e);
+        results.push({ slug: a.slug, ok: false });
+      }
     }
-    console.error('[cron/ad-insights-daily] error:', e);
-    return NextResponse.json({ error: 'Internal error', message: String(e) }, { status: 500 });
   }
+  return NextResponse.json({ ok: true, date: ymd, accounts: results });
 };

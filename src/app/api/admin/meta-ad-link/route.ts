@@ -7,6 +7,7 @@ export const runtime = 'nodejs';
 
 const schema = z.object({
   adId: z.string().min(1),
+  accountId: z.string().min(1),
   generationImageId: z.string().min(1).nullable().optional(),
   adSetId: z.string().nullable().optional(),
   campaignId: z.string().nullable().optional(),
@@ -36,6 +37,10 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ ok: true, id: ad.id, adId: ad.adId });
   } catch (e) {
     console.error('[meta-ad-link] error:', e);
-    return NextResponse.json({ error: 'Internal error', message: String(e) }, { status: 500 });
+    const msg = String(e);
+    if (msg.includes('AdAccount not found')) {
+      return NextResponse.json({ error: 'AdAccount not found', message: msg }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Internal error', message: msg }, { status: 500 });
   }
 }

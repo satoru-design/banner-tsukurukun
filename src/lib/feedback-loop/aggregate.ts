@@ -4,6 +4,7 @@ import { scorePatterns, type ScoreFormula } from './winning-score';
 import type { AggregatedTagStat, TagDim } from './types';
 
 export interface AggregateOptions {
+  accountId: string;
   windowStart: Date; // 集計開始日（含む）
   windowEnd: Date; // 集計終了日（含む）
   minAdCount: number;
@@ -26,7 +27,7 @@ export async function aggregateWinningPatterns(opts: AggregateOptions): Promise<
   const prisma = getPrisma();
 
   const snapshots = await prisma.adPerformanceSnapshot.findMany({
-    where: { statDate: { gte: opts.windowStart, lte: opts.windowEnd } },
+    where: { statDate: { gte: opts.windowStart, lte: opts.windowEnd }, metaAd: { accountId: opts.accountId } },
     include: {
       metaAd: {
         include: {
@@ -84,11 +85,12 @@ export async function aggregateWinningPatterns(opts: AggregateOptions): Promise<
   });
 
   await prisma.winningPattern.deleteMany({
-    where: { windowStart: opts.windowStart, windowEnd: opts.windowEnd },
+    where: { accountId: opts.accountId, windowStart: opts.windowStart, windowEnd: opts.windowEnd },
   });
   if (scored.length > 0) {
     await prisma.winningPattern.createMany({
       data: scored.map((p) => ({
+        accountId: opts.accountId,
         dimension: p.dimension,
         value: p.value,
         windowStart: opts.windowStart,
