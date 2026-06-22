@@ -6,6 +6,7 @@ import { SessionProvider } from "next-auth/react";
 import { auth } from "@/lib/auth/auth";
 import { Suspense } from "react";
 import { PaymentFailedBanner } from "@/components/billing/PaymentFailedBanner";
+import { StoresMigrationNotice } from "@/components/billing/StoresMigrationNotice";
 import "./globals.css";
 
 const GTM_ID_AUTOBANNER = process.env.NEXT_PUBLIC_GTM_ID ?? '';
@@ -184,6 +185,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         </Script>
         <Suspense fallback={null}>
           <PaymentFailedBanner />
+        </Suspense>
+        <Suspense fallback={null}>
+          <StoresMigrationNotice />
         </Suspense>
         <SessionProvider session={session}>{children}</SessionProvider>
       </body>
