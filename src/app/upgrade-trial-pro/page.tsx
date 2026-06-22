@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { clientPaymentProvider } from '@/lib/billing/payment-provider.client';
 
 /**
  * Phase A.19: Pro 7 日無料トライアル自動起動ページ
@@ -20,6 +21,30 @@ export default function UpgradeTrialProPage() {
 
   useEffect(() => {
     (async () => {
+      const provider = clientPaymentProvider();
+
+      // STORES 経路（請求書払い）
+      if (provider === 'stores') {
+        try {
+          const res = await fetch('/api/billing/stores/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan: 'pro' }),
+          });
+          const data = await res.json();
+          if (data?.paymentUrl) {
+            window.location.assign(data.paymentUrl);
+            return;
+          }
+          setError(data?.error ?? `STORES Checkout 起動失敗 (${res.status})`);
+        } catch (e) {
+          console.error('[upgrade-trial-pro] STORES error:', e);
+          setError('ネットワークエラーが発生しました。再読み込みしてください。');
+        }
+        return;
+      }
+
+      // Stripe 経路（ホスト型 Checkout）
       const proBaseId = process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_BASE;
       if (!proBaseId) {
         setError('Pro Price ID が未設定です。お問い合わせください。');

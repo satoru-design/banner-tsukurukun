@@ -121,6 +121,9 @@ model User {
   payjpCustomerId         String?   @unique
   /// Pay.jp 移管: Pay.jp Subscription ID（sub_xxx）
   payjpSubscriptionId     String?   @unique
+  /// STORES請求書決済: STORES Customer ID
+  storesCustomerId        String?
+  invoices                Invoice[]
   /// Phase A.11.0: 当月使用回数（lazy reset）
   usageCount              Int       @default(0)
   /// Phase A.11.0: 次回リセット日時（NULL なら初回アクセス時にセット）
@@ -539,4 +542,23 @@ model AdAccount {
   metaAds         MetaAd[]
   winningPatterns WinningPattern[]
   generations     Generation[]
+}
+
+model Invoice {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  plan            String
+  amount          Int
+  periodStart     DateTime
+  periodEnd       DateTime
+  storesPaymentId String?   @unique
+  paymentUrl      String?
+  status          String    @default("issued") // issued | paid | overdue | canceled
+  dueDate         DateTime
+  issuedAt        DateTime  @default(now())
+  paidAt          DateTime?
+
+  @@unique([userId, periodStart])
+  @@index([status])
 }

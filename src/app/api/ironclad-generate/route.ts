@@ -264,7 +264,9 @@ export async function POST(req: Request) {
           typeof newUsageCount === 'number' &&
           newUsageCount > USAGE_LIMIT_PRO
         ) {
-          await sendMeteredUsage(updatedStripeCustomerId, generation.id);
+          if ((process.env.PAYMENT_PROVIDER ?? 'stripe') !== 'stores') {
+            await sendMeteredUsage(updatedStripeCustomerId, generation.id);
+          }
         }
         // Phase A.17.0: Business 上限超過なら meterEvents 送信（同 meter / 単価は Stripe Price で決まる）
         if (
@@ -274,7 +276,9 @@ export async function POST(req: Request) {
           newUsageCount > USAGE_LIMIT_BUSINESS
         ) {
           try {
-            await sendMeteredUsage(updatedStripeCustomerId, generation.id);
+            if ((process.env.PAYMENT_PROVIDER ?? 'stripe') !== 'stores') {
+              await sendMeteredUsage(updatedStripeCustomerId, generation.id);
+            }
           } catch (e) {
             console.error('[ironclad-generate] meterEvents failed (business):', e);
           }
