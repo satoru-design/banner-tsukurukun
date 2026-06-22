@@ -1,6 +1,7 @@
 import { getPrisma } from "@/lib/prisma";
 import { createPayment } from "@/lib/billing/stores/stores-client";
 import { monthlyAmount, type PaidPlan } from "@/lib/billing/stores/amounts";
+import { sendInvoiceEmail } from "@/lib/mail/resend";
 
 const PLAN_LABEL: Record<PaidPlan, string> = {
   starter: "Starter",
@@ -54,8 +55,19 @@ export async function issueInvoice({ userId, plan, periodStart }: IssueInvoicePa
     webhookUrl: `${appUrl}/api/billing/stores/webhook?token=${process.env.STORES_WEBHOOK_SECRET ?? ""}`,
   });
 
-  return prisma.invoice.update({
+  const updated = await prisma.invoice.update({
     where: { id: invoice.id },
     data: { storesPaymentId: payment.id, paymentUrl: payment.links.paymentUrl },
   });
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (user?.email) {
+      await sendInvoiceEmail({ to: user.email, plan: PLAN_LABEL[plan], paymentUrl: payment.links.paymentUrl });
+    }
+  } catch (e) {
+    console.error(`sendInvoiceEmail failed for invoice ${invoice.id}`, e);
+  }
+
+  return updated;
 }
