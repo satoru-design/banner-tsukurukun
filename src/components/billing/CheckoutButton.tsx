@@ -36,6 +36,7 @@ export const CheckoutButton = ({
 }: Props) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Pay.jp 経路
   if (clientPaymentProvider() === 'payjp' && plan) {
@@ -50,25 +51,28 @@ export const CheckoutButton = ({
     );
   }
 
-  // STORES 経路（請求書払い）
+  // STORES 経路（手動請求書払い）
+  // STORES請求書決済には API が無いため自動発行できない。申請を記録して
+  // 管理者へ Slack 通知し、入金確認後に管理者がプランを付与する。
   if (clientPaymentProvider() === 'stores' && plan) {
     const onClickStores = async () => {
       setLoading(true);
       setError(null);
+      setNotice(null);
       try {
-        const res = await fetch('/api/billing/stores/checkout', {
+        const res = await fetch('/api/billing/stores/request-upgrade', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ plan }),
         });
-        const data = await res.json();
-        if (data?.paymentUrl) {
-          window.location.assign(data.paymentUrl);
-          return;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) {
+          throw new Error(data?.error ?? `HTTP ${res.status}`);
         }
-        throw new Error(data?.error ?? `HTTP ${res.status}`);
+        setNotice(data.message ?? 'ご請求書をお送りします。担当者より連絡いたします。');
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Unknown error');
+      } finally {
         setLoading(false);
       }
     };
@@ -78,7 +82,7 @@ export const CheckoutButton = ({
         <button
           type="button"
           onClick={onClickStores}
-          disabled={loading}
+          disabled={loading || notice !== null}
           className={
             className ??
             'w-full bg-black text-white px-4 py-3 rounded font-bold disabled:opacity-50'
@@ -86,6 +90,7 @@ export const CheckoutButton = ({
         >
           {loading ? '読み込み中...' : label}
         </button>
+        {notice && <p className="text-green-600 text-sm mt-2">{notice}</p>}
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
       </div>
     );
