@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
-import { issueInvoice } from "@/lib/billing/stores/issue-invoice";
-import { sweepOverdue } from "@/lib/billing/stores/dunning";
-import { nextPeriodStart } from "@/lib/billing/stores/period";
-import type { PaidPlan } from "@/lib/billing/stores/amounts";
 
 export const dynamic = "force-dynamic";
 
@@ -13,27 +9,21 @@ export async function GET(req: Request) {
   }
   const prisma = getPrisma();
   const now = new Date();
-  const soon = new Date(now.getTime() + 3 * 86400_000);
-
-  const expiring = await prisma.user.findMany({
-    where: { plan: { in: ["starter", "pro", "business"] }, planExpiresAt: { lte: soon } },
-    select: { id: true, plan: true, planExpiresAt: true },
+  const lapsed = await prisma.user.findMany({
+    where: {
+      plan: { in: ["starter", "pro", "business"] },
+      planExpiresAt: { not: null, lt: now },
+    },
+    select: { id: true },
   });
-
-  let issued = 0;
-  for (const u of expiring) {
+  let downgraded = 0;
+  for (const u of lapsed) {
     try {
-      await issueInvoice({
-        userId: u.id,
-        plan: u.plan as PaidPlan,
-        periodStart: nextPeriodStart(u.planExpiresAt, now),
-      });
-      issued++;
+      await prisma.user.update({ where: { id: u.id }, data: { plan: "free" } });
+      downgraded++;
     } catch (e) {
-      console.error(`stores-renew issue failed for ${u.id}`, e);
+      console.error(`stores-renew downgrade failed for ${u.id}`, e);
     }
   }
-
-  const sweep = await sweepOverdue(now);
-  return NextResponse.json({ ok: true, issued, downgraded: sweep.downgraded.length });
+  return NextResponse.json({ ok: true, downgraded });
 }

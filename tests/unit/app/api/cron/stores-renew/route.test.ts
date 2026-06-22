@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const prisma = { user: { findMany: vi.fn() } };
+const prisma = { user: { findMany: vi.fn(), update: vi.fn() } };
 vi.mock("@/lib/prisma", () => ({ getPrisma: () => prisma }));
-const issueInvoice = vi.fn();
-vi.mock("@/lib/billing/stores/issue-invoice", () => ({ issueInvoice: (...a: unknown[]) => issueInvoice(...a) }));
-const sweepOverdue = vi.fn();
-vi.mock("@/lib/billing/stores/dunning", () => ({ sweepOverdue: (...a: unknown[]) => sweepOverdue(...a) }));
 
 import { GET } from "@/app/api/cron/stores-renew/route";
 
@@ -21,26 +17,28 @@ it("401 without cron secret", async () => {
   expect(res.status).toBe(401);
 });
 
-it("issues anniversary-based invoices for expiring paid users and runs the overdue sweep", async () => {
-  const planExpiresAt = new Date("2026-06-25T00:00:00Z");
-  prisma.user.findMany.mockResolvedValue([{ id: "u1", plan: "pro", planExpiresAt }]);
-  issueInvoice.mockResolvedValue({ id: "inv_x" });
-  sweepOverdue.mockResolvedValue({ downgraded: [] });
+it("downgrades paid users whose planExpiresAt has lapsed", async () => {
+  prisma.user.findMany.mockResolvedValue([{ id: "u1" }, { id: "u2" }]);
+  prisma.user.update.mockResolvedValue({});
   const res = await GET(authed());
   expect(res.status).toBe(200);
-  // periodStart should be planExpiresAt since it is in the future relative to now
-  expect(issueInvoice).toHaveBeenCalledWith(
-    expect.objectContaining({ userId: "u1", plan: "pro", periodStart: planExpiresAt })
-  );
-  expect(sweepOverdue).toHaveBeenCalled();
+  expect(await res.json()).toEqual({ ok: true, downgraded: 2 });
+  expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: "u1" }, data: { plan: "free" } });
+  expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: "u2" }, data: { plan: "free" } });
 });
 
-it("uses startOfDayUTC(now) as periodStart when planExpiresAt is null (lapsed user)", async () => {
-  prisma.user.findMany.mockResolvedValue([{ id: "u2", plan: "starter", planExpiresAt: null }]);
-  issueInvoice.mockResolvedValue({ id: "inv_y" });
-  sweepOverdue.mockResolvedValue({ downgraded: [] });
-  await GET(authed());
-  expect(issueInvoice).toHaveBeenCalledWith(
-    expect.objectContaining({ userId: "u2", periodStart: expect.any(Date) })
-  );
+it("returns downgraded:0 when no users have lapsed", async () => {
+  prisma.user.findMany.mockResolvedValue([]);
+  const res = await GET(authed());
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ ok: true, downgraded: 0 });
+  expect(prisma.user.update).not.toHaveBeenCalled();
+});
+
+it("continues and counts only successes if an update throws", async () => {
+  prisma.user.findMany.mockResolvedValue([{ id: "u1" }, { id: "u2" }]);
+  prisma.user.update.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce({});
+  const res = await GET(authed());
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ ok: true, downgraded: 1 });
 });
