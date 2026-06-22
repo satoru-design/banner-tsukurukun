@@ -8,7 +8,12 @@ import { getPrisma } from '@/lib/prisma';
  * 表示条件（全て満たす場合のみ）:
  *   1. PAYMENT_PROVIDER === 'stores'
  *   2. ユーザーの plan が有料プラン（'free' 以外）
- *   3. 未払いの STORES 請求書が存在する（status: 'issued' または 'overdue'、期間問わず）
+ *   3. 有効な有料期間が設定されていない、または7日以内に失効する
+ *      （planExpiresAt == null、または planExpiresAt <= now + 7日）
+ *      → 新しい STORES 決済での支払いが必要な状態
+ *
+ * 注: Invoice テーブルは手動 STORES 運用下では本番に未マイグレーションのため依存しない。
+ *     既存の User.plan / User.planExpiresAt のみで判定する。
  *
  * Server Component（PaymentFailedBanner と同じパターン）
  */
@@ -22,18 +27,16 @@ export const StoresMigrationNotice = async () => {
   const prisma = getPrisma();
   const dbUser = await prisma.user.findUnique({
     where: { id: user.userId },
-    select: { plan: true },
+    select: { plan: true, planExpiresAt: true },
   });
 
   // 条件 2: 有料プランのみ
   if (!dbUser || dbUser.plan === 'free') return null;
 
-  // 条件 3: 未払い請求書（issued / overdue）が存在するか（期間フィルタなし・記念日ベース対応）
-  const unpaid = await prisma.invoice.findFirst({
-    where: { userId: user.userId, status: { in: ['issued', 'overdue'] } },
-    select: { id: true },
-  });
-  if (!unpaid) return null;
+  // 条件 3: 有効な有料期間が無い、または7日以内に失効（記念日ベース対応）
+  const soon = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const needsAction = dbUser.planExpiresAt == null || dbUser.planExpiresAt <= soon;
+  if (!needsAction) return null;
 
   return (
     <div
