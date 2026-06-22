@@ -7,7 +7,11 @@ vi.mock("@/lib/auth/current-user", () => ({ getCurrentUserId: () => getCurrentUs
 
 import { POST } from "@/app/api/billing/stores/checkout/route";
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // I1: ensure provider is correctly set for all existing tests
+  process.env.PAYMENT_PROVIDER = "stores";
+});
 
 function req(body: unknown) {
   return new Request("https://x/api/billing/stores/checkout", { method: "POST", body: JSON.stringify(body) });
@@ -31,4 +35,15 @@ it("returns paymentUrl for a valid upgrade", async () => {
   const res = await POST(req({ plan: "pro" }));
   expect(res.status).toBe(200);
   expect(await res.json()).toMatchObject({ paymentUrl: "https://pay/x" });
+});
+
+// I1: provider split-brain guard — short-circuits before auth
+it("409 when PAYMENT_PROVIDER is not stores (I1)", async () => {
+  process.env.PAYMENT_PROVIDER = "stripe";
+  const res = await POST(req({ plan: "pro" }));
+  expect(res.status).toBe(409);
+  const body = await res.json();
+  expect(body).toMatchObject({ error: "provider mismatch" });
+  // auth must NOT have been called (short-circuit before auth)
+  expect(getCurrentUserId).not.toHaveBeenCalled();
 });

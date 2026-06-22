@@ -34,9 +34,15 @@ export async function issueInvoice({ userId, plan, periodStart }: IssueInvoicePa
   });
   if (existing) return existing;
 
+  // M4: validate numeric env var, fall back to default 7 on invalid value
+  function intEnv(name: string, dflt: number): number {
+    const n = Number(process.env[name]);
+    return Number.isInteger(n) && n >= 0 ? n : dflt;
+  }
+
   const amount = monthlyAmount(plan);
   const periodEnd = addMonths(periodStart, 1);
-  const dueDays = Number(process.env.STORES_INVOICE_DUE_DAYS ?? "7");
+  const dueDays = intEnv("STORES_INVOICE_DUE_DAYS", 7);
   const now = new Date();
   const dueDate = addDays(now, dueDays);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";

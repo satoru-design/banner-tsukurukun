@@ -30,7 +30,7 @@ export const StoresMigrationNotice = async () => {
 
   // 条件 3: 当月の未払い請求書（issued / overdue）が存在するか
   const now = new Date();
-  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const unpaidInvoice = await prisma.invoice.findFirst({
     where: {
       userId: user.userId,
