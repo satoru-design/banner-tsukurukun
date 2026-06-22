@@ -5,12 +5,17 @@ vi.mock("@/lib/billing/stores/issue-invoice", () => ({ issueInvoice: (...a: unkn
 const getCurrentUserId = vi.fn();
 vi.mock("@/lib/auth/current-user", () => ({ getCurrentUserId: () => getCurrentUserId() }));
 
+const prisma = { user: { findUnique: vi.fn() } };
+vi.mock("@/lib/prisma", () => ({ getPrisma: () => prisma }));
+
 import { POST } from "@/app/api/billing/stores/checkout/route";
 
 beforeEach(() => {
   vi.clearAllMocks();
   // I1: ensure provider is correctly set for all existing tests
   process.env.PAYMENT_PROVIDER = "stores";
+  // default: user has no active plan (new signup)
+  prisma.user.findUnique.mockResolvedValue({ planExpiresAt: null });
 });
 
 function req(body: unknown) {
@@ -35,6 +40,17 @@ it("returns paymentUrl for a valid upgrade", async () => {
   const res = await POST(req({ plan: "pro" }));
   expect(res.status).toBe(200);
   expect(await res.json()).toMatchObject({ paymentUrl: "https://pay/x" });
+});
+
+it("uses planExpiresAt as periodStart when user has an active plan (renewal)", async () => {
+  const futureExpiry = new Date("2026-07-15T00:00:00Z");
+  getCurrentUserId.mockResolvedValue("u1");
+  prisma.user.findUnique.mockResolvedValue({ planExpiresAt: futureExpiry });
+  issueInvoice.mockResolvedValue({ id: "inv_2", paymentUrl: "https://pay/y" });
+  await POST(req({ plan: "pro" }));
+  expect(issueInvoice).toHaveBeenCalledWith(
+    expect.objectContaining({ userId: "u1", periodStart: futureExpiry })
+  );
 });
 
 // I1: provider split-brain guard — short-circuits before auth

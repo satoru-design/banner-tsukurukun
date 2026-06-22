@@ -8,7 +8,7 @@ import { getPrisma } from '@/lib/prisma';
  * 表示条件（全て満たす場合のみ）:
  *   1. PAYMENT_PROVIDER === 'stores'
  *   2. ユーザーの plan が有料プラン（'free' 以外）
- *   3. 当月の STORES 請求書が未払い（status: 'issued' または 'overdue'）
+ *   3. 未払いの STORES 請求書が存在する（status: 'issued' または 'overdue'、期間問わず）
  *
  * Server Component（PaymentFailedBanner と同じパターン）
  */
@@ -28,18 +28,12 @@ export const StoresMigrationNotice = async () => {
   // 条件 2: 有料プランのみ
   if (!dbUser || dbUser.plan === 'free') return null;
 
-  // 条件 3: 当月の未払い請求書（issued / overdue）が存在するか
-  const now = new Date();
-  const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const unpaidInvoice = await prisma.invoice.findFirst({
-    where: {
-      userId: user.userId,
-      periodStart: { gte: periodStart },
-      status: { in: ['issued', 'overdue'] },
-    },
+  // 条件 3: 未払い請求書（issued / overdue）が存在するか（期間フィルタなし・記念日ベース対応）
+  const unpaid = await prisma.invoice.findFirst({
+    where: { userId: user.userId, status: { in: ['issued', 'overdue'] } },
     select: { id: true },
   });
-  if (!unpaidInvoice) return null;
+  if (!unpaid) return null;
 
   return (
     <div

@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { issueInvoice } from "@/lib/billing/stores/issue-invoice";
 import { getCurrentUserId } from "@/lib/auth/current-user";
+import { getPrisma } from "@/lib/prisma";
+import { nextPeriodStart } from "@/lib/billing/stores/period";
 import type { PaidPlan } from "@/lib/billing/stores/amounts";
 
 export const dynamic = "force-dynamic";
 
 const PAID: PaidPlan[] = ["starter", "pro", "business"];
-
-function monthStartUTC(d: Date): Date {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
-}
 
 export async function POST(req: Request) {
   // I1: guard against provider split-brain — must be BEFORE auth
@@ -25,10 +23,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid plan" }, { status: 400 });
   }
 
+  const prisma = getPrisma();
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { planExpiresAt: true } });
+  const periodStart = nextPeriodStart(user?.planExpiresAt ?? null, new Date());
+
   const invoice = await issueInvoice({
     userId,
     plan: plan as PaidPlan,
-    periodStart: monthStartUTC(new Date()),
+    periodStart,
   });
 
   return NextResponse.json({ invoiceId: invoice.id, paymentUrl: invoice.paymentUrl });
