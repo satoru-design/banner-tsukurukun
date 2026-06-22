@@ -1,4 +1,5 @@
 import { USAGE_LIMIT_PRO } from '@/lib/plans/limits';
+import { clientPaymentProvider } from '@/lib/billing/payment-provider.client';
 
 /**
  * Phase A.14: Pro プランの今月超過分を表示
@@ -6,6 +7,7 @@ import { USAGE_LIMIT_PRO } from '@/lib/plans/limits';
  * - usageCount > USAGE_LIMIT_PRO の時のみ表示
  * - 「今月超過: N 回 × ¥80 = ¥X」を見せる
  * - Stripe 側の usage と同期（payment_succeeded で usageCount=0 リセット）
+ * - STORES は従量課金なし → 表示しない
  */
 interface Props {
   plan: string;
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export const ProOverageDisplay = ({ plan, usageCount }: Props) => {
+  if (clientPaymentProvider() === 'stores') return null;
   if (plan !== 'pro') return null;
   const overage = Math.max(0, usageCount - USAGE_LIMIT_PRO);
   if (overage === 0) return null;
