@@ -50,6 +50,47 @@ export const CheckoutButton = ({
     );
   }
 
+  // STORES 経路（請求書払い）
+  if (clientPaymentProvider() === 'stores' && plan) {
+    const onClickStores = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/billing/stores/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan }),
+        });
+        const data = await res.json();
+        if (data?.paymentUrl) {
+          window.location.assign(data.paymentUrl);
+          return;
+        }
+        throw new Error(data?.error ?? `HTTP ${res.status}`);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Unknown error');
+        setLoading(false);
+      }
+    };
+
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={onClickStores}
+          disabled={loading}
+          className={
+            className ??
+            'w-full bg-black text-white px-4 py-3 rounded font-bold disabled:opacity-50'
+          }
+        >
+          {loading ? '読み込み中...' : label}
+        </button>
+        {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+      </div>
+    );
+  }
+
   // Stripe 経路（ホスト型 Checkout）
   const onClick = async () => {
     setLoading(true);
