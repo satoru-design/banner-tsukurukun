@@ -42,15 +42,19 @@ interface OrdersResponse {
 }
 
 /**
- * Format Date as ISO 8601 `YYYY-MM-DDTHH:MM:SS` (no millis, no zone).
- * STORES Orders API treats this as JST/local — passing UTC-normalized values
- * keeps semantics consistent across cron timezone changes.
+ * Format Date as ISO 8601 `YYYY-MM-DDTHH:MM:SS` (no millis, no zone) in JST.
+ * STORES Orders API treats the bare timestamp as JST — confirmed by the
+ * adreport-daily Python implementation (`stores.py` _jst_range_iso) which
+ * has been running against this same API in production.
+ * Vercel cron runs in UTC, so we must convert UTC → JST before formatting.
  */
 function formatStoresTimestamp(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
+  // shift UTC to JST (+9h) then read the calendar fields in UTC to avoid local-tz drift.
+  const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
   return (
-    `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}` +
-    `T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`
+    `${jst.getUTCFullYear()}-${pad(jst.getUTCMonth() + 1)}-${pad(jst.getUTCDate())}` +
+    `T${pad(jst.getUTCHours())}:${pad(jst.getUTCMinutes())}:${pad(jst.getUTCSeconds())}`
   );
 }
 
