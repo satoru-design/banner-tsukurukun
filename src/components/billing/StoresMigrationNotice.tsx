@@ -1,6 +1,11 @@
-import Link from 'next/link';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { getPrisma } from '@/lib/prisma';
+
+// 上部バナー「お支払いはこちら」の遷移先 = STORES の Pro プラン商品ページ。
+// URL を変えたい場合は環境変数 NEXT_PUBLIC_STORES_PRO_URL を設定すれば差し替え可能。
+const STORES_PRO_URL =
+  process.env.NEXT_PUBLIC_STORES_PRO_URL ??
+  'https://5pointdetox.stores.jp/items/6a39ff52c99ac713779b3804';
 
 /**
  * Task 15: STORES 移行告知バナー
@@ -46,12 +51,14 @@ export const StoresMigrationNotice = async () => {
       <p className="text-sm flex-1">
         📢 お支払い方法が変更になりました。次回更新分よりSTORES請求書決済でのお支払いをお願いいたします。
       </p>
-      <Link
-        href="/account/billing"
+      <a
+        href={STORES_PRO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
         className="shrink-0 text-sm font-semibold underline underline-offset-2 hover:opacity-80"
       >
         お支払いはこちら
-      </Link>
+      </a>
     </div>
   );
 };
