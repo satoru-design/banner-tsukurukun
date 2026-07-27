@@ -14,9 +14,12 @@ import {
   Loader2,
   CheckCircle2,
   Film,
+  FileDown,
+  X,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import JSZip from 'jszip';
+import { compressImageToTargetBytes, blobToBase64 } from '@/lib/image-compress';
 import type {
   IroncladBaseMaterials,
   IroncladMaterials,
@@ -437,6 +440,68 @@ export function IroncladGenerateScreen({
     setZippingProgress(null);
   };
 
+  // ===== 容量指定 DL（上限KB以下に圧縮して一括ZIP）=====
+  const [sizeDlOpen, setSizeDlOpen] = useState(false);
+  const [targetKb, setTargetKb] = useState('300');
+  const [compressProgress, setCompressProgress] = useState<{ current: number; total: number } | null>(
+    null,
+  );
+  // 上限を超えてしまった枚数（ベストエフォート DL 後の警告用）
+  const [compressWarnCount, setCompressWarnCount] = useState<number | null>(null);
+
+  const handleSizedDownload = async () => {
+    const kb = Number(targetKb);
+    if (!Number.isFinite(kb) || kb <= 0) return;
+    const maxBytes = Math.round(kb * 1024);
+
+    const targets = results.filter(
+      (r) => r.status === 'success' && r.imageUrl && r.selected !== false,
+    );
+    const previewBlocked = targets.some((r) => r.isPreview && user.plan === 'free');
+    if (previewBlocked) {
+      setUsageLimitModalOpen(true);
+      return;
+    }
+    if (targets.length === 0) return;
+
+    const ts = formatTimestamp();
+    const zip = new JSZip();
+    setCompressProgress({ current: 0, total: targets.length });
+    setCompressWarnCount(null);
+    let overflow = 0;
+
+    for (let i = 0; i < targets.length; i++) {
+      const r = targets[i];
+      try {
+        const result = await compressImageToTargetBytes(r.imageUrl!, maxBytes, { mime: 'image/jpeg' });
+        if (!result.withinLimit) overflow++;
+        const base64 = await blobToBase64(result.blob);
+        // 拡張子を .jpg に（JPEG 再エンコードのため）
+        const fileName = buildFileName(r.pattern, r.size, ts).replace(/\.png$/i, '.jpg');
+        zip.file(fileName, base64, { base64: true });
+      } catch {
+        // 圧縮失敗時は元 PNG をそのまま同梱（欠落させない）
+        const base64 = stripBase64Prefix(r.imageUrl!);
+        zip.file(buildFileName(r.pattern, r.size, ts), base64, { base64: true });
+        overflow++;
+      }
+      setCompressProgress({ current: i + 1, total: targets.length });
+    }
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${ts}_all_${Math.round(kb)}kb.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setCompressProgress(null);
+    setSizeDlOpen(false);
+    setCompressWarnCount(overflow);
+  };
+
   const completedCount = results.filter((r) => r.status === 'success').length;
   const errorCount = results.filter((r) => r.status === 'error').length;
   // Phase B.9: 1 度でも生成を試した(成功 or エラー)ならプライマリボタンを「再生成」に切替
@@ -539,7 +604,116 @@ export function IroncladGenerateScreen({
               : `選択中 ${selectedDownloadable.length}/${completedCount} 枚を一括DL`}
           </button>
         )}
+
+        {/* 容量指定 DL ボタン（生成成功画像が 1 枚以上で表示） */}
+        {completedCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setSizeDlOpen(true)}
+            disabled={selectedDownloadable.length === 0 || compressProgress !== null}
+            className="flex items-center gap-2 px-6 py-4 rounded-xl text-white font-bold bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-90 disabled:opacity-40 shadow-xl transition"
+          >
+            <FileDown className="w-5 h-5" />
+            {compressProgress
+              ? `圧縮中… ${compressProgress.current}/${compressProgress.total}`
+              : '画像サイズを指定してDL'}
+          </button>
+        )}
       </div>
+
+      {/* 容量が上限を超えた画像があった場合の注意 */}
+      {compressWarnCount !== null && compressWarnCount > 0 && (
+        <div className="flex items-center justify-center gap-2 text-xs text-amber-300">
+          <AlertTriangle className="w-4 h-4" />
+          {compressWarnCount} 枚は指定容量まで下げきれず、最小画質でDLしました（上限を上げるか、寸法を落として再DLしてください）。
+        </div>
+      )}
+
+      {/* 容量指定 DL モーダル */}
+      {sizeDlOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-white">画像サイズを指定してDL</h3>
+                <p className="mt-1 text-xs text-slate-400">
+                  選択中 {selectedDownloadable.length} 枚を、指定した上限容量以下に圧縮（JPEG）してZIPでまとめてDLします。
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSizeDlOpen(false)}
+                disabled={compressProgress !== null}
+                className="text-slate-400 hover:text-white disabled:opacity-40"
+                aria-label="閉じる"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mt-5">
+              <label className="block text-sm font-bold text-slate-200 mb-2">1枚あたりの上限容量</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={10}
+                  step={10}
+                  value={targetKb}
+                  onChange={(e) => setTargetKb(e.target.value)}
+                  disabled={compressProgress !== null}
+                  className="w-40 bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-white text-right disabled:opacity-40"
+                />
+                <span className="text-sm text-slate-300 font-bold">KB</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {[150, 300, 500, 1000].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setTargetKb(String(preset))}
+                    disabled={compressProgress !== null}
+                    className="px-2 py-1 rounded text-[11px] bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 disabled:opacity-40"
+                  >
+                    {preset === 1000 ? '1MB' : `${preset}KB`}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-slate-500">
+                LINEヤフー / Google 広告の入稿上限に合わせて指定してください（例: 3MB以内なら余裕を持って設定）。
+              </p>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setSizeDlOpen(false)}
+                disabled={compressProgress !== null}
+                className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 text-white text-sm disabled:opacity-40"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={handleSizedDownload}
+                disabled={compressProgress !== null || !(Number(targetKb) > 0)}
+                className="flex items-center gap-2 px-5 py-2 rounded-lg text-white font-bold bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-90 disabled:opacity-40 text-sm"
+              >
+                {compressProgress ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    圧縮中… {compressProgress.current}/{compressProgress.total}
+                  </>
+                ) : (
+                  <>
+                    <FileDown className="w-4 h-4" />
+                    圧縮してDL
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Phase A.16: スタイル別セクション */}
       {patterns.map((pattern) => (

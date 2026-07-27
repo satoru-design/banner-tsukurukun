@@ -51,10 +51,26 @@ export type IroncladSize =
   // Display SP
   | 'Display SP 320x50'
   | 'Display SP 320x100'
+  // LINEヤフー（YDA レスポンシブ）: 公式推奨ピクセル準拠
+  | 'LINEヤフー 1:1 (1200x1200)'
+  | 'LINEヤフー 6:5 (1200x1000)'
+  | 'LINEヤフー 16:9 (1280x720)'
+  | 'LINEヤフー 1:2 (600x1200)'
+  | 'LINEヤフー 4:15 (320x1200)'
+  | 'LINEヤフー 16:5 (1280x400)'
+  | 'LINEヤフー 32:5 (1280x200)'
+  | 'LINEヤフー 728:90 (1456x180)'
+  | 'LINEヤフー 39:5 (936x120)'
   // Phase A.15: カスタムサイズ（最大 2000×2000）
   | `カスタム ${number}x${number}`;
 
-export type IroncladSizeCategory = 'SNS' | 'Display共通' | 'DisplayPC' | 'DisplaySP' | 'Custom';
+export type IroncladSizeCategory =
+  | 'SNS'
+  | 'Display共通'
+  | 'DisplayPC'
+  | 'DisplaySP'
+  | 'LINEヤフー'
+  | 'Custom';
 
 /** Phase A.15: カスタムサイズ最大値 */
 export const CUSTOM_SIZE_MAX = 2000;
@@ -430,6 +446,68 @@ export const SIZE_TO_API_IRONCLAD: Record<
     category: 'DisplaySP',
     needsCrop: true,
   },
+  // LINEヤフー（YDA レスポンシブ）--------------------------------------
+  // LINEヤフー公式の推奨ピクセル準拠。既存サイズと同様、生成物はアスペクト比を
+  // 合わせた素材（apiSize バケット）で、入稿時は各推奨ピクセルへリサイズ/クロップして使う。
+  'LINEヤフー 1:1 (1200x1200)': {
+    apiSize: '1024x1024',
+    layoutHint: '1:1 正方形。LINEヤフー最汎用。PC/タブレット/スマホ全対応',
+    aspectRatio: '1:1',
+    category: 'LINEヤフー',
+  },
+  'LINEヤフー 6:5 (1200x1000)': {
+    apiSize: '1024x864',
+    layoutHint: '6:5 準正方形。中央にメイン被写体を据える構成。全デバイス対応',
+    aspectRatio: '1:1',
+    category: 'LINEヤフー',
+  },
+  'LINEヤフー 16:9 (1280x720)': {
+    apiSize: '1280x720',
+    layoutHint: '16:9 横長。動画枠と同比率の主力レスポンシブ。全デバイス対応',
+    aspectRatio: '16:9',
+    category: 'LINEヤフー',
+  },
+  'LINEヤフー 1:2 (600x1200)': {
+    apiSize: '1024x2048',
+    layoutHint: '1:2 縦長。PC/タブレットのサイド大面積枠',
+    aspectRatio: '9:16',
+    category: 'LINEヤフー',
+  },
+  'LINEヤフー 4:15 (320x1200)': {
+    apiSize: '512x1536',
+    layoutHint: '4:15 超縦長。gpt-image-2 は 1:3 で生成 → 手動クロップ推奨',
+    aspectRatio: '9:16',
+    category: 'LINEヤフー',
+    needsCrop: true,
+  },
+  'LINEヤフー 16:5 (1280x400)': {
+    apiSize: '1536x512',
+    layoutHint: '16:5 横長バナー（3.2:1）。gpt-image-2 は 3:1 で生成 → 手動クロップ推奨。スマホ向け',
+    aspectRatio: '16:9',
+    category: 'LINEヤフー',
+    needsCrop: true,
+  },
+  'LINEヤフー 32:5 (1280x200)': {
+    apiSize: '1536x512',
+    layoutHint: '32:5 横長バナー（6.4:1）。gpt-image-2 は 3:1 で生成 → 手動クロップ推奨。スマホ向け',
+    aspectRatio: '16:9',
+    category: 'LINEヤフー',
+    needsCrop: true,
+  },
+  'LINEヤフー 728:90 (1456x180)': {
+    apiSize: '1536x512',
+    layoutHint: 'リーダーボード（8.09:1）。gpt-image-2 は 3:1 で生成 → 手動クロップ推奨。全デバイス対応',
+    aspectRatio: '16:9',
+    category: 'LINEヤフー',
+    needsCrop: true,
+  },
+  'LINEヤフー 39:5 (936x120)': {
+    apiSize: '1536x512',
+    layoutHint: '横長バナー（7.8:1）。gpt-image-2 は 3:1 で生成 → 手動クロップ推奨。全デバイス対応',
+    aspectRatio: '16:9',
+    category: 'LINEヤフー',
+    needsCrop: true,
+  },
 };
 
 /**
@@ -477,6 +555,22 @@ export const IRONCLAD_SIZE_CATEGORIES: Array<{
     label: 'Display SP (スマートフォン)',
     emoji: '📲',
     sizes: ['Display SP 320x50', 'Display SP 320x100'],
+  },
+  {
+    key: 'LINEヤフー',
+    label: 'LINEヤフー（YDA レスポンシブ）',
+    emoji: '🟢',
+    sizes: [
+      'LINEヤフー 1:1 (1200x1200)',
+      'LINEヤフー 6:5 (1200x1000)',
+      'LINEヤフー 16:9 (1280x720)',
+      'LINEヤフー 1:2 (600x1200)',
+      'LINEヤフー 4:15 (320x1200)',
+      'LINEヤフー 16:5 (1280x400)',
+      'LINEヤフー 32:5 (1280x200)',
+      'LINEヤフー 728:90 (1456x180)',
+      'LINEヤフー 39:5 (936x120)',
+    ],
   },
 ];
 
