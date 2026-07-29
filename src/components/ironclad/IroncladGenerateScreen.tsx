@@ -19,7 +19,12 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import JSZip from 'jszip';
-import { compressImageToTargetBytes, blobToBase64 } from '@/lib/image-compress';
+import {
+  compressImageToTargetBytes,
+  compressExactToTargetBytes,
+  exportExactBlob,
+  blobToBase64,
+} from '@/lib/image-compress';
 import type {
   IroncladBaseMaterials,
   IroncladMaterials,
@@ -63,6 +68,20 @@ function buildFileName(pattern: string, size: string, ts: string): string {
 /** data:image/...;base64, プレフィックスを除去して純粋な base64 を返す */
 function stripBase64Prefix(dataUrl: string): string {
   return dataUrl.replace(/^data:image\/[^;]+;base64,/, '');
+}
+
+/**
+ * サイズラベルから入稿実寸(W×H)を抽出。例: "LINEヤフー 4:15 (320x1200)" → {w:320,h:1200}。
+ * 生成物は apiSize(アスペクト比バケット)なので、DL 時にこの実寸へクロップ&リサイズして入稿サイズを厳守する。
+ * ラベルに W×H が無い場合は null（クロップせず原寸のまま）。
+ */
+function parseSizeWH(size: string): { w: number; h: number } | null {
+  const m = size.match(/(\d+)\s*[xX×]\s*(\d+)/);
+  if (!m) return null;
+  const w = parseInt(m[1], 10);
+  const h = parseInt(m[2], 10);
+  if (!w || !h) return null;
+  return { w, h };
 }
 
 type Props = {
@@ -370,7 +389,7 @@ export function IroncladGenerateScreen({
     setOverallGenerating(false);
   };
 
-  const handleDownload = (
+  const handleDownload = async (
     imageUrl: string,
     pattern: IroncladPattern,
     size: IroncladSize,
@@ -381,13 +400,27 @@ export function IroncladGenerateScreen({
       setUsageLimitModalOpen(true);
       return;
     }
+    // 入稿実寸へ自動クロップ&リサイズ（LINEヤフー等の「トリミングを求められる」問題を解消）
+    const wh = parseSizeWH(size);
+    let href = imageUrl;
+    let revoke = false;
+    if (wh) {
+      try {
+        const blob = await exportExactBlob(imageUrl, wh.w, wh.h, { mime: 'image/png' });
+        href = URL.createObjectURL(blob);
+        revoke = true;
+      } catch {
+        href = imageUrl; // 失敗時は原寸のまま DL（欠落させない）
+      }
+    }
     // Phase A.17: 命名規則統一 → 2026-05-04_10-30-45_王道_1080-1080.png
     const link = document.createElement('a');
-    link.href = imageUrl;
+    link.href = href;
     link.download = buildFileName(pattern, size, formatTimestamp());
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    if (revoke) URL.revokeObjectURL(href);
   };
 
   // Phase A.17: 個別カードのチェックボックス切替
@@ -423,7 +456,19 @@ export function IroncladGenerateScreen({
     for (let i = 0; i < targets.length; i++) {
       const r = targets[i];
       const fileName = buildFileName(r.pattern, r.size, ts);
-      const base64 = stripBase64Prefix(r.imageUrl!);
+      // 入稿実寸へ自動クロップ&リサイズ（原寸は apiSize バケットのため）
+      const wh = parseSizeWH(r.size);
+      let base64: string;
+      if (wh) {
+        try {
+          const blob = await exportExactBlob(r.imageUrl!, wh.w, wh.h, { mime: 'image/png' });
+          base64 = await blobToBase64(blob);
+        } catch {
+          base64 = stripBase64Prefix(r.imageUrl!);
+        }
+      } else {
+        base64 = stripBase64Prefix(r.imageUrl!);
+      }
       zip.file(fileName, base64, { base64: true });
       setZippingProgress({ current: i + 1, total: targets.length });
     }
@@ -473,7 +518,11 @@ export function IroncladGenerateScreen({
     for (let i = 0; i < targets.length; i++) {
       const r = targets[i];
       try {
-        const result = await compressImageToTargetBytes(r.imageUrl!, maxBytes, { mime: 'image/jpeg' });
+        // 入稿実寸へクロップ&リサイズしてから上限KBへ圧縮（実寸は厳守・寸法は縮小しない）
+        const wh = parseSizeWH(r.size);
+        const result = wh
+          ? await compressExactToTargetBytes(r.imageUrl!, wh.w, wh.h, maxBytes, { mime: 'image/jpeg' })
+          : await compressImageToTargetBytes(r.imageUrl!, maxBytes, { mime: 'image/jpeg' });
         if (!result.withinLimit) overflow++;
         const base64 = await blobToBase64(result.blob);
         // 拡張子を .jpg に（JPEG 再エンコードのため）

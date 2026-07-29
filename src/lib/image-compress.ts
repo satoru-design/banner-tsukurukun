@@ -150,6 +150,101 @@ export async function compressImageToTargetBytes(
   };
 }
 
+/**
+ * 画像を「目標アスペクト比でセンタークロップ → 目標実寸へリサイズ」した canvas を返す。
+ * 生成物は apiSize（アスペクト比バケット）なので、入稿サイズの実寸ピッタリに整える用途。
+ * 歪ませない（非等倍スケールを避ける）ため、はみ出す辺を中央基準で切り落とす。
+ */
+function cropResizeCanvas(
+  img: HTMLImageElement,
+  targetW: number,
+  targetH: number,
+  background: string,
+): HTMLCanvasElement {
+  const sw = img.naturalWidth || img.width;
+  const sh = img.naturalHeight || img.height;
+  const targetAspect = targetW / targetH;
+  const srcAspect = sw / sh;
+
+  let cropW: number;
+  let cropH: number;
+  let cropX: number;
+  let cropY: number;
+  if (srcAspect > targetAspect) {
+    // ソースが横に広い → 幅を切る
+    cropH = sh;
+    cropW = Math.round(sh * targetAspect);
+    cropX = Math.round((sw - cropW) / 2);
+    cropY = 0;
+  } else {
+    // ソースが縦に長い → 高さを切る
+    cropW = sw;
+    cropH = Math.round(sw / targetAspect);
+    cropX = 0;
+    cropY = Math.round((sh - cropH) / 2);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(targetW));
+  canvas.height = Math.max(1, Math.round(targetH));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('canvas コンテキストを取得できませんでした');
+  ctx.fillStyle = background;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+/**
+ * 画像を目標実寸（targetW×targetH）へクロップ＆リサイズした Blob を返す。
+ * mime='image/png'（既定, 可逆）/ 'image/jpeg'。入稿サイズ厳守 DL 用。
+ */
+export async function exportExactBlob(
+  src: string,
+  targetW: number,
+  targetH: number,
+  opts: { mime?: CompressMime | 'image/png'; quality?: number; background?: string } = {},
+): Promise<Blob> {
+  const mime = opts.mime ?? 'image/png';
+  const background = opts.background ?? '#ffffff';
+  const img = await loadImage(src);
+  const canvas = cropResizeCanvas(img, targetW, targetH, background);
+  const blob = await canvasToBlob(canvas, mime, opts.quality ?? (mime === 'image/png' ? 1 : 0.92));
+  if (!blob) throw new Error('画像のエクスポートに失敗しました');
+  return blob;
+}
+
+/**
+ * 目標実寸へクロップ＆リサイズしたうえで、上限バイト以下に JPEG 圧縮する。
+ * 実寸は厳守（寸法は縮小しない）し、画質のみ二分探索で調整する。
+ * どの画質でも収まらない場合は実寸を維持したまま最小画質でベストエフォート返却。
+ */
+export async function compressExactToTargetBytes(
+  src: string,
+  targetW: number,
+  targetH: number,
+  maxBytes: number,
+  opts: { mime?: CompressMime; background?: string; minQuality?: number } = {},
+): Promise<CompressResult> {
+  const mime: CompressMime = opts.mime ?? 'image/jpeg';
+  const background = opts.background ?? '#ffffff';
+  const minQuality = opts.minQuality ?? 0.3;
+  const img = await loadImage(src);
+  const canvas = cropResizeCanvas(img, targetW, targetH, background);
+  const { blob, quality } = await bestBlobAtSize(canvas, mime, maxBytes, minQuality);
+  return {
+    blob,
+    bytes: blob.size,
+    width: canvas.width,
+    height: canvas.height,
+    quality,
+    scaled: false,
+    withinLimit: blob.size <= maxBytes,
+    mime,
+  };
+}
+
 /** Blob → base64（プレフィックスなし）。JSZip 投入用。 */
 export function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
