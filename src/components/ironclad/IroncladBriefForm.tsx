@@ -368,7 +368,7 @@ export function IroncladBriefForm({
                 </div>
                 {anyCropInCat && (
                   <span className="text-[10px] text-amber-400 bg-amber-950/40 rounded px-2 py-0.5 border border-amber-800">
-                    ⚠ 3:1超を含む（自動クロップ推奨）
+                    ⚠ 3:1超を含む（DL時に実寸へ自動クロップ）
                   </span>
                 )}
               </div>
@@ -391,7 +391,7 @@ export function IroncladBriefForm({
                       <span className="mr-1">{active ? '✓' : '☐'}</span>
                       {s}
                       {meta.needsCrop && (
-                        <span className="ml-1 text-amber-300" title="3:1を超えるため自動クロップが必要">
+                        <span className="ml-1 text-amber-300" title="3:1を超えるサイズ。DL時に入稿実寸へ自動でセンタークロップされます（中央基準のため端が切れる場合あり）">
                           ✂
                         </span>
                       )}
