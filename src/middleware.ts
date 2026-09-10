@@ -16,6 +16,7 @@ const PUBLIC_PATHS = [
   '/api/admin/kpi',  // Phase A.17.0: GAS から呼ばれる KPI 集計 API。Bearer ADMIN_KPI_SECRET で認証。
   '/api/admin/batch-generate',  // Phase 2: meta-ads-autopilot からの Bearer API Key 認証エンドポイント
   '/api/admin/batch-reject',    // Phase 4: 拒否理由を受け取って次回 prompt に注入する用
+  '/api/admin/meta-ad-link',    // C1: meta-ads-autopilot が ad_id↔生成画像 を登録。route 側で verifyBatchGenerateAuth (Bearer) 済
   '/api/cron/check-business-upgrade',  // Phase A.17.0: Vercel Cron。Bearer CRON_SECRET で認証。
   '/api/cron/process-video-jobs',  // Phase B.1: Vercel Cron。Bearer CRON_SECRET で認証。
   '/api/cron/notify-retention',  // Phase A.19: D+1/D+3/D+7 Slack 通知。Bearer CRON_SECRET で認証。
