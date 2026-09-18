@@ -9,11 +9,15 @@
  *   - 既存の Meta CAPI と同じく await で完了を待つ
  *     (Vercel serverless が response 直後に terminate するため fire-and-forget は不可)
  */
+import { formatAttributionLines, type Attribution } from '@/lib/attribution';
+
 export async function notifyNewUserToSlack(args: {
   email: string;
   name?: string | null;
   provider?: string; // 'google' 想定
   isAdminEmail?: boolean;
+  /** 流入計測: middleware が焼いた first touch cookie の中身（無ければ null） */
+  attribution?: Attribution | null;
 }): Promise<void> {
   const webhook = process.env.SLACK_WEBHOOK_URL_NEW_USER;
   if (!webhook) {
@@ -37,6 +41,7 @@ export async function notifyNewUserToSlack(args: {
     `${tag} 登録: *${displayName}*`,
     `email: \`${args.email}\``,
     `provider: \`${provider}\` / ${ts} JST`,
+    ...formatAttributionLines(args.attribution ?? null),
     `<https://autobanner.jp|autobanner.jp>`,
   ].join('\n');
 

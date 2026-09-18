@@ -149,6 +149,12 @@ model User {
   /// payment_succeeded webhook で NULL リセット
   proLpOverageNoticeShownAt DateTime?
 
+  /// 流入計測: 登録者の first touch チャネル
+  /// 'paid_google' | 'paid_meta' | 'paid_other' | 'organic_search' | 'social' | 'email' | 'referral' | 'direct'
+  signupChannel     String?
+  /// 流入計測: first touch の生データ（landing / referer / utm 一式）
+  signupAttribution Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -164,6 +170,7 @@ model User {
 
   @@index([stripeCustomerId])
   @@index([payjpCustomerId])
+  @@index([signupChannel])
 }
 
 /// Phase A.17.0: アップグレード推奨履歴

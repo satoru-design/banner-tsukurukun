@@ -4,6 +4,22 @@ import { getPrisma } from '@/lib/prisma';
 import { authConfig } from './auth.config';
 import { sendMetaCompleteRegistrationEvent } from '@/lib/billing/meta-capi';
 import { notifyNewUserToSlack } from '@/lib/slack/notify-new-user';
+import { cookies } from 'next/headers';
+import { ATTRIBUTION_COOKIE, parseAttributionCookie, type Attribution } from '@/lib/attribution';
+
+/**
+ * 流入計測: middleware が焼いた first touch cookie を読む。
+ * cookie ブロックや計測前の登録では null になる（= 計測なし扱い）。
+ */
+async function readAttribution(): Promise<Attribution | null> {
+  try {
+    const store = await cookies();
+    return parseAttributionCookie(store.get(ATTRIBUTION_COOKIE)?.value);
+  } catch (e) {
+    console.error('[auth] attribution cookie 読み取り失敗 (non-fatal):', e);
+    return null;
+  }
+}
 
 const prisma = getPrisma();
 
@@ -117,6 +133,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // fire-and-forget だと fetch が送信前にキルされる。
       // await で明示的に完了を待つ（signIn 体験に +300-500ms のコストはあるが許容）。
       if (isNewUser) {
+        // 流入計測: 先に読む（Slack 通知と DB の両方で使う）
+        const attribution = await readAttribution();
+
+        if (attribution) {
+          try {
+            await prisma.user.update({
+              where: { email: user.email },
+              data: {
+                signupChannel: attribution.ch,
+                signupAttribution: attribution as unknown as object,
+              },
+            });
+          } catch (e) {
+            // 計測の保存失敗で signIn は止めない
+            console.error('[auth] signup attribution 保存失敗 (non-fatal):', e);
+          }
+        }
+
         try {
           await sendMetaCompleteRegistrationEvent({
             email: user.email,
@@ -135,6 +169,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: user.name,
             provider: 'google',
             isAdminEmail: adminEmails.includes(user.email),
+            attribution,
           });
         } catch (e) {
           console.error('[auth] Slack new-user notify failed (non-fatal):', e);

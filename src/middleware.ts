@@ -1,6 +1,12 @@
 import NextAuth from 'next-auth';
 import { NextResponse, type NextRequest } from 'next/server';
 import { authConfig } from '@/lib/auth/auth.config';
+import {
+  ATTRIBUTION_COOKIE,
+  ATTRIBUTION_MAX_AGE,
+  buildAttribution,
+  serializeAttribution,
+} from '@/lib/attribution';
 
 const { auth } = NextAuth(authConfig);
 
@@ -29,6 +35,33 @@ const PUBLIC_PATH_PREFIXES = [
   '/legal',  // Phase A.15: 特商法 / 利用規約 / プライバシーポリシー
   '/site',  // LP Maker Pro 2.0 D10-T14: 公開 LP（/site/[user]/[slug]）。認証なしで閲覧可。
 ];
+
+/**
+ * 流入計測: 初回訪問時に first touch の attribution cookie を焼く。
+ *
+ * - すでに cookie があれば何もしない (first touch を上書きしない)
+ * - /api/* は計測しない (ページ着地だけを first touch とみなす)
+ * - cookie は httpOnly。読むのは auth events.signIn (サーバー側) だけ。
+ */
+function withAttribution(req: NextRequest, res: NextResponse): NextResponse {
+  if (req.cookies.get(ATTRIBUTION_COOKIE)) return res;
+  if (req.nextUrl.pathname.startsWith('/api/')) return res;
+
+  const attribution = buildAttribution({
+    url: req.nextUrl,
+    referer: req.headers.get('referer'),
+    host: req.headers.get('host'),
+  });
+
+  res.cookies.set(ATTRIBUTION_COOKIE, serializeAttribution(attribution), {
+    maxAge: ATTRIBUTION_MAX_AGE,
+    sameSite: 'lax',
+    path: '/',
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+  });
+  return res;
+}
 
 const AB_LP01_COOKIE = 'ab_lp01';
 const AB_LP01_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -82,7 +115,7 @@ function handleLp01Ab(req: NextRequest): NextResponse {
     path: '/',
   });
   response.headers.set('x-ab-lp01', variant);
-  return response;
+  return withAttribution(req, response);
 }
 
 /**
@@ -142,12 +175,12 @@ export default auth((req) => {
 
   // 完全一致 public パス
   if (PUBLIC_PATHS.includes(pathname)) {
-    return;
+    return withAttribution(req, NextResponse.next());
   }
 
   // プレフィックス public パス
   if (PUBLIC_PATH_PREFIXES.some((p) => pathname.startsWith(p))) {
-    return;
+    return withAttribution(req, NextResponse.next());
   }
 
   // 未ログイン
@@ -167,11 +200,11 @@ export default auth((req) => {
     // それ以外（ページ）は /signin にリダイレクト（callbackUrl で元の path を保持）
     const signInUrl = new URL('/signin', req.url);
     signInUrl.searchParams.set('callbackUrl', pathname);
-    return Response.redirect(signInUrl);
+    return withAttribution(req, NextResponse.redirect(signInUrl));
   }
 
   // ログイン済 → そのまま通す
-  return;
+  return withAttribution(req, NextResponse.next());
 });
 
 export const config = {
