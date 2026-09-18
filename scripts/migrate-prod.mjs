@@ -9,8 +9,9 @@
  * 必要 env:
  *   - PROD_DATABASE_URL: 本番 production branch の接続文字列
  *
- * .env に PROD_DATABASE_URL を入れてあれば --env-file=.env でロード可能。
+ * .env の PROD_DATABASE_URL は自動で読み込む（dotenv/config）。--env-file は不要。
  */
+import 'dotenv/config';
 import { spawnSync } from 'node:child_process';
 
 const prodUrl = process.env.PROD_DATABASE_URL;
