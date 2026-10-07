@@ -1,5 +1,5 @@
 import { getPrisma } from '@/lib/prisma';
-import { ownedOrLegacyWhere } from '@/lib/auth/ownership';
+import { ownedWhere } from '@/lib/auth/ownership';
 import type { StyleProfile } from './schema';
 
 /**
@@ -10,18 +10,19 @@ import type { StyleProfile } from './schema';
  * referenceImageUrls まで自分の生成に流用できてしまう
  * (generate-image は参照画像をそのまま画像プロバイダに渡す)。
  *
- * 参照できるのは自分の行と移行前の遺構 (userId=NULL) のみ。
+ * 参照できるのは自分の行のみ (admin は移行前の遺構 userId=NULL も可)。
  * 他人の行は、存在しない場合と同じく null を返す
  * (403 と 404 を区別しないことで id の存在自体も漏らさない)。
  */
 export async function loadStyleProfile(
   id: string | null | undefined,
   viewerUserId: string,
+  viewerIsAdmin = false,
 ): Promise<StyleProfile | null> {
   if (!id) return null;
   const prisma = getPrisma();
   const p = await prisma.styleProfile.findFirst({
-    where: { id, ...ownedOrLegacyWhere(viewerUserId) },
+    where: { id, ...ownedWhere(viewerUserId, viewerIsAdmin) },
   });
   if (!p) return null;
   return {

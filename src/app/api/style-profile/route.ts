@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
-import { getCurrentUserId } from '@/lib/auth/current-user';
-import { ownedOrLegacyWhere } from '@/lib/auth/ownership';
+import { getCurrentUser } from '@/lib/auth/get-current-user';
+import { ownedWhere } from '@/lib/auth/ownership';
 import { internalErrorResponse } from '@/lib/api/error-response';
 import type {
   VisualStyle,
@@ -27,8 +27,8 @@ interface CreateBody {
 }
 
 export async function POST(req: Request) {
-  const userId = await getCurrentUserId();
-  if (!userId) {
+  const user = await getCurrentUser();
+  if (!user.userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
         layout: JSON.stringify(body.layout),
         copyTone: JSON.stringify(body.copyTone),
         // 所有者はセッションから強制セットする。body からは受け取らない。
-        userId,
+        userId: user.userId,
       },
     });
 
@@ -70,17 +70,17 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const userId = await getCurrentUserId();
-  if (!userId) {
+  const user = await getCurrentUser();
+  if (!user.userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const prisma = getPrisma();
-    // 自分のプロファイルと、移行前の遺構 (userId=NULL) のみ。
+    // 自分のプロファイルのみ (admin は移行前の遺構 userId=NULL も合流)。
     // 以前は全ユーザーのプロファイルを返していた。
     const profiles = await prisma.styleProfile.findMany({
-      where: ownedOrLegacyWhere(userId),
+      where: ownedWhere(user.userId, user.plan === 'admin'),
       orderBy: { updatedAt: 'desc' },
       select: {
         id: true,

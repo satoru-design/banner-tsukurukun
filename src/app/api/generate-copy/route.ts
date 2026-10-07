@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { loadStyleProfile, injectIntoCopyPrompt } from '@/lib/style-profile/injector';
-import { getCurrentUserId } from '@/lib/auth/current-user';
+import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const runtime = 'nodejs';
@@ -13,8 +13,8 @@ const MAX_FIELD_LENGTH = 20000;
 
 export async function POST(req: Request) {
   // Gemini 2.5 Pro を呼ぶ従量課金 route なので route 側でもログインを必須にする。
-  const userId = await getCurrentUserId();
-  if (!userId) {
+  const user = await getCurrentUser();
+  if (!user.userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Product Name or Insights or LP Text is required' }, { status: 400 });
     }
 
-    const styleProfile = await loadStyleProfile(styleProfileId, userId);
+    const styleProfile = await loadStyleProfile(styleProfileId, user.userId, user.plan === 'admin');
 
     const systemPrompt = `
 あなたは日本のダイレクトレスポンス広告に 15 年従事したコピーライター兼クリエイティブディレクターです。

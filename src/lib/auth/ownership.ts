@@ -3,12 +3,14 @@
  *
  * StyleProfile と Banner には後から userId を足したため、
  * 移行前に作られた行は userId = NULL のまま残る。所有者を特定できないので、
- * NULL 行の扱いをテーブルごとに決めて 1 箇所に集める。
+ * NULL 行は Asset の既存ルールと同じく admin のみが触れる扱いにする。
  *
- *  - StyleProfile: 移行前は「全ユーザーが一覧できる共有ライブラリ」として
- *    動いていた。既存の見え方を壊さないよう、NULL 行は全ログインユーザーが
- *    参照できる。変更と削除は所有者のみ（NULL 行は admin のみ）。
- *  - Banner: 共有の意味を持たない保存物なので、NULL 行は admin のみ参照できる。
+ * 当初は StyleProfile だけ「NULL 行は全ログインユーザーが参照できる」
+ * （移行前と同じ見え方の維持）としていたが、それだと移行直後は
+ * 既存の全プロファイルが NULL なので、他テナントの参照画像 URL や
+ * ターゲット層が引き続き誰からでも読める。テナント分離を謳いながら
+ * 既存データが丸ごと開いたままになるため、両テーブルとも
+ * admin 限定に統一した。
  *
  * NULL 行を実ユーザーに寄せるには scripts/backfill-tenant-ownership.ts を使う。
  */
@@ -19,38 +21,27 @@ export interface OwnedRow {
 }
 
 /**
- * 「自分の行 + 移行前の遺構 (userId=NULL)」を読む Prisma の where 断片。
- *
- * StyleProfile のように、移行前から全員に見えていたテーブルの参照に使う。
- * NULL 行を新たに公開するわけではない（移行前から全員に見えていた)。
- */
-export function ownedOrLegacyWhere(userId: string): {
-  OR: ({ userId: string } | { userId: null })[];
-} {
-  return { OR: [{ userId }, { userId: null }] };
-}
-
-/**
- * 「自分の行」だけを読む where 断片。admin のときは遺構 (NULL) も合流する。
- *
- * Banner のように、移行前から全員に見えていたことを引き継ぎたくない
- * テーブルの参照に使う。Asset の既存ルールと同じ考え方。
+ * 「自分の行」を読む Prisma の where 断片。admin のときは移行前の
+ * 遺構 (userId=NULL) も合流する。
  */
 export function ownedWhere(
   userId: string,
   isAdmin: boolean,
 ): { userId: string } | { OR: ({ userId: string } | { userId: null })[] } {
-  return isAdmin ? ownedOrLegacyWhere(userId) : { userId };
+  return isAdmin ? { OR: [{ userId }, { userId: null }] } : { userId };
 }
 
 /**
- * 行を変更・削除できるか。
+ * 行を参照・変更・削除できるか。
  *
  * 自分の行は可。admin は加えて遺構 (userId=NULL) も可。
  * 他人の行は不可（admin であっても不可にする。管理操作は
  * 専用の admin エンドポイント経由に限る）。
+ *
+ * 参照と変更で規則を分けない。分けると呼び出し側で取り違えたときに
+ * 気づきにくいうえ、参照だけ緩める理由がこのドメインには無い。
  */
-export function canMutateOwned(
+export function canAccessOwned(
   row: OwnedRow,
   userId: string,
   isAdmin: boolean,
@@ -58,12 +49,4 @@ export function canMutateOwned(
   if (row.userId === userId) return true;
   if (isAdmin && row.userId === null) return true;
   return false;
-}
-
-/**
- * 行を参照できるか（StyleProfile の規則）。
- * 自分の行と遺構は可。他人の行は不可。
- */
-export function canReadOwnedOrLegacy(row: OwnedRow, userId: string): boolean {
-  return row.userId === userId || row.userId === null;
 }

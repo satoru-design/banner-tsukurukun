@@ -40,13 +40,24 @@ describe('loadStyleProfile tenant scoping', () => {
   // 本体の回帰テスト: 以前は findUnique({ where: { id } }) だったため、
   // body に他人の styleProfileId を入れるだけで相手の referenceImageUrls を
   // 自分の生成に流用できた。
-  it('constrains the query to the viewer and the legacy rows', async () => {
+  it('constrains the query to the viewer for a non-admin', async () => {
     findFirst.mockResolvedValue(row());
 
     await loadStyleProfile('sp_1', ALICE);
 
     expect(findFirst).toHaveBeenCalledWith({
-      where: { id: 'sp_1', OR: [{ userId: ALICE }, { userId: null }] },
+      where: { id: 'sp_1', userId: ALICE },
+    });
+  });
+
+  // 移行前の遺構 (userId=NULL) は admin だけが合流できる。
+  it('lets an admin also reach the legacy rows', async () => {
+    findFirst.mockResolvedValue(row({ userId: null }));
+
+    await loadStyleProfile('sp_legacy', ALICE, true);
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'sp_legacy', OR: [{ userId: ALICE }, { userId: null }] },
     });
   });
 
@@ -56,7 +67,17 @@ describe('loadStyleProfile tenant scoping', () => {
     await loadStyleProfile('sp_1', ALICE);
 
     const where = findFirst.mock.calls[0][0].where;
-    expect(where.OR, 'the tenant constraint must always be present').toBeDefined();
+    const constrained = where.userId !== undefined || where.OR !== undefined;
+    expect(constrained, 'the tenant constraint must always be present').toBe(true);
+  });
+
+  // 既定は非 admin。呼び出し側が渡し忘れても遺構に届かない。
+  it('defaults to the non-admin rule when the flag is omitted', async () => {
+    findFirst.mockResolvedValue(row());
+
+    await loadStyleProfile('sp_1', ALICE);
+
+    expect(findFirst.mock.calls[0][0].where.OR).toBeUndefined();
   });
 
   it("returns null when the row is not visible to the viewer", async () => {
@@ -75,9 +96,9 @@ describe('loadStyleProfile tenant scoping', () => {
     expect(p?.referenceImageUrls).toEqual(['https://blob/secret-reference.png']);
   });
 
-  it('returns a legacy row (userId=null), which stays readable by design', async () => {
+  it('parses whatever the scoped query returned', async () => {
     findFirst.mockResolvedValue(row({ userId: null }));
 
-    expect((await loadStyleProfile('sp_legacy', ALICE))?.id).toBe('sp_1');
+    expect((await loadStyleProfile('sp_legacy', ALICE, true))?.id).toBe('sp_1');
   });
 });

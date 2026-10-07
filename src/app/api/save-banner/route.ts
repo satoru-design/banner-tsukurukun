@@ -45,6 +45,19 @@ export async function POST(req: Request) {
       styleProfileId,
     } = data;
 
+    // styleProfileId は他人の行を指せないようにする。
+    // 他人のプロファイルに自分のバナーを紐付けると、相手の DELETE が
+    // 409 で止まり（参照件数を理由に拒否される）、件数も漏れる。
+    if (styleProfileId) {
+      const owned = await prisma.styleProfile.findFirst({
+        where: { id: styleProfileId, ...ownedWhere(user.userId, user.plan === 'admin') },
+        select: { id: true },
+      });
+      if (!owned) {
+        return NextResponse.json({ error: 'styleProfileId not found' }, { status: 404 });
+      }
+    }
+
     const banner = await prisma.banner.create({
       data: {
         productName,

@@ -7,6 +7,7 @@ import {
   AspectRatio,
 } from './types';
 import { buildBakeTextInstruction } from './prompt-helpers';
+import { assertPublicHttpUrl } from '@/lib/net/safe-url';
 
 // gpt-image-2: 日本語テキスト描画・商品画像忠実性・権威バッジ再現性が gpt-image-1 比で大幅改善。
 // 組織認証（Business verification）済みアカウントのみアクセス可能。
@@ -155,7 +156,10 @@ async function generateWithReferencesEdit(
   // URL から File オブジェクトを生成（OpenAI SDK の toFile ヘルパー）
   const files = await Promise.all(
     referenceImageUrls.slice(0, 10).map(async (url, idx) => {
-      const res = await fetch(url);
+      // SSRF 対策: 参照画像 URL はユーザー入力由来（自分の styleProfile や
+      // materials に任意の URL を入れられる）。内部ネットワーク宛を弾く。
+      await assertPublicHttpUrl(url);
+      const res = await fetch(url, { redirect: 'manual' });
       if (!res.ok) {
         throw new ImageProviderError(
           'gpt-image',

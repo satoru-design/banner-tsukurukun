@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import type { StyleProfileInput } from '@/lib/style-profile/schema';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
-import { canMutateOwned, canReadOwnedOrLegacy } from '@/lib/auth/ownership';
+import { canAccessOwned } from '@/lib/auth/ownership';
 import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const runtime = 'nodejs';
@@ -17,8 +17,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * 書き換え・削除できた。
  *
  * 規則:
- *  - GET: 自分の行と移行前の遺構 (userId=NULL) のみ。
- *  - PUT / DELETE: 自分の行のみ。admin は遺構も可。
+ *  - GET / PUT / DELETE: 自分の行のみ。admin は移行前の遺構 (userId=NULL) も可。
  *
  * 他人の行は 403 ではなく 404 を返す。403 だと「その id は存在する」
  * という情報を渡してしまうため。
@@ -33,7 +32,7 @@ export async function GET(_req: Request, ctx: Ctx) {
     const { id } = await ctx.params;
     const prisma = getPrisma();
     const p = await prisma.styleProfile.findUnique({ where: { id } });
-    if (!p || !canReadOwnedOrLegacy(p, user.userId)) {
+    if (!p || !canAccessOwned(p, user.userId, user.plan === 'admin')) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
     return NextResponse.json({
@@ -69,7 +68,7 @@ export async function PUT(req: Request, ctx: Ctx) {
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-    if (!canMutateOwned(existing, user.userId, user.plan === 'admin')) {
+    if (!canAccessOwned(existing, user.userId, user.plan === 'admin')) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
@@ -115,7 +114,7 @@ export async function DELETE(_req: Request, ctx: Ctx) {
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
-    if (!canMutateOwned(existing, user.userId, user.plan === 'admin')) {
+    if (!canAccessOwned(existing, user.userId, user.plan === 'admin')) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 

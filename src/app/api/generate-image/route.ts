@@ -70,7 +70,7 @@ export async function POST(req: Request) {
       ? (ratioRaw as AspectRatio)
       : '1:1';
 
-    const styleProfile = await loadStyleProfile(styleProfileId, guard.userId);
+    const styleProfile = await loadStyleProfile(styleProfileId, guard.userId, guard.plan === 'admin');
     const extendedPrompt = injectIntoImagePrompt(prompt, styleProfile);
 
     const result = await generateWithFallback(provider, {

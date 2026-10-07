@@ -6,6 +6,7 @@ import {
   ImageProviderError,
 } from './types';
 import { buildBakeTextInstruction } from './prompt-helpers';
+import { assertPublicHttpUrl } from '@/lib/net/safe-url';
 
 const IMAGEN_MODEL = 'imagen-4.0-ultra-generate-001';
 const GEMINI_IMAGE_MODEL = 'gemini-3-pro-image-preview';
@@ -79,7 +80,10 @@ async function generateWithReferences(
 
   const imageParts = await Promise.all(
     referenceImageUrls.map(async (url) => {
-      const res = await fetch(url);
+      // SSRF 対策: 参照画像 URL はユーザー入力由来（自分の styleProfile や
+      // materials に任意の URL を入れられる）。内部ネットワーク宛を弾く。
+      await assertPublicHttpUrl(url);
+      const res = await fetch(url, { redirect: 'manual' });
       if (!res.ok) {
         throw new ImageProviderError(
           'imagen4',
