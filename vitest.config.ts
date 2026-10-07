@@ -3,8 +3,11 @@ import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   test: {
-    include: ['tests/unit/**/*.test.ts'],
+    // .tsx はコンポーネントテスト。各ファイル先頭の
+    // `// @vitest-environment jsdom` で個別に jsdom へ切り替える。
+    include: ['tests/unit/**/*.test.ts', 'tests/unit/**/*.test.tsx'],
     environment: 'node',
+    setupFiles: ['tests/setup/component.ts'],
   },
   resolve: {
     alias: {
