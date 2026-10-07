@@ -27,13 +27,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # リポジトリに .nvmrc も package.json の engines も無いため、
       # next@16.2.4 の要件（node >=20.9.0）を満たす現行 LTS の 22 を固定で指定する。
       # .nvmrc か engines を追加したら、ここを node-version-file に切り替えるとよい。
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
