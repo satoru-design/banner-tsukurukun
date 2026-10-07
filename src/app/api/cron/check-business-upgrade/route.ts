@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { detectBusinessUpgradeCandidates } from '@/lib/billing/upgrade-detection';
 import { verifyCronSecret } from '@/lib/auth/verify-bearer-secret';
+import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const maxDuration = 300;
 export const runtime = 'nodejs';
@@ -20,9 +21,6 @@ export const GET = async (req: Request) => {
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     console.error('[cron/check-business-upgrade] error:', e);
-    return NextResponse.json(
-      { error: 'Internal error', message: String(e) },
-      { status: 500 }
-    );
+    return internalErrorResponse('cron/check-business-upgrade', e);
   }
 };

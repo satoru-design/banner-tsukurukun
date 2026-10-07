@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendMonthlyKpi } from '@/lib/slack/kpi-summary';
 import { verifyCronSecret } from '@/lib/auth/verify-bearer-secret';
+import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const maxDuration = 120;
 export const runtime = 'nodejs';
@@ -17,6 +18,6 @@ export const GET = async (req: Request) => {
     return NextResponse.json({ ok: true, kind: 'monthly' });
   } catch (e) {
     console.error('[cron/kpi-monthly] error:', e);
-    return NextResponse.json({ error: 'Internal error', message: String(e) }, { status: 500 });
+    return internalErrorResponse('cron/kpi-monthly', e);
   }
 };

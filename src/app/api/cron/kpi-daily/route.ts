@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendDailyKpi } from '@/lib/slack/kpi-summary';
 import { verifyCronSecret } from '@/lib/auth/verify-bearer-secret';
+import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const maxDuration = 60;
 export const runtime = 'nodejs';
@@ -18,6 +19,6 @@ export const GET = async (req: Request) => {
     return NextResponse.json({ ok: true, kind: 'daily' });
   } catch (e) {
     console.error('[cron/kpi-daily] error:', e);
-    return NextResponse.json({ error: 'Internal error', message: String(e) }, { status: 500 });
+    return internalErrorResponse('cron/kpi-daily', e);
   }
 };

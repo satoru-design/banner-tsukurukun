@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { verifyBearerSecret } from '@/lib/auth/verify-bearer-secret';
+import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -148,9 +149,6 @@ export const GET = async (req: Request): Promise<Response> => {
     });
   } catch (e) {
     console.error('[admin/kpi] error:', e);
-    return NextResponse.json(
-      { error: 'Internal error', message: String(e) },
-      { status: 500 },
-    );
+    return internalErrorResponse('admin/kpi', e);
   }
 };
