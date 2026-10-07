@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendRetentionNotify } from '@/lib/slack/retention-notify';
+import { verifyCronSecret } from '@/lib/auth/verify-bearer-secret';
 
 export const maxDuration = 60;
 export const runtime = 'nodejs';
@@ -11,8 +12,7 @@ export const runtime = 'nodejs';
  * セキュリティ: Vercel Cron は CRON_SECRET ヘッダーを Bearer 認証として送る
  */
 export const GET = async (req: Request) => {
-  const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {

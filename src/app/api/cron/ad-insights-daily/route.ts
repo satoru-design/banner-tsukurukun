@@ -3,14 +3,14 @@ import { fetchAdInsightsForDate, InsightsConfigError } from '@/lib/feedback-loop
 import { upsertSnapshots } from '@/lib/feedback-loop/snapshot-upsert';
 import { getActiveAccounts, getAccountMetaToken, AccountConfigError } from '@/lib/feedback-loop/accounts';
 import { syncAdStatuses } from '@/lib/feedback-loop/ad-status';
+import { verifyCronSecret } from '@/lib/auth/verify-bearer-secret';
 
 export const maxDuration = 120;
 export const runtime = 'nodejs';
 
 /** 前日の ad 単位 Insights を取得して snapshot 化。"0 23 * * *"(UTC)=JST 8:00 */
 export const GET = async (req: Request) => {
-  const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const d = new Date(Date.now() - 24 * 60 * 60 * 1000);

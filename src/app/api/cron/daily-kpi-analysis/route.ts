@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { runDailyAnalysis } from '@/lib/analytics/daily-kpi-analysis';
+import { verifyCronSecret } from '@/lib/auth/verify-bearer-secret';
 
 export const maxDuration = 60;
 export const runtime = 'nodejs';
@@ -13,8 +14,7 @@ export const runtime = 'nodejs';
  * Slack 通知に Claude API 生成の「3 行所感 + 1 行打ち手」を含める。
  */
 export const GET = async (req: Request) => {
-  const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {

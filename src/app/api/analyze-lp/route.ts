@@ -1,19 +1,52 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { getCurrentUserId } from '@/lib/auth/current-user';
+import { internalErrorResponse } from '@/lib/api/error-response';
+
+export const runtime = 'nodejs';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-export async function POST(req: Request) {
+/**
+ * 解析対象 URL の検証。
+ *
+ * 以前は受け取った文字列をそのまま `https://r.jina.ai/${url}` に連結していたため、
+ * 相対パスや `..` を混ぜて Jina 側のパスを書き換えられる状態だった。
+ * http(s) の絶対 URL だけを受け、encodeURIComponent してから連結する。
+ */
+function parseTargetUrl(raw: unknown): URL | null {
+  if (typeof raw !== 'string' || raw.trim() === '') return null;
+  let u: URL;
   try {
-    const { url } = await req.json();
+    u = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  return u;
+}
 
-    if (!url) {
-      return NextResponse.json({ error: 'URL is required' }, { status: 400 });
+export async function POST(req: Request) {
+  // Gemini 2.5 Pro を呼ぶ従量課金 route なので route 側でもログインを必須にする。
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { url: rawUrl } = await req.json();
+
+    const target = parseTargetUrl(rawUrl);
+    if (!target) {
+      return NextResponse.json(
+        { error: 'URL is required (http(s) の絶対 URL を指定してください)' },
+        { status: 400 },
+      );
     }
 
     let lpText = '';
     try {
-      const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
+      const jinaRes = await fetch(`https://r.jina.ai/${encodeURIComponent(target.toString())}`, {
         headers: {
           'Accept': 'text/plain',
         }
@@ -24,8 +57,9 @@ export async function POST(req: Request) {
       } else {
         return NextResponse.json({ error: 'Failed to extract text from URL.' }, { status: 400 });
       }
-    } catch (e: any) {
-      return NextResponse.json({ error: 'Error connecting to Jina Reader.' }, { status: 500 });
+    } catch (e: unknown) {
+      console.error('[analyze-lp] Jina Reader fetch failed:', e);
+      return NextResponse.json({ error: 'Error connecting to Jina Reader.' }, { status: 502 });
     }
 
     const prompt = `
@@ -63,7 +97,7 @@ Markdownブロックなどを含めず、純粋なJSONテキストのみ出力�
        throw new Error('No content returned from AI');
     }
     
-    let parsed: any;
+    let parsed: unknown;
     try {
       const cleanJSON = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
       parsed = JSON.parse(cleanJSON);
@@ -73,8 +107,7 @@ Markdownブロックなどを含めず、純粋なJSONテキストのみ出力�
     }
 
     return NextResponse.json({ insights: parsed, lpText });
-  } catch (error: any) {
-    console.error('LP Analysis API error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return internalErrorResponse('analyze-lp', error, 'LP の解析に失敗しました');
   }
 }

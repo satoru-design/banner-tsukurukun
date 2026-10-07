@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
 import { reconcileInvoice } from "@/lib/billing/stores/reconcile";
+import { verifyCronSecret } from "@/lib/auth/verify-bearer-secret";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const prisma = getPrisma();

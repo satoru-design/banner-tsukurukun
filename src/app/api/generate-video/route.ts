@@ -21,6 +21,7 @@ import {
   VideoAspectRatio,
   VideoDurationSeconds,
 } from '@/lib/video-providers';
+import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -46,11 +47,44 @@ const VALID_PROVIDERS: VideoProviderId[] = [
 ];
 const VALID_ASPECT: VideoAspectRatio[] = ['9:16', '16:9', '1:1'];
 
+/** 1 ユーザーあたりの未処理 (pending/processing) 動画ジョブの上限。 */
+const MAX_IN_FLIGHT_VIDEOS_PER_USER = 5;
+
 export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 動画化は admin 限定 β。/api/queue-cogen-videos と /api/suggest-video-prompt は
+    // 既に admin gate を持つが、ジョブを直接キューに積むこの route だけ抜けていた。
+    // Veo / Kling は 1 本あたり実費が出るため、同じ線に揃える。
+    if (session.user.plan !== 'admin') {
+      return NextResponse.json(
+        { error: '動画化は現在 admin 限定 (β)' },
+        { status: 403 },
+      );
+    }
+
+    // 未処理ジョブの本数に上限を設ける。上限が無いと 1 ユーザーが
+    // pending を積み放題で、毎分動くワーカーが順次 provider に投げ続ける。
+    const prismaForQuota = getPrisma();
+    const inFlight = await prismaForQuota.generationVideo.count({
+      where: {
+        status: { in: ['pending', 'processing'] },
+        generation: { userId: session.user.id },
+      },
+    });
+    if (inFlight >= MAX_IN_FLIGHT_VIDEOS_PER_USER) {
+      return NextResponse.json(
+        {
+          error: `未処理の動画ジョブが ${MAX_IN_FLIGHT_VIDEOS_PER_USER} 件あります。完了までお待ちください。`,
+          inFlight,
+          limit: MAX_IN_FLIGHT_VIDEOS_PER_USER,
+        },
+        { status: 429 },
+      );
     }
 
     const body = (await req.json()) as PostBody;
@@ -161,8 +195,6 @@ export async function POST(req: Request) {
       estimatedCostUsd: costEstimate,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    console.error('generate-video POST error:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalErrorResponse('generate-video POST', error, '動画ジョブの作成に失敗しました');
   }
 }

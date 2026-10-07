@@ -15,6 +15,7 @@ import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { getVideoProvider, VideoProviderId } from '@/lib/video-providers';
 import { uploadGenerationVideo } from '@/lib/generations/video-blob-client';
+import { verifyCronSecret } from '@/lib/auth/verify-bearer-secret';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -121,8 +122,7 @@ async function processOneJob(): Promise<{ jobId: string; status: string } | null
 }
 
 export const GET = async (req: Request) => {
-  const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -2,9 +2,14 @@ import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { uploadAssetImage } from '@/lib/assets/blob-client';
 import { auth } from '@/lib/auth/auth';
+import { validateImageUpload } from '@/lib/uploads/image-validation';
+import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
+
+/** blob-client 側の上限と同値。route で先に弾いて 400 を返す。 */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 const VALID_TYPES = ['product', 'badge', 'logo', 'other'] as const;
 type AssetType = (typeof VALID_TYPES)[number];
@@ -45,9 +50,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ assets });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    console.error('Assets GET error:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalErrorResponse('assets GET', error, '素材の取得に失敗しました');
   }
 }
 
@@ -81,8 +84,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'name is required' }, { status: 400 });
     }
 
+    // 申告 MIME とマジックバイトの両方を検証する。
+    // 以前は file.type をそのまま public Blob の contentType にしていたため、
+    // text/html を申告した HTML を置けば自社 Blob ドメインから配信できた。
     const bytes = await file.arrayBuffer();
-    const mime = file.type || 'image/png';
+    const validated = validateImageUpload(file.type, bytes, MAX_UPLOAD_BYTES);
+    if (!validated.ok) {
+      return NextResponse.json({ error: validated.reason }, { status: 400 });
+    }
+    const mime = validated.contentType;
     const blobUrl = await uploadAssetImage(type, file.name || 'asset.png', bytes, mime);
 
     const prisma = getPrisma();
@@ -98,8 +108,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ asset: created });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    console.error('Assets POST error:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalErrorResponse('assets POST', error, '素材の保存に失敗しました');
   }
 }

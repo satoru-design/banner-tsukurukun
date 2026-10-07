@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { verifyBearerSecret } from '@/lib/auth/verify-bearer-secret';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,8 +43,7 @@ function getJstDateRange(dateStr: string | null) {
 }
 
 export const GET = async (req: Request): Promise<Response> => {
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.ADMIN_KPI_SECRET}`) {
+  if (!verifyBearerSecret(req, 'ADMIN_KPI_SECRET')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

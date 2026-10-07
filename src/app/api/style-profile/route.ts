@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { getCurrentUserId } from '@/lib/auth/current-user';
+import { internalErrorResponse } from '@/lib/api/error-response';
 import type {
   VisualStyle,
   Typography,
@@ -24,6 +26,13 @@ interface CreateBody {
 }
 
 export async function POST(req: Request) {
+  // StyleProfile は全ユーザー共有テーブル（userId カラムを持たない）。
+  // 所有者で絞れないぶん、少なくともログインは route 側で必須にする。
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = (await req.json()) as CreateBody;
     if (!body.name) {
@@ -54,12 +63,16 @@ export async function POST(req: Request) {
         { status: 409 },
       );
     }
-    console.error('StyleProfile POST error:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalErrorResponse('StyleProfile POST', error, 'プロファイルの保存に失敗しました');
   }
 }
 
 export async function GET() {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const prisma = getPrisma();
     const profiles = await prisma.styleProfile.findMany({
@@ -79,7 +92,6 @@ export async function GET() {
     }));
     return NextResponse.json({ profiles: normalized });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalErrorResponse('StyleProfile GET', error, 'プロファイルの取得に失敗しました');
   }
 }

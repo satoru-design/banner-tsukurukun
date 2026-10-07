@@ -3,6 +3,7 @@ import { getPrisma } from '@/lib/prisma';
 import { isPayjpEnabled } from '@/lib/billing/payjp-client';
 import { billPayjpOverage } from '@/lib/billing/payjp-overage';
 import { downgradeToFree } from '@/lib/billing/payjp-plan-sync';
+import { verifyCronSecret } from '@/lib/auth/verify-bearer-secret';
 
 export const maxDuration = 300;
 export const runtime = 'nodejs';
@@ -17,8 +18,7 @@ export const runtime = 'nodejs';
  * セキュリティ: Vercel Cron の CRON_SECRET Bearer 認証。
  */
 export const GET = async (req: Request) => {
-  const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (!isPayjpEnabled()) {
