@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import { USAGE_LIMIT_PRO } from '@/lib/plans/limits';
 import { getOverageRate } from '@/lib/plans/overage-rates';
 
@@ -15,6 +15,54 @@ interface Props {
 
 const DISMISS_KEY = 'businessUpgradeBannerDismissedAt';
 
+/** 保存されている dismiss 時刻。触れない環境では null。 */
+function readDismissedAt(): string | null {
+  try {
+    return localStorage.getItem(DISMISS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function isSameMonth(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
+
+/**
+ * 同月内に閉じた記録があるか。useSyncExternalStore の getSnapshot。
+ * localStorage はサーバーに無いので、render 中に直接読む代わりにここで読む。
+ */
+function getDismissedThisMonth(): boolean {
+  const raw = readDismissedAt();
+  if (!raw) return false;
+  return isSameMonth(new Date(raw), new Date());
+}
+
+/** サーバー描画とハイドレーション中は未 dismiss として扱う。従来と同じ見え方。 */
+function getDismissedOnServer(): boolean {
+  return false;
+}
+
+/**
+ * 購読先は無い。この値が変わるのは同じタブで「今月は表示しない」を
+ * 押した時だけで、それはコンポーネント側のローカル state で扱う。
+ */
+function subscribeDismissed(): () => void {
+  return () => {};
+}
+
+/** 月が替わって無効になった記録を捨てる。state は触らない。 */
+function pruneStaleDismissedAt(): void {
+  const raw = readDismissedAt();
+  if (!raw) return;
+  if (isSameMonth(new Date(raw), new Date())) return;
+  try {
+    localStorage.removeItem(DISMISS_KEY);
+  } catch {
+    // 触れない環境では掃除をあきらめる。判定は getSnapshot 側で行う。
+  }
+}
+
 /**
  * Phase A.17.0 Y: 1 セッション内で Pro 100 枚を使い切った時に出る inline 通知
  *
@@ -22,23 +70,22 @@ const DISMISS_KEY = 'businessUpgradeBannerDismissedAt';
  * - クリックで /account#plan へ遷移（BusinessPlanCard へ）
  */
 export function UpgradeToBusinessBanner({ isPro, proLimitReachedInSession, totalUsageCount = 0 }: Props) {
-  const [dismissed, setDismissed] = useState(false);
+  // 同月内 dismissed の判定は useSyncExternalStore 経由。useEffect の中で
+  // setState する実装から移した。読む条件は従来と同じ。
+  const dismissedThisMonth = useSyncExternalStore(
+    subscribeDismissed,
+    getDismissedThisMonth,
+    getDismissedOnServer,
+  );
+  // このセッションで「今月は表示しない」を押したか。
+  const [dismissedNow, setDismissedNow] = useState(false);
 
+  // 月が替わった古い記録の掃除。従来は判定と同じ effect で行っていた副作用。
   useEffect(() => {
-    const dismissedAt = localStorage.getItem(DISMISS_KEY);
-    if (dismissedAt) {
-      const date = new Date(dismissedAt);
-      const now = new Date();
-      // 同月内なら非表示維持
-      if (date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth()) {
-        setDismissed(true);
-      } else {
-        localStorage.removeItem(DISMISS_KEY);
-      }
-    }
+    pruneStaleDismissedAt();
   }, []);
 
-  if (!isPro || !proLimitReachedInSession || dismissed) return null;
+  if (!isPro || !proLimitReachedInSession || dismissedThisMonth || dismissedNow) return null;
 
   const proRate = getOverageRate('pro');
   const businessRate = getOverageRate('business');
@@ -51,7 +98,7 @@ export function UpgradeToBusinessBanner({ isPro, proLimitReachedInSession, total
 
   const handleDismiss = () => {
     localStorage.setItem(DISMISS_KEY, new Date().toISOString());
-    setDismissed(true);
+    setDismissedNow(true);
   };
 
   return (

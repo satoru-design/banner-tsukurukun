@@ -33,11 +33,16 @@ const SUPPRESSION_DAYS = 60;
  */
 export function BusinessUpgradeAccountBanner({ notice, upgradeNoticeShownAt }: Props) {
   const [hidden, setHidden] = useState(false);
+  // 抑制期間の判定に使う現在時刻。render 中に Date.now() を直接呼ぶと
+  // サーバーとクライアントで値が変わり hydration 不一致の原因になるため、
+  // マウント時の1点に固定する。1セッションが60日続くことは無いので
+  // 判定結果は従来と変わらない。
+  const [now] = useState(() => Date.now());
 
   if (!notice) return null;
   if (hidden) return null;
   if (upgradeNoticeShownAt) {
-    const daysSince = (Date.now() - upgradeNoticeShownAt.getTime()) / (1000 * 60 * 60 * 24);
+    const daysSince = (now - upgradeNoticeShownAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSince < SUPPRESSION_DAYS) return null;
   }
 
