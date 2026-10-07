@@ -1,34 +1,44 @@
 'use client';
-import { useEffect, useState } from 'react';
-
-const STORAGE_KEY = 'lpmaker-cookie-consent-v1';
+import { useState, useSyncExternalStore } from 'react';
+import {
+  CONSENT_EVENT,
+  CONSENT_STORAGE_KEY as STORAGE_KEY,
+  getPendingConsent,
+  getStoredConsent,
+  subscribeConsent,
+} from './consent-store';
 
 export function LpCookieConsent() {
-  const [shown, setShown] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const consent = localStorage.getItem(STORAGE_KEY);
-    if (!consent) setShown(true);
-  }, []);
+  // 保存値の読み取りは useSyncExternalStore 経由。サーバー描画と
+  // ハイドレーション中は番兵値 (truthy) が返るのでバナーは出ない。
+  // ハイドレーション後に実際の値へ切り替わり、未設定ならバナーが出る。
+  // 従来の useEffect + setState と同じ見え方になる。
+  const storedConsent = useSyncExternalStore(
+    subscribeConsent,
+    getStoredConsent,
+    getPendingConsent,
+  );
+  // このセッションで同意または拒否を押したか。decline はイベントを流さない
+  // ため store からは観測できないので、従来どおりローカル state で閉じる。
+  const [dismissed, setDismissed] = useState(false);
 
   function accept() {
     localStorage.setItem(STORAGE_KEY, 'accepted');
-    setShown(false);
+    setDismissed(true);
     // Sprint 3 CR C-5: AnalyticsInjector に同意成立を即時通知してタグを起動する。
-    window.dispatchEvent(
-      new CustomEvent('lpmaker-consent-changed', { detail: 'accepted' })
-    );
+    window.dispatchEvent(new CustomEvent(CONSENT_EVENT, { detail: 'accepted' }));
   }
 
   function decline() {
     localStorage.setItem(STORAGE_KEY, 'declined');
-    setShown(false);
+    setDismissed(true);
     // 注: 厳密には GTM/GA4/Pixel の発火を declined 時に止める必要があるが、
     // Phase 1 では同意取得記録のみ。発火制御は Phase 2 で実装。
   }
 
-  if (!shown) return null;
+  // 番兵値・accepted・declined はいずれも truthy なのでバナーを出さない。
+  // null と空文字のときだけ出す。従来の `if (!consent) setShown(true)` と同じ。
+  if (dismissed || storedConsent) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-700 p-4 z-50 shadow-2xl">

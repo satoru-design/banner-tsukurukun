@@ -1,6 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import Script from 'next/script';
+import {
+  getAnalyticsConsent,
+  getAnalyticsConsentOnServer,
+  subscribeConsent,
+} from './consent-store';
 
 /**
  * Sprint 3 CR C-5: Cookie consent gate された分析タグインジェクター。
@@ -13,7 +18,6 @@ import Script from 'next/script';
  *
  * Phase 1 では同意取得記録だけだったので Sprint 3 で本実装に格上げ。
  */
-const STORAGE_KEY = 'lpmaker-cookie-consent-v1';
 
 interface Props {
   config: {
@@ -36,19 +40,15 @@ function safeId(raw: string | undefined): string | null {
 }
 
 export function AnalyticsInjector({ config }: Props) {
-  const [consented, setConsented] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const c = localStorage.getItem(STORAGE_KEY);
-    if (c === 'accepted') setConsented(true);
-    // accept ボタン押下のリアルタイム反映用
-    function onConsent(e: Event) {
-      if ((e as CustomEvent).detail === 'accepted') setConsented(true);
-    }
-    window.addEventListener('lpmaker-consent-changed', onConsent);
-    return () => window.removeEventListener('lpmaker-consent-changed', onConsent);
-  }, []);
+  // 同意判定は useSyncExternalStore 経由。サーバー描画とハイドレーション中は
+  // 常に未同意なので、同意前の HTML にタグが混ざることはない。
+  // ハイドレーション後に localStorage を読み、accept ボタンの CustomEvent も
+  // store 側で拾うので即時反映される。いずれも従来と同じ条件。
+  const consented = useSyncExternalStore(
+    subscribeConsent,
+    getAnalyticsConsent,
+    getAnalyticsConsentOnServer,
+  );
 
   if (!consented) return null;
 
