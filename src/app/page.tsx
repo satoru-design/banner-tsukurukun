@@ -53,23 +53,24 @@ export default function IroncladPage() {
   // Phase A.16: pattern は visual-only に再定義したため signature から除外。
   // 代表 pattern を変更しても STEP2 の suggestions は破棄されない。
   const currentSignature = `${brief.product}|${brief.target}|${brief.purpose}`;
-  useEffect(() => {
-    if (suggestions && currentSignature !== suggestionsSignature) {
-      setSuggestions(null);
-      setSuggestionsSignature('');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSignature]);
+  // 以前は useEffect の中で setState していたが、render を1往復余計に
+  // 走らせる。React 公式の「変化に合わせて state を調整する」パターンへ
+  // 置き換えた。破棄すると条件自体が偽になるので、そのまま収束する。
+  // 破棄の条件と結果は従来と同じ。
+  if (suggestions && currentSignature !== suggestionsSignature) {
+    setSuggestions(null);
+    setSuggestionsSignature('');
+  }
 
   const handleSuggestionsChange = (s: IroncladSuggestions | null) => {
     setSuggestions(s);
     setSuggestionsSignature(s ? currentSignature : '');
   };
 
-  // Phase A.11.2: step が更新されたら maxVisitedStep も追従させる
-  useEffect(() => {
-    setMaxVisitedStep((prev) => (step > prev ? step : prev));
-  }, [step]);
+  // Phase A.11.2: step が更新されたら maxVisitedStep も追従させる。
+  // step から導出できる値なので、effect ではなく render 中に調整する。
+  // 一度上がったら下がらない点は従来と同じ。
+  if (step > maxVisitedStep) setMaxVisitedStep(step);
 
   // Phase A.11.2: ヘッダーのステップ表示クリックで訪問済みステップにジャンプ
   const handleJumpToStep = (target: IroncladStep) => {
