@@ -39,6 +39,10 @@ export const StoresMigrationNotice = async () => {
   if (!dbUser || dbUser.plan === 'free') return null;
 
   // 条件 3: 有効な有料期間が無い、または7日以内に失効（記念日ベース対応）
+  // react-hooks/purity は Client Component の render 純粋性を見るルールで、
+  // async Server Component は対象外。ここはリクエスト毎にサーバーで1度
+  // 評価されるだけなので Date.now() は正当。hydration 不一致も起きない。
+  // eslint-disable-next-line react-hooks/purity
   const soon = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const needsAction = dbUser.planExpiresAt == null || dbUser.planExpiresAt <= soon;
   if (!needsAction) return null;
