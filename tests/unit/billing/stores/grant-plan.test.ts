@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const prisma = {
   user: {
@@ -10,7 +10,19 @@ vi.mock('@/lib/prisma', () => ({ getPrisma: () => prisma }));
 
 import { grantPlan } from '@/lib/billing/stores/grant-plan';
 
-beforeEach(() => vi.clearAllMocks());
+/**
+ * 時刻を固定する。grantPlan は「既存の期限が未来かどうか」で基準日を切り替えるため、
+ * 実時間に依存すると、固定日付で書いた期待値がその日付を過ぎた時点で突然落ちる。
+ * Date だけを差し替え、setTimeout や Promise はそのまま動かす。
+ */
+const FROZEN_NOW = new Date('2026-07-01T00:00:00Z');
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.useFakeTimers({ toFake: ['Date'], now: FROZEN_NOW });
+});
+
+afterEach(() => vi.useRealTimers());
 
 describe('grantPlan', () => {
   it('grants a new paid plan (no existing expiry) — sets plan and a future planExpiresAt', async () => {
@@ -36,6 +48,7 @@ describe('grantPlan', () => {
   });
 
   it('extends from existing future planExpiresAt (renewal)', async () => {
+    // FROZEN_NOW より後であることが、このテストが renewal 分岐を通る前提。
     const existingExpiry = new Date('2026-08-01T00:00:00Z');
     prisma.user.findUnique.mockResolvedValue({ id: 'u1', email: 'a@b.com', planExpiresAt: existingExpiry });
     prisma.user.update.mockResolvedValue({ id: 'u1', email: 'a@b.com', plan: 'pro', planExpiresAt: new Date() });
