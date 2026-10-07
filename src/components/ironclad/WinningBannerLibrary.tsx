@@ -35,7 +35,17 @@ export function WinningBannerLibrary({ useWinningRef, onChangeUseWinningRef }: P
     }
   };
 
+  // マウント時に1度だけ一覧を取得する。
+  //
+  // react-hooks/set-state-in-effect はこれを嫌うが、ルールが想定する
+  // 代替手段はデータ取得層 (Server Component / use() / SWR 等) の導入で、
+  // このプロジェクトにはまだ無い。このコンポーネントは追加と削除で
+  // banners をローカルに書き換えるため、useSyncExternalStore へ寄せると
+  // ミニ store の自作になり、挙動の利得なしにコードが増える。
+  // 取得は冪等な GET で、余分な render は取得完了時の1回だけ。
+  // データ取得層を入れる判断がついたらここも一緒に移す。
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchBanners();
   }, []);
 
