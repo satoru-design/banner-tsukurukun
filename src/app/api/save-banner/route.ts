@@ -1,23 +1,23 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
-import { getCurrentUserId } from '@/lib/auth/current-user';
-import { isAdmin } from '@/lib/auth/require-admin';
+import { getCurrentUser } from '@/lib/auth/get-current-user';
+import { ownedWhere } from '@/lib/auth/ownership';
 import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * Banner テーブルは userId カラムを持たない（Phase A.6 以前の遺構）。
- * そのため GET は「全ユーザーの保存バナー」をそのまま返してしまう。
- * スキーマ変更なしで取れる最小の線として:
- *  - POST はログイン必須
- *  - GET は admin 必須（他人の base64 画像とコピーを読めてしまうため）
- * とする。テナント分離（userId カラム追加）は別途要判断。
+ * 保存バナーの作成と一覧。
+ *
+ * 以前は認証が無く、GET が全ユーザーの保存バナー
+ * (base64 画像とコピー本文) をそのまま返していた。
+ * userId を足してテナントで絞る。
+ * NULL 行 (移行前の遺構) は共有の意味を持たないので admin のみ参照できる。
  */
 export async function POST(req: Request) {
-  const userId = await getCurrentUserId();
-  if (!userId) {
+  const user = await getCurrentUser();
+  if (!user.userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -63,6 +63,8 @@ export async function POST(req: Request) {
         emphasisRatio,
         urgency,
         styleProfileId: styleProfileId ?? null,
+        // 所有者はセッションから強制セットする。body からは受け取らない。
+        userId: user.userId,
       },
     });
 
@@ -73,13 +75,16 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  if (!(await isAdmin())) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const user = await getCurrentUser();
+  if (!user.userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const prisma = getPrisma();
+    // 自分の保存バナーのみ。admin は移行前の遺構 (userId=NULL) も合流する。
     const banners = await prisma.banner.findMany({
+      where: ownedWhere(user.userId, user.plan === 'admin'),
       orderBy: { createdAt: 'desc' },
     });
     return NextResponse.json({ banners });

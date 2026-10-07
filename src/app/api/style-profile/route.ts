@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import { getCurrentUserId } from '@/lib/auth/current-user';
+import { ownedOrLegacyWhere } from '@/lib/auth/ownership';
 import { internalErrorResponse } from '@/lib/api/error-response';
 import type {
   VisualStyle,
@@ -26,8 +27,6 @@ interface CreateBody {
 }
 
 export async function POST(req: Request) {
-  // StyleProfile は全ユーザー共有テーブル（userId カラムを持たない）。
-  // 所有者で絞れないぶん、少なくともログインは route 側で必須にする。
   const userId = await getCurrentUserId();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -51,6 +50,8 @@ export async function POST(req: Request) {
         cta: JSON.stringify(body.cta),
         layout: JSON.stringify(body.layout),
         copyTone: JSON.stringify(body.copyTone),
+        // 所有者はセッションから強制セットする。body からは受け取らない。
+        userId,
       },
     });
 
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
     if (message.includes('Unique constraint')) {
+      // 一意性は (userId, name) の複合。衝突するのは自分の既存プロファイルだけ。
       return NextResponse.json(
         { error: 'このプロファイル名は既に使用されています' },
         { status: 409 },
@@ -75,7 +77,10 @@ export async function GET() {
 
   try {
     const prisma = getPrisma();
+    // 自分のプロファイルと、移行前の遺構 (userId=NULL) のみ。
+    // 以前は全ユーザーのプロファイルを返していた。
     const profiles = await prisma.styleProfile.findMany({
+      where: ownedOrLegacyWhere(userId),
       orderBy: { updatedAt: 'desc' },
       select: {
         id: true,

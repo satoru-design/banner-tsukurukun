@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
 import type { StyleProfileInput } from '@/lib/style-profile/schema';
-import { getCurrentUserId } from '@/lib/auth/current-user';
-import { isAdmin } from '@/lib/auth/require-admin';
+import { getCurrentUser } from '@/lib/auth/get-current-user';
+import { canMutateOwned, canReadOwnedOrLegacy } from '@/lib/auth/ownership';
 import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const runtime = 'nodejs';
@@ -10,19 +10,22 @@ export const runtime = 'nodejs';
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * StyleProfile は userId カラムを持たない全ユーザー共有テーブル。
- * これまでこの route は認証も所有者判定も一切していなかったため、
- * id を知れば（/api/style-profile の一覧で全件見える）誰でも
- * 他人のプロファイルを書き換え・削除できた。
+ * StyleProfile 単体の参照・更新・削除。
  *
- * スキーマ変更なしで取れる最小の線として:
- *  - 参照 (GET) はログイン必須
- *  - 破壊的操作 (PUT / DELETE) は admin 必須
- * とする。テナント分離（userId カラム追加）は別途要判断。
+ * 以前はこの route に認証も所有者判定も無く、id を知れば
+ * (一覧 API が全件返していたので誰でも知れた) 他人のプロファイルを
+ * 書き換え・削除できた。
+ *
+ * 規則:
+ *  - GET: 自分の行と移行前の遺構 (userId=NULL) のみ。
+ *  - PUT / DELETE: 自分の行のみ。admin は遺構も可。
+ *
+ * 他人の行は 403 ではなく 404 を返す。403 だと「その id は存在する」
+ * という情報を渡してしまうため。
  */
 export async function GET(_req: Request, ctx: Ctx) {
-  const userId = await getCurrentUserId();
-  if (!userId) {
+  const user = await getCurrentUser();
+  if (!user.userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -30,7 +33,7 @@ export async function GET(_req: Request, ctx: Ctx) {
     const { id } = await ctx.params;
     const prisma = getPrisma();
     const p = await prisma.styleProfile.findUnique({ where: { id } });
-    if (!p) {
+    if (!p || !canReadOwnedOrLegacy(p, user.userId)) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
     return NextResponse.json({
@@ -53,14 +56,24 @@ export async function GET(_req: Request, ctx: Ctx) {
 }
 
 export async function PUT(req: Request, ctx: Ctx) {
-  if (!(await isAdmin())) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const user = await getCurrentUser();
+  if (!user.userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const { id } = await ctx.params;
-    const body = (await req.json()) as Partial<StyleProfileInput>;
     const prisma = getPrisma();
+
+    const existing = await prisma.styleProfile.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    if (!canMutateOwned(existing, user.userId, user.plan === 'admin')) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    const body = (await req.json()) as Partial<StyleProfileInput>;
 
     const data: Record<string, string | undefined> = {};
     if (body.name !== undefined) data.name = body.name;
@@ -77,18 +90,34 @@ export async function PUT(req: Request, ctx: Ctx) {
     const updated = await prisma.styleProfile.update({ where: { id }, data });
     return NextResponse.json({ id: updated.id });
   } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('Unique constraint')) {
+      return NextResponse.json(
+        { error: 'このプロファイル名は既に使用されています' },
+        { status: 409 },
+      );
+    }
     return internalErrorResponse('StyleProfile [id] PUT', error, 'プロファイルの更新に失敗しました');
   }
 }
 
 export async function DELETE(_req: Request, ctx: Ctx) {
-  if (!(await isAdmin())) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const user = await getCurrentUser();
+  if (!user.userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const { id } = await ctx.params;
     const prisma = getPrisma();
+
+    const existing = await prisma.styleProfile.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    if (!canMutateOwned(existing, user.userId, user.plan === 'admin')) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
 
     const bannerCount = await prisma.banner.count({ where: { styleProfileId: id } });
     if (bannerCount > 0) {

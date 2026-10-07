@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Product Name or Insights or LP Text is required' }, { status: 400 });
     }
 
-    const styleProfile = await loadStyleProfile(styleProfileId);
+    const styleProfile = await loadStyleProfile(styleProfileId, userId);
 
     const systemPrompt = `
 あなたは日本のダイレクトレスポンス広告に 15 年従事したコピーライター兼クリエイティブディレクターです。
