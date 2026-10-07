@@ -99,6 +99,18 @@ function statusToJa(status: string | null): string {
   }
 }
 
+/**
+ * 動画生成系 API (/api/generate-video, /api/suggest-video-prompt) が
+ * 返しうる JSON のフィールド。エラー応答では error のみが入るなど、
+ * どれも欠ける場合があるため全て optional。
+ */
+interface VideoApiJson {
+  error?: string;
+  videoId?: string;
+  status?: string;
+  promptJa?: string;
+}
+
 export function VideoGenerationDialog({
   isOpen,
   onClose,
@@ -163,7 +175,9 @@ export function VideoGenerationDialog({
    * 適切な日本語メッセージを返す（gzip HTML を JSON.parse して binary
    * エラーを出すのを防ぐ）。
    */
-  const safeParseJson = async (res: Response): Promise<{ data: any; errorMessage?: string }> => {
+  const safeParseJson = async (
+    res: Response,
+  ): Promise<{ data: VideoApiJson | null; errorMessage?: string }> => {
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
       let msg: string;
@@ -176,7 +190,7 @@ export function VideoGenerationDialog({
     }
     try {
       return { data: await res.json() };
-    } catch (e) {
+    } catch {
       return {
         data: null,
         errorMessage: 'サーバーから不正な応答が返りました。再試行してください。',
@@ -217,8 +231,8 @@ export function VideoGenerationDialog({
         setSubmitting(false);
         return;
       }
-      setVideoId(data.videoId);
-      setVideoStatus(data.status);
+      setVideoId(data?.videoId ?? null);
+      setVideoStatus(data?.status ?? null);
     } catch (e) {
       setErrorMessage(e instanceof Error ? e.message : 'Network error');
     } finally {
@@ -244,7 +258,7 @@ export function VideoGenerationDialog({
         setErrorMessage(data?.error || `HTTP ${res.status}`);
         return;
       }
-      if (typeof data.promptJa === 'string' && data.promptJa.trim()) {
+      if (typeof data?.promptJa === 'string' && data.promptJa.trim()) {
         setPromptJa(data.promptJa.trim().slice(0, 500));
       }
     } catch (e) {
