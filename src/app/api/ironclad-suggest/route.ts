@@ -4,6 +4,8 @@ import type { IroncladPattern } from '@/lib/prompts/ironclad-banner';
 import { getPrisma } from '@/lib/prisma';
 import { buildWinningPatternInjection } from '@/lib/winning-banner/prompt-injection';
 import type { AnalysisAbstract } from '@/lib/winning-banner/types';
+import { getCurrentUserId } from '@/lib/auth/current-user';
+import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const runtime = 'nodejs';
 // Phase B.4: structured output + 1回リトライ用に余裕を持たせる
@@ -180,6 +182,12 @@ function buildUserPrompt(body: ReqBody): string {
 }
 
 export async function POST(req: Request) {
+  // Gemini 2.5 Pro を呼ぶ従量課金 route なので route 側でもログインを必須にする。
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = (await req.json()) as ReqBody;
     if (!body.product || !body.target || !body.purpose || !body.pattern) {
@@ -298,8 +306,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ suggestions: result.suggestions });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    console.error('ironclad-suggest error:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalErrorResponse('ironclad-suggest', error, '候補生成に失敗しました');
   }
 }

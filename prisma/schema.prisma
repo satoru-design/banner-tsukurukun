@@ -29,13 +29,25 @@ model Banner {
   styleProfileId String?
   styleProfile   StyleProfile? @relation(fields: [styleProfileId], references: [id])
 
+  /// テナント分離。所有者の User.id。
+  /// NULL = この列を追加する前に作られた行（移行前の遺構）。所有者を特定できないため
+  /// 一般ユーザーには見せず、admin のみ参照できる扱いにする。
+  /// onDelete: Cascade — 退会時に本人の保存バナーも消す。SetNull にすると
+  /// 私物の行が NULL（= admin 可視の遺構）に変わってしまうため使わない。
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model StyleProfile {
   id             String  @id @default(cuid())
-  name           String  @unique
+  /// 名前の一意性はテナント内で判定する（@@unique([userId, name])）。
+  /// 以前はグローバル @unique だったため、他ユーザーが使った名前を再利用できなかった。
+  name           String
   productContext String?
 
   // Vercel Blob URLs, JSON.stringify(string[])
@@ -49,10 +61,23 @@ model StyleProfile {
   layout      String
   copyTone    String
 
+  /// テナント分離。所有者の User.id。
+  /// NULL = この列を追加する前に作られた行（移行前の遺構）。
+  /// StyleProfile は移行前「全ユーザーが一覧できる共有ライブラリ」として動いていたので、
+  /// 既存の見え方を壊さないよう NULL 行は引き続き全ログインユーザーが参照できる。
+  /// 変更と削除は所有者のみ（NULL 行は admin のみ）。
+  /// onDelete: Cascade — SetNull にすると私物の行が NULL（= 全員に見える遺構）に
+  /// 変わってしまい、退会が情報公開になる。
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   banners Banner[]
+
+  @@unique([userId, name])
+  @@index([userId])
 }
 
 /// Phase A.7 Ironclad: 永続素材ライブラリ。商品画像・認証バッジ等を一度アップロードしたら
@@ -167,6 +192,8 @@ model User {
   landingPages   LandingPage[]
   /// Pay.jp 移管 P5: 超過課金記録
   overageCharges OverageCharge[]
+  banners        Banner[]
+  styleProfiles  StyleProfile[]
 
   @@index([stripeCustomerId])
   @@index([payjpCustomerId])

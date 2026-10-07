@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getPrisma } from '@/lib/prisma';
+import { verifyCronSecret } from '@/lib/auth/verify-bearer-secret';
 
 export const runtime = 'nodejs';
 
@@ -14,8 +15,7 @@ export const runtime = 'nodejs';
  * Schedule: vercel.json で "0 0 * * 1" UTC (月曜 JST 9:00)
  */
 export async function GET(req: Request) {
-  const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

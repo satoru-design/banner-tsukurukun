@@ -1,18 +1,43 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { loadStyleProfile, injectIntoCopyPrompt } from '@/lib/style-profile/injector';
+import { getCurrentUser } from '@/lib/auth/get-current-user';
+import { internalErrorResponse } from '@/lib/api/error-response';
+
+export const runtime = 'nodejs';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+/** プロンプトに差し込む自由入力の上限。長文を投げ込まれるとそのまま課金になる。 */
+const MAX_FIELD_LENGTH = 20000;
+
 export async function POST(req: Request) {
+  // Gemini 2.5 Pro を呼ぶ従量課金 route なので route 側でもログインを必須にする。
+  const user = await getCurrentUser();
+  if (!user.userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { productName, target, competitorInsights, lpText, styleProfileId } = await req.json();
+
+    for (const [key, value] of Object.entries({ productName, target, competitorInsights, lpText })) {
+      if (value !== undefined && value !== null && typeof value !== 'string') {
+        return NextResponse.json({ error: `${key} must be a string` }, { status: 400 });
+      }
+      if (typeof value === 'string' && value.length > MAX_FIELD_LENGTH) {
+        return NextResponse.json(
+          { error: `${key} は ${MAX_FIELD_LENGTH} 文字以内にしてください` },
+          { status: 400 },
+        );
+      }
+    }
 
     if (!productName && !competitorInsights && !lpText) {
       return NextResponse.json({ error: 'Product Name or Insights or LP Text is required' }, { status: 400 });
     }
 
-    const styleProfile = await loadStyleProfile(styleProfileId);
+    const styleProfile = await loadStyleProfile(styleProfileId, user.userId, user.plan === 'admin');
 
     const systemPrompt = `
 あなたは日本のダイレクトレスポンス広告に 15 年従事したコピーライター兼クリエイティブディレクターです。
@@ -135,11 +160,10 @@ ${competitorInsights || 'なし'}
         return NextResponse.json({ variations: parsed });
     } catch(e) {
         console.error("Failed to parse Gemini output:", outputText);
-        return NextResponse.json({ error: 'AI出力のJSONパースに失敗しました。', raw: outputText }, { status: 500 });
+        return NextResponse.json({ error: 'AI出力のJSONパースに失敗しました。' }, { status: 500 });
     }
 
-  } catch (error: any) {
-    console.error('API Error (generate-copy):', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+  } catch (error: unknown) {
+    return internalErrorResponse('generate-copy', error, 'コピー生成に失敗しました');
   }
 }

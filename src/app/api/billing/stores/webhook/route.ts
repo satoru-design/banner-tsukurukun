@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
 import { reconcileInvoice } from "@/lib/billing/stores/reconcile";
+import { verifySharedSecret } from "@/lib/auth/verify-bearer-secret";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const token = url.searchParams.get("token");
-  if (!token || token !== process.env.STORES_WEBHOOK_SECRET) {
+  // 定数時間比較 + env 未設定時は必ず拒否。
+  if (!verifySharedSecret(token, "STORES_WEBHOOK_SECRET")) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
