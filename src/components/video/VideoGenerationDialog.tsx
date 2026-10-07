@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 import { Sparkles, X, Download, Wand2, Loader2 } from 'lucide-react';
 import { GenerationProgress } from '@/components/ui/GenerationProgress';
+import { nearestAllowedDuration } from './pick-duration';
 
 interface VideoGenerationDialogProps {
   isOpen: boolean;
@@ -132,23 +133,27 @@ export function VideoGenerationDialog({
   const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null);
 
   const currentProvider = PROVIDERS.find((p) => p.id === provider)!;
-  const validDuration = currentProvider.allowedDurations.includes(durationSeconds)
-    ? durationSeconds
-    : currentProvider.allowedDurations[currentProvider.allowedDurations.length - 1];
+  // 送信にも表示にもこの値を使う。選べる尺ならそのまま、非対応なら
+  // 最も近い尺へ寄せる。補正ブロックと同じ関数を使うので両者はずれない。
+  const validDuration = nearestAllowedDuration(
+    currentProvider.allowedDurations,
+    durationSeconds,
+  );
 
   // プロバイダが変わった瞬間に、非対応になった選択を補正する。
   //
   // 以前は useEffect の中で setState していたが、それは render を1往復
   // 余計に走らせる。React 公式の「prop や state の変化に合わせて state を
   // 調整する」パターンに置き換え、前回の provider と比較して render 中に
-  // 補正する。補正の条件と結果は従来と同じ。
+  // 補正する。
+  //
+  // 寄せ先は nearestAllowedDuration に任せる。最長ではなく最も近い尺へ
+  // 寄せるので、補正で課金対象の尺が不必要に伸びない。
   const [prevProvider, setPrevProvider] = useState<ProviderId>(provider);
   if (prevProvider !== provider) {
     setPrevProvider(provider);
     if (!currentProvider.allowedDurations.includes(durationSeconds)) {
-      setDurationSeconds(
-        currentProvider.allowedDurations[currentProvider.allowedDurations.length - 1],
-      );
+      setDurationSeconds(validDuration);
     }
     if (!currentProvider.supportsAudio) setGenerateAudio(false);
   }

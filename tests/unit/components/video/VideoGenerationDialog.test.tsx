@@ -89,11 +89,10 @@ describe('尺の既定値と選択', () => {
 });
 
 describe('プロバイダ切り替え時の尺補正', () => {
-  it('現在の尺が非対応なら、そのプロバイダの最長へ寄せる', () => {
+  it('現在の尺が非対応なら、最も近い尺へ寄せる', () => {
     // 壊れたら落ちる: 非対応の尺のまま送信され、API 側で失敗するか
-    // 意図しない尺で課金される。veo の 8 秒は kling では非対応。
-    // 注: 補正先が最長であることは2系統で担保されている。落ちるのは
-    // 両方が壊れた時。
+    // 意図しない尺で課金される。veo の 8 秒は kling では非対応で、
+    // 5 秒より 10 秒の方が近い。
     open();
     expect(selectedDuration()).toBe(8);
 
@@ -101,20 +100,45 @@ describe('プロバイダ切り替え時の尺補正', () => {
     expect(selectedDuration()).toBe(10);
   });
 
-  it('前のプロバイダで選んだ尺は保持されず、最長へ寄る', () => {
-    // 壊れたら落ちる: 往復時の尺が変わる。
-    // 現状: kling で 5 秒 → veo へ移ると 8 秒へ補正され、
-    // kling へ戻ると 8 秒は非対応なので最長の 10 秒になる。
+  it('下に近い候補があるときは短い方へ寄せる', () => {
+    // 壊れたら落ちる: 4 秒の選択が 10 秒へ飛び、課金が倍以上になる。
+    // 旧実装は「最長へ寄せる」だったのでここが 10 秒だった。
+    open();
+    fireEvent.click(screen.getByText('4秒'));
+    expect(selectedDuration()).toBe(4);
+
+    chooseProvider(KLING);
+    expect(selectedDuration()).toBe(5);
+  });
+
+  it('往復しても尺が伸びず、元の選択へ戻る', () => {
+    // 壊れたら落ちる: 報告された不具合の再発。旧実装では
+    // kling の 5 秒 → veo で 8 秒 → kling へ戻ると 10 秒になり、
+    // 選んだ 5 秒の倍の長さで課金されていた。
     open();
     chooseProvider(KLING);
     fireEvent.click(screen.getByText('5秒'));
     expect(selectedDuration()).toBe(5);
 
+    // 5 は 4 と 6 から等距離。短い方へ寄せるので 4 秒。
     fireEvent.change(providerSelect(), { target: { value: 'veo-3.1-fast' } });
+    expect(selectedDuration()).toBe(4);
+
+    // 4 に最も近い kling の尺は 5 秒。元の選択へ戻る。
+    fireEvent.change(providerSelect(), { target: { value: KLING } });
+    expect(selectedDuration()).toBe(5);
+  });
+
+  it('8 秒と 10 秒の往復も元へ戻る', () => {
+    // 壊れたら落ちる: 長い側の往復で尺が動く。
+    open();
     expect(selectedDuration()).toBe(8);
 
-    fireEvent.change(providerSelect(), { target: { value: KLING } });
+    chooseProvider(KLING);
     expect(selectedDuration()).toBe(10);
+
+    fireEvent.change(providerSelect(), { target: { value: 'veo-3.1-fast' } });
+    expect(selectedDuration()).toBe(8);
   });
 });
 
@@ -159,10 +183,8 @@ describe('送信する内容', () => {
 
   it('補正後の尺を送る', async () => {
     // 壊れたら落ちる: 画面の表示と送信値がずれ、見えている尺と違う
-    // 長さで課金される。
-    // 注: 現状この値は「render 中の validDuration」と「プロバイダ変更時の
-    // 補正」の2系統で担保されている。片方だけ壊しても値は変わらないので、
-    // このテストが落ちるのは両方が壊れた時。
+    // 長さで課金される。表示と送信と補正はすべて
+    // nearestAllowedDuration を通るので、ずれる余地が無い。
     const body = await submitWith(() => chooseProvider(KLING));
     expect(body.durationSeconds).toBe(10);
     expect(body.format).toBe('9:16 10s');
