@@ -20,9 +20,20 @@ import { lookup } from 'node:dns/promises';
 const ALLOWED_PROTOCOLS = ['http:', 'https:'];
 
 export class UnsafeUrlError extends Error {
-  constructor(message: string) {
+  /**
+   * 一時的な失敗か。名前解決の失敗は一時的なことがあるので true。
+   * 「内部アドレス宛」「スキーム違反」は恒久エラーなので false。
+   *
+   * 呼び出し側の再試行・フォールバック判定に使う。これが無いと
+   * 一時的な DNS 障害を恒久エラーとして扱い、画像生成の
+   * プロバイダ間フォールバックが働かなくなる。
+   */
+  readonly transient: boolean;
+
+  constructor(message: string, opts: { transient?: boolean } = {}) {
     super(message);
     this.name = 'UnsafeUrlError';
+    this.transient = opts.transient === true;
   }
 }
 
@@ -121,11 +132,11 @@ export async function assertPublicHttpUrl(raw: string): Promise<URL> {
   try {
     records = await lookup(u.hostname, { all: true });
   } catch {
-    throw new UnsafeUrlError('ホスト名を解決できませんでした');
+    throw new UnsafeUrlError('ホスト名を解決できませんでした', { transient: true });
   }
 
   if (records.length === 0) {
-    throw new UnsafeUrlError('ホスト名を解決できませんでした');
+    throw new UnsafeUrlError('ホスト名を解決できませんでした', { transient: true });
   }
 
   // 1 つでも内部アドレスに解決するなら拒否する。

@@ -6,7 +6,7 @@ import {
   ImageProviderError,
 } from './types';
 import { buildBakeTextInstruction } from './prompt-helpers';
-import { assertPublicHttpUrl } from '@/lib/net/safe-url';
+import { assertPublicHttpUrl, UnsafeUrlError } from '@/lib/net/safe-url';
 
 const IMAGEN_MODEL = 'imagen-4.0-ultra-generate-001';
 const GEMINI_IMAGE_MODEL = 'gemini-3-pro-image-preview';
@@ -82,7 +82,25 @@ async function generateWithReferences(
     referenceImageUrls.map(async (url) => {
       // SSRF 対策: 参照画像 URL はユーザー入力由来（自分の styleProfile や
       // materials に任意の URL を入れられる）。内部ネットワーク宛を弾く。
-      await assertPublicHttpUrl(url);
+      try {
+        await assertPublicHttpUrl(url);
+      } catch (e) {
+        // 一時的な名前解決失敗は generateWithFallback の transient 判定に
+        // 乗るようメッセージへ ENOTFOUND を残し、もう一方のプロバイダへ回す。
+        // 内部アドレス宛は恒久エラーなので回さない。
+        const transient = e instanceof UnsafeUrlError && e.transient;
+        // 恒久エラー側のメッセージに URL を入れない。
+        // generateWithFallback の transient 判定は正規表現 (5\d\d を含む)
+        // でメッセージを見るため、`http://10.0.0.5:500/` のようなポート番号が
+        // 偶然一致して「一時エラー」に化け、もう一方のプロバイダに
+        // 無駄な課金が走る。URL はログにだけ残す。
+        console.warn('[imagen4] blocked reference image URL:', url);
+        const transientMsg = `Failed to resolve reference image: ENOTFOUND`;
+        throw new ImageProviderError(
+          'imagen4',
+          transient ? transientMsg : 'Blocked reference image URL (not a public address)',
+        );
+      }
       const res = await fetch(url, { redirect: 'manual' });
       if (!res.ok) {
         throw new ImageProviderError(

@@ -153,3 +153,41 @@ describe('assertPublicHttpUrl', () => {
     expect(lookup).toHaveBeenCalledWith('example.com', { all: true });
   });
 });
+
+// transient の区別は画像生成のプロバイダ間フォールバックに使う。
+// ここを取り違えると、一時的な DNS 障害で生成が即失敗する
+// (恒久エラー扱いになり、もう一方のプロバイダへ回らない)。
+describe('UnsafeUrlError.transient', () => {
+  it('marks a DNS failure as transient', async () => {
+    lookup.mockRejectedValue(new Error('ENOTFOUND'));
+    await expect(assertPublicHttpUrl('https://flaky.test/a')).rejects.toMatchObject({
+      transient: true,
+    });
+  });
+
+  it('marks an empty resolution as transient', async () => {
+    lookup.mockResolvedValue([]);
+    await expect(assertPublicHttpUrl('https://empty.test/a')).rejects.toMatchObject({
+      transient: true,
+    });
+  });
+
+  it('marks an internal address as permanent', async () => {
+    resolvesTo('169.254.169.254');
+    await expect(assertPublicHttpUrl('http://metadata.test/')).rejects.toMatchObject({
+      transient: false,
+    });
+  });
+
+  it('marks a bad scheme as permanent', async () => {
+    await expect(assertPublicHttpUrl('file:///etc/passwd')).rejects.toMatchObject({
+      transient: false,
+    });
+  });
+
+  it('marks embedded credentials as permanent', async () => {
+    await expect(assertPublicHttpUrl('https://u:p@example.com/')).rejects.toMatchObject({
+      transient: false,
+    });
+  });
+});
