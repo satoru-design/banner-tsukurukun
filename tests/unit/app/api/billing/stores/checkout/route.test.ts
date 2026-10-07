@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const issueInvoice = vi.fn();
 vi.mock("@/lib/billing/stores/issue-invoice", () => ({ issueInvoice: (...a: unknown[]) => issueInvoice(...a) }));
@@ -10,13 +10,23 @@ vi.mock("@/lib/prisma", () => ({ getPrisma: () => prisma }));
 
 import { POST } from "@/app/api/billing/stores/checkout/route";
 
+/**
+ * 時刻を固定する。nextPeriodStart は「planExpiresAt が未来かどうか」で分岐するため、
+ * 実時間に依存すると、固定日付で書いた期待値がその日付を過ぎた時点で突然落ちる。
+ * Date だけを差し替え、setTimeout や Promise はそのまま動かす。
+ */
+const FROZEN_NOW = new Date("2026-07-01T00:00:00Z");
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.useFakeTimers({ toFake: ["Date"], now: FROZEN_NOW });
   // I1: ensure provider is correctly set for all existing tests
   process.env.PAYMENT_PROVIDER = "stores";
   // default: user has no active plan (new signup)
   prisma.user.findUnique.mockResolvedValue({ planExpiresAt: null });
 });
+
+afterEach(() => vi.useRealTimers());
 
 function req(body: unknown) {
   return new Request("https://x/api/billing/stores/checkout", { method: "POST", body: JSON.stringify(body) });
@@ -43,6 +53,7 @@ it("returns paymentUrl for a valid upgrade", async () => {
 });
 
 it("uses planExpiresAt as periodStart when user has an active plan (renewal)", async () => {
+  // FROZEN_NOW より後であることが、このテストが renewal 分岐を通る前提。
   const futureExpiry = new Date("2026-07-15T00:00:00Z");
   getCurrentUserId.mockResolvedValue("u1");
   prisma.user.findUnique.mockResolvedValue({ planExpiresAt: futureExpiry });
