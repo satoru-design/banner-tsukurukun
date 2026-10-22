@@ -138,8 +138,8 @@ ${competitorInsights || 'なし'}
         return NextResponse.json({ error: 'AI出力のJSONパースに失敗しました。', raw: outputText }, { status: 500 });
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('API Error (generate-copy):', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: (error as Error).message || 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -52,8 +52,8 @@ Markdownブロックなどを含めず、JSON形式のみ出力してくださ�
     const result = JSON.parse(resultText);
 
     return NextResponse.json({ insights: result });
-  } catch (error: any) {
+  } catch (error) {
     console.error('API Error (analyze-banner):', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: (error as Error).message || 'Internal Server Error' }, { status: 500 });
   }
 }

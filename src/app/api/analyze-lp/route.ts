@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       } else {
         return NextResponse.json({ error: 'Failed to extract text from URL.' }, { status: 400 });
       }
-    } catch (e: any) {
+    } catch {
       return NextResponse.json({ error: 'Error connecting to Jina Reader.' }, { status: 500 });
     }
 
@@ -63,7 +63,7 @@ Markdownブロックなどを含めず、純粋なJSONテキストのみ出力�
        throw new Error('No content returned from AI');
     }
     
-    let parsed: any;
+    let parsed: unknown;
     try {
       const cleanJSON = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
       parsed = JSON.parse(cleanJSON);
@@ -73,8 +73,8 @@ Markdownブロックなどを含めず、純粋なJSONテキストのみ出力�
     }
 
     return NextResponse.json({ insights: parsed, lpText });
-  } catch (error: any) {
+  } catch (error) {
     console.error('LP Analysis API error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }

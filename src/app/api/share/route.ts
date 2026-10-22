@@ -21,8 +21,8 @@ export async function POST(req: Request) {
       }
 
       return NextResponse.json({ success: true });
-   } catch(e: any) {
+   } catch(e) {
       console.error("Share Error:", e);
-      return NextResponse.json({ error: e.message }, { status: 500 });
+      return NextResponse.json({ error: (e as Error).message }, { status: 500 });
    }
 }
