@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 import { Sparkles, X, Download, Wand2, Loader2 } from 'lucide-react';
 import { GenerationProgress } from '@/components/ui/GenerationProgress';
+import { nearestAllowedDuration } from './pick-duration';
 
 interface VideoGenerationDialogProps {
   isOpen: boolean;
@@ -132,19 +133,20 @@ export function VideoGenerationDialog({
   const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null);
 
   const currentProvider = PROVIDERS.find((p) => p.id === provider)!;
-  const validDuration = currentProvider.allowedDurations.includes(durationSeconds)
-    ? durationSeconds
-    : currentProvider.allowedDurations[currentProvider.allowedDurations.length - 1];
+  // 送信にも表示にもこの値を使う。選べる尺ならそのまま、非対応なら
+  // 最も近い尺へ寄せる。下の補正と同じ関数を通すのでずれない。
+  const validDuration = nearestAllowedDuration(
+    currentProvider.allowedDurations,
+    durationSeconds,
+  );
 
   // dialog 起動時にプロバイダ選択肢に応じて尺を補正
   useEffect(() => {
     if (!currentProvider.allowedDurations.includes(durationSeconds)) {
-      setDurationSeconds(
-        currentProvider.allowedDurations[currentProvider.allowedDurations.length - 1],
-      );
+      setDurationSeconds(validDuration);
     }
     if (!currentProvider.supportsAudio) setGenerateAudio(false);
-  }, [provider, currentProvider, durationSeconds]);
+  }, [provider, currentProvider, durationSeconds, validDuration]);
 
   // 動画生成ジョブをポーリング
   useEffect(() => {
