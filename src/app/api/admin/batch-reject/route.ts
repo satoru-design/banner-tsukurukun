@@ -40,7 +40,7 @@ export async function POST(req: Request): Promise<Response> {
   } catch (e) {
     console.error('[batch-reject] save failed:', e);
     return NextResponse.json(
-      { error: 'Internal error', details: (e as Error).message },
+      { error: 'Internal error' },
       { status: 500 },
     );
   }

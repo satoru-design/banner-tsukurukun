@@ -5,10 +5,9 @@ import {
   type IroncladMaterials,
 } from '@/lib/prompts/ironclad-banner';
 import { generateWithFallback } from '@/lib/image-providers';
-import { getCurrentUser } from '@/lib/auth/get-current-user';
 import { incrementUsage } from '@/lib/plans/usage';
-import { isUsageLimitReached, effectiveUsageCount } from '@/lib/plans/usage-check';
-import { USAGE_LIMIT_FREE, USAGE_LIMIT_PRO, USAGE_LIMIT_BUSINESS, getHardcap } from '@/lib/plans/limits';
+import { guardGeneration } from '@/lib/plans/generation-guard';
+import { USAGE_LIMIT_FREE, USAGE_LIMIT_PRO, USAGE_LIMIT_BUSINESS } from '@/lib/plans/limits';
 import { getPrisma } from '@/lib/prisma';
 import {
   buildBriefSnapshot,
@@ -19,6 +18,7 @@ import { uploadGenerationImage } from '@/lib/generations/blob-client';
 import { applyPreviewWatermark } from '@/lib/image-providers/watermark';
 import { sendMeteredUsage } from '@/lib/billing/usage-records';
 import { filterAvailableUrls } from '@/lib/assets/url-availability';
+import { internalErrorResponse } from '@/lib/api/error-response';
 
 export const runtime = 'nodejs';
 // Phase B.8: gpt-image-2 のレイテンシが時間帯により非常に高くなる現象に対応
@@ -39,6 +39,13 @@ export async function POST(req: Request) {
     const elapsed = Date.now() - reqStart;
     console.log(`[ironclad-generate] +${(elapsed / 1000).toFixed(1)}s: ${label}`);
   };
+
+  // fail-closed: 以前は userId が null のとき上限チェックごと素通りしていたため、
+  // middleware を迂回されると無認証・無制限で gpt-image が叩けた。
+  // 従量課金の呼び出し前にセッションとハードキャップを route 側で確定させる。
+  const guard = await guardGeneration('ironclad-generate');
+  if (!guard.ok) return guard.response;
+
   try {
     const materials = (await req.json()) as IroncladMaterials;
     ts('body parsed');
@@ -67,55 +74,9 @@ export async function POST(req: Request) {
     const aspectRatio = sizeMeta.aspectRatio;
     const apiSizeOverride = sizeMeta.apiSize;
 
-    // Phase A.11.3: 上限チェック（fail-fast でコスト保護）
-    // Phase A.14: free は preview, pro は metered で通す。starter のみ「ソフト上限」block。
-    // Phase A.15: 全プランに「ハードキャップ」追加（コスト暴走 / チャージバック爆弾の防止線）
-    // DB から fresh な count を取得（JWT は古い可能性あり）
-    const currentUser = await getCurrentUser();
-    if (currentUser.userId && Number.isFinite(currentUser.usageLimit)) {
-      const prisma = getPrisma();
-      const dbUser = await prisma.user.findUnique({
-        where: { id: currentUser.userId },
-        select: { plan: true, usageCount: true, usageResetAt: true },
-      });
-      if (dbUser) {
-        const checkInput = {
-          usageCount: dbUser.usageCount,
-          usageLimit: currentUser.usageLimit,
-          usageResetAt: dbUser.usageResetAt,
-        };
-        // Phase A.15: ハードキャップ（プラン別の絶対上限）。Free/Pro/Starter 共通で適用
-        const hardcap = getHardcap(dbUser.plan);
-        const effectiveCount = effectiveUsageCount(checkInput);
-        if (Number.isFinite(hardcap) && effectiveCount >= hardcap) {
-          return NextResponse.json(
-            {
-              error:
-                dbUser.plan === 'pro'
-                  ? `Pro プランの月間生成上限（${hardcap} 枚）に到達しました。さらにご利用の場合は Plan C（個別商談）よりお問合せください。`
-                  : '今月の生成上限に到達しました',
-              usageCount: effectiveCount,
-              usageLimit: hardcap,
-              limitReached: true,
-              hardcapReached: true,
-            },
-            { status: 429 },
-          );
-        }
-        // 既存: starter のソフト上限 block（hardcap = limit なので上の hardcap で既に block されるが残しておく）
-        if (isUsageLimitReached(checkInput) && dbUser.plan === 'starter') {
-          return NextResponse.json(
-            {
-              error: '今月の生成上限に到達しました',
-              usageCount: effectiveCount,
-              usageLimit: currentUser.usageLimit,
-              limitReached: true,
-            },
-            { status: 429 },
-          );
-        }
-      }
-    }
+    // Phase A.11.3 / A.14 / A.15 の上限チェックは guardGeneration() に集約した。
+    // （ログイン必須 → DB の fresh な usageCount → プラン別ハードキャップ → starter ソフト上限）
+    const currentUser = { userId: guard.userId };
 
     const finalPrompt = buildIroncladImagePromptWithPrefix(materials);
 
@@ -300,8 +261,6 @@ export async function POST(req: Request) {
       isPreview,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    console.error('ironclad-generate error:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalErrorResponse('ironclad-generate', error, 'バナー生成に失敗しました');
   }
 }

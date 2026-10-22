@@ -6,16 +6,35 @@
  * いずれでも参照URLの404を即エラー (400 / "Upstream status code: 404") にする。
  *
  * このヘルパは並列 HEAD でURLの生存を確認し、生きているものだけ返す。
+ * 併せて内部ネットワーク宛の URL も落とす（SSRF 対策）。
  * 死んだURLは silently ドロップして console.warn する。
  */
 
+import { assertPublicHttpUrl } from '@/lib/net/safe-url';
+
 const HEAD_TIMEOUT_MS = 4000;
 
+/**
+ * SSRF 対策: URL はユーザー入力（briefSnapshot の productImageUrl 等）由来なので、
+ * 名前解決した IP がグローバルであることを確認してから叩く。
+ * HEAD の成否だけでも「その内部ホストが生きているか」のオラクルになる。
+ * 内部宛と判定した URL は「死んでいる」扱いでドロップする。
+ */
 async function isAvailable(url: string): Promise<boolean> {
+  try {
+    await assertPublicHttpUrl(url);
+  } catch {
+    return false;
+  }
+
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), HEAD_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { method: 'HEAD', signal: ctrl.signal });
+    const res = await fetch(url, {
+      method: 'HEAD',
+      redirect: 'manual',
+      signal: ctrl.signal,
+    });
     return res.ok;
   } catch {
     return false;

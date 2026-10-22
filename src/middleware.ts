@@ -7,34 +7,10 @@ import {
   buildAttribution,
   serializeAttribution,
 } from '@/lib/attribution';
+import { isPublicPath } from '@/lib/auth/public-paths';
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = [
-  '/signin',
-  '/price',  // 公開料金表ページ（Pay.jp 審査・新規訪問者向け／認証不要）
-  '/lp01',  // Phase A.15: 機能訴求 LP（公開）
-  '/lp01-legacy',  // Phase A.16: lp01 A/B B バリアント（公開）
-  '/lp02',  // Phase A.15: 時短訴求 LP（公開）
-  '/lp03',
-  '/contact',  // Phase A.15: Plan C 個別商談 問合せページ
-  '/api/billing/webhook',  // Phase A.12: Stripe からの POST。署名検証で正当性を担保するため auth 不要。
-  '/api/admin/kpi',  // Phase A.17.0: GAS から呼ばれる KPI 集計 API。Bearer ADMIN_KPI_SECRET で認証。
-  '/api/admin/batch-generate',  // Phase 2: meta-ads-autopilot からの Bearer API Key 認証エンドポイント
-  '/api/admin/batch-reject',    // Phase 4: 拒否理由を受け取って次回 prompt に注入する用
-  '/api/admin/meta-ad-link',    // C1: meta-ads-autopilot が ad_id↔生成画像 を登録。route 側で verifyBatchGenerateAuth (Bearer) 済
-  '/api/cron/check-business-upgrade',  // Phase A.17.0: Vercel Cron。Bearer CRON_SECRET で認証。
-  '/api/cron/process-video-jobs',  // Phase B.1: Vercel Cron。Bearer CRON_SECRET で認証。
-  '/api/cron/notify-retention',  // Phase A.19: D+1/D+3/D+7 Slack 通知。Bearer CRON_SECRET で認証。
-  '/api/cron/daily-kpi-analysis',  // Phase A.19: 毎朝 KPI + Claude 所感 Slack 投稿。Bearer CRON_SECRET で認証。
-];
-
-const PUBLIC_PATH_PREFIXES = [
-  '/api/auth',  // NextAuth エンドポイント
-  '/_next',
-  '/legal',  // Phase A.15: 特商法 / 利用規約 / プライバシーポリシー
-  '/site',  // LP Maker Pro 2.0 D10-T14: 公開 LP（/site/[user]/[slug]）。認証なしで閲覧可。
-];
 
 /**
  * 流入計測: 初回訪問時に first touch の attribution cookie を焼く。
@@ -173,13 +149,9 @@ export default auth((req) => {
     return handleLp01Ab(req);
   }
 
-  // 完全一致 public パス
-  if (PUBLIC_PATHS.includes(pathname)) {
-    return withAttribution(req, NextResponse.next());
-  }
-
-  // プレフィックス public パス
-  if (PUBLIC_PATH_PREFIXES.some((p) => pathname.startsWith(p))) {
+  // public パス（完全一致 + プレフィックス一致）。
+  // 定義は @/lib/auth/public-paths。そこに載せたパスは認証を route 側に委ねる。
+  if (isPublicPath(pathname)) {
     return withAttribution(req, NextResponse.next());
   }
 

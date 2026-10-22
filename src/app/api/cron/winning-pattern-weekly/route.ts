@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 import { aggregateWinningPatterns, defaultFormula } from '@/lib/feedback-loop/aggregate';
 import { sendWeeklyAdReport } from '@/lib/slack/ad-report';
 import { getActiveAccounts } from '@/lib/feedback-loop/accounts';
+import { verifyCronSecret } from '@/lib/auth/verify-bearer-secret';
 
 export const maxDuration = 120;
 export const runtime = 'nodejs';
 
 /** 直近7日を集計して WinningPattern を更新。"0 0 * * 1"(UTC月曜)=JST月曜9:00 */
 export const GET = async (req: Request) => {
-  const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const end = new Date(Date.now() - 24 * 60 * 60 * 1000);

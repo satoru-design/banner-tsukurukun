@@ -3,12 +3,19 @@ import { getPrisma } from '@/lib/prisma';
 import { uploadAssetImage } from '@/lib/assets/blob-client';
 import { analyzeWinningBanner } from '@/lib/winning-banner/analyze';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
+import { ownedWhere } from '@/lib/auth/ownership';
+import { validateImageUpload } from '@/lib/uploads/image-validation';
+import { safeFetch, UnsafeUrlError } from '@/lib/net/safe-url';
+import { internalErrorResponse } from '@/lib/api/error-response';
 import type { WinningBannerDTO } from '@/lib/winning-banner/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const WINNING_TYPE = 'winning_banner';
+
+/** blob-client 側の上限と同値。 */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 /**
  * GET /api/winning-banners
@@ -21,12 +28,17 @@ export async function GET() {
     }
 
     const user = await getCurrentUser();
+    if (!user.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const prisma = getPrisma();
+    // 以前は `user.userId ? {...} : {}` だったため、未ログインだと
+    // 絞り込みが外れて全ユーザーの勝ちバナーを返していた。
     const records = await prisma.asset.findMany({
       where: {
         type: WINNING_TYPE,
-        // Phase 1: userId は常に null。Phase 2 でフィルタ有効化。
-        ...(user.userId ? { userId: user.userId } : {}),
+        ...ownedWhere(user.userId, user.plan === 'admin'),
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -44,9 +56,7 @@ export async function GET() {
 
     return NextResponse.json({ banners });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    console.error('winning-banners GET error:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalErrorResponse('winning-banners GET', error, '一覧の取得に失敗しました');
   }
 }
 
@@ -65,6 +75,10 @@ export async function POST(req: Request) {
     }
 
     const user = await getCurrentUser();
+    if (!user.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const contentType = req.headers.get('content-type') ?? '';
 
     let bytes: ArrayBuffer;
@@ -80,7 +94,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'file is required' }, { status: 400 });
       }
       bytes = await file.arrayBuffer();
-      mime = file.type || 'image/png';
+      // 申告 MIME ではなくマジックバイトから判定した値を使う。
+      const validated = validateImageUpload(file.type, bytes, MAX_UPLOAD_BYTES);
+      if (!validated.ok) {
+        return NextResponse.json({ error: validated.reason }, { status: 400 });
+      }
+      mime = validated.contentType;
       originalFilename = file.name || 'winning-banner.png';
       displayName = nameField || originalFilename.replace(/\.[^.]+$/, '');
     } else if (contentType.includes('application/json')) {
@@ -89,15 +108,29 @@ export async function POST(req: Request) {
       if (!url) {
         return NextResponse.json({ error: 'url is required' }, { status: 400 });
       }
-      if (!/^https?:\/\//.test(url)) {
-        return NextResponse.json({ error: 'url must start with http:// or https://' }, { status: 400 });
+      // SSRF 対策: 名前解決した IP がグローバルであることを確認し、
+      // リダイレクトは追わない。以前は `^https?://` だけの検証で
+      // 任意の内部アドレスを取得でき、本体が public Blob に保存されて
+      // その URL が呼び出し元に返っていた。
+      let fetched;
+      try {
+        fetched = await safeFetch(url, { maxBytes: MAX_UPLOAD_BYTES });
+      } catch (e) {
+        if (e instanceof UnsafeUrlError) {
+          return NextResponse.json({ error: e.message }, { status: 400 });
+        }
+        return NextResponse.json({ error: 'URL を取得できませんでした' }, { status: 400 });
       }
-      const fetched = await fetch(url);
-      if (!fetched.ok) {
-        return NextResponse.json({ error: `Failed to fetch URL: ${fetched.status}` }, { status: 400 });
+      // 上流のステータスはそのまま返さない（到達可否のオラクルになる）。
+      if (fetched.status < 200 || fetched.status >= 300) {
+        return NextResponse.json({ error: 'URL を取得できませんでした' }, { status: 400 });
       }
-      bytes = await fetched.arrayBuffer();
-      mime = fetched.headers.get('content-type') ?? 'image/jpeg';
+      bytes = fetched.bytes;
+      const validated = validateImageUpload(fetched.contentType, bytes, MAX_UPLOAD_BYTES);
+      if (!validated.ok) {
+        return NextResponse.json({ error: validated.reason }, { status: 400 });
+      }
+      mime = validated.contentType;
       const urlPath = new URL(url).pathname;
       originalFilename = urlPath.split('/').pop() || 'winning-banner.jpg';
       displayName = body.name?.trim() || originalFilename.replace(/\.[^.]+$/, '') || 'winning-banner';
@@ -157,8 +190,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ banner: dto });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    console.error('winning-banners POST error:', error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return internalErrorResponse('winning-banners POST', error, '勝ちバナーの登録に失敗しました');
   }
 }

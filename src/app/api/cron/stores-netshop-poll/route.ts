@@ -8,13 +8,14 @@
 import { NextResponse } from 'next/server';
 import { fetchRecentPaidOrders } from '@/lib/billing/stores/netshop-client';
 import { processOrders } from '@/lib/billing/stores/auto-grant';
+import { verifyCronSecret } from '@/lib/auth/verify-bearer-secret';
 
 export const dynamic = 'force-dynamic';
 
 const WINDOW_MINUTES = 15;
 
 export async function GET(req: Request) {
-  if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 

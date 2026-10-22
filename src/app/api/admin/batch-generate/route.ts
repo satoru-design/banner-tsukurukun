@@ -65,7 +65,7 @@ export async function POST(req: Request): Promise<Response> {
   } catch (e) {
     console.error('[batch-generate] admin user resolve failed:', e);
     return NextResponse.json(
-      { error: 'Admin user resolution failed', details: (e as Error).message },
+      { error: 'Admin user resolution failed' },
       { status: 500 },
     );
   }
