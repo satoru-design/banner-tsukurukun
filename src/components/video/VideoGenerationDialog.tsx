@@ -134,19 +134,29 @@ export function VideoGenerationDialog({
 
   const currentProvider = PROVIDERS.find((p) => p.id === provider)!;
   // 送信にも表示にもこの値を使う。選べる尺ならそのまま、非対応なら
-  // 最も近い尺へ寄せる。下の補正と同じ関数を通すのでずれない。
+  // 最も近い尺へ寄せる。補正ブロックと同じ関数を使うので両者はずれない。
   const validDuration = nearestAllowedDuration(
     currentProvider.allowedDurations,
     durationSeconds,
   );
 
-  // dialog 起動時にプロバイダ選択肢に応じて尺を補正
-  useEffect(() => {
+  // プロバイダが変わった瞬間に、非対応になった選択を補正する。
+  //
+  // 以前は useEffect の中で setState していたが、それは render を1往復
+  // 余計に走らせる。React 公式の「prop や state の変化に合わせて state を
+  // 調整する」パターンに置き換え、前回の provider と比較して render 中に
+  // 補正する。
+  //
+  // 寄せ先は nearestAllowedDuration に任せる。最長ではなく最も近い尺へ
+  // 寄せるので、補正で課金対象の尺が不必要に伸びない。
+  const [prevProvider, setPrevProvider] = useState<ProviderId>(provider);
+  if (prevProvider !== provider) {
+    setPrevProvider(provider);
     if (!currentProvider.allowedDurations.includes(durationSeconds)) {
       setDurationSeconds(validDuration);
     }
     if (!currentProvider.supportsAudio) setGenerateAudio(false);
-  }, [provider, currentProvider, durationSeconds, validDuration]);
+  }
 
   // 動画生成ジョブをポーリング
   useEffect(() => {
