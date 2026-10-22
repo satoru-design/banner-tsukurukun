@@ -1,0 +1,51 @@
+name: CI
+
+# push と pull_request の両方で型チェックとテストを走らせる。
+#
+# このリポジトリは public なので、secrets は一切参照しない。
+# fork からの PR でも同じように緑になる（= 鍵が無くても通る）構成にしている。
+# テスト側も tests/setup/no-network.ts で未スタブの通信を落とし、
+# 資格情報系の環境変数を消すので、鍵やネットワークの有無で結果は変わらない。
+on:
+  push:
+  pull_request:
+
+# 同じ ref に連続で push されたとき、古い実行を打ち切る。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 読み取りのみ。書き込み権限は不要。
+permissions:
+  contents: read
+
+jobs:
+  typecheck-and-test:
+    name: Typecheck and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # リポジトリに .nvmrc も package.json の engines も無いため、
+      # next@16.2.4 の要件（node >=20.9.0）を満たす現行 LTS の 22 を固定で指定する。
+      # .nvmrc か engines を追加したら、ここを node-version-file に切り替えるとよい。
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # postinstall の prisma generate は schema だけで動き、DATABASE_URL を必要としない。
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # 型チェックが落ちてもテスト結果まで見えるようにする。
+      - name: Test
+        if: ${{ !cancelled() }}
+        run: npm test
